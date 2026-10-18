@@ -12,6 +12,7 @@
 //   DailyStrip    the phone-only strip of dailies above the task list
 //   Calendar      the whole column (this is what App.jsx uses)
 
+import Icon from './Icons.jsx';
 import { memo, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
@@ -357,7 +358,7 @@ function useMarks(s, weeks, today) {
 // ======================================================================
 // ONE ROW IN THE DAILIES LIST
 // ======================================================================
-function DailyRow({ s, daily, date, today }) {
+function DailyRow({ s, daily, date, today, onEdit }) {
   const isOn = isDone(s, daily.id, date);
   const streak = streakOf(s, daily.id, today);
 
@@ -387,7 +388,10 @@ function DailyRow({ s, daily, date, today }) {
         aria-label={daily.name}
         onClick={() => toggleDaily(daily, date, today)}
       />
-      <span className="daily-name">{daily.name}</span>
+      {/* Clicking the name opens the editor (rename and change colour). */}
+      <button className="daily-name daily-name-btn" aria-label={`Edit ${daily.name}`} onClick={() => onEdit(daily.id)}>
+        {daily.name}
+      </button>
 
       <span
         className={'streak' + (streak ? '' : ' cold')}
@@ -481,7 +485,8 @@ export function DailyStrip({ today }) {
 //   day     the day picked by the user, or null
 //   setDay  function to pick a day
 //   open    function to open a pop-up window ('reminders', 'keys', 'settings')
-export default function Calendar({ today, day, setDay, open }) {
+//   editDaily  function that opens the editor for a daily (gets the daily's id)
+export default function Calendar({ today, day, setDay, open, editDaily }) {
   const s = useStore();
   const sync = useSync(); // are we signed in / syncing?
 
@@ -526,12 +531,6 @@ export default function Calendar({ today, day, setDay, open }) {
   // The little text next to "Dailies", e.g. "· Oct 18" when looking at another day.
   const dailiesSuffix = day && day !== today ? ` · ${MON[shownDate.getMonth()]} ${shownDate.getDate()}` : '';
 
-  // The text on the account button at the bottom.
-  let accountLabel;
-  if (sync.user) accountLabel = sync.user.email.split('@')[0]; // the part before the @
-  else if (sync.sync === 'off') accountLabel = 'Settings';
-  else accountLabel = 'Sign in';
-
   return (
     <section className="col col-calendar" aria-label="Calendar">
       <header className="col-head">
@@ -574,8 +573,8 @@ export default function Calendar({ today, day, setDay, open }) {
           ))}
         </motion.div>
 
-        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)}>
-          {month ? 'Two weeks' : 'Month'}
+        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show the whole month'} title={month ? 'Show two weeks' : 'Show the whole month'}>
+          <Icon name={month ? 'chevronUp' : 'chevronDown'} size={16} />
         </button>
       </div>
 
@@ -588,7 +587,7 @@ export default function Calendar({ today, day, setDay, open }) {
         <ul className="daily-list">
           <AnimatePresence initial={false}>
             {dailies.map((daily) => (
-              <DailyRow key={daily.id} s={s} daily={daily} date={shown} today={today} />
+              <DailyRow key={daily.id} s={s} daily={daily} date={shown} today={today} onEdit={editDaily} />
             ))}
           </AnimatePresence>
         </ul>
@@ -599,15 +598,15 @@ export default function Calendar({ today, day, setDay, open }) {
 
       {/* The buttons at the bottom of the column */}
       <footer className="col-foot">
-        <button className="btn-ghost" onClick={() => open('reminders')}>
-          ↻ Reminders
+        <button className="btn-ghost" onClick={() => open('reminders')} aria-label="Reminders" title="Reminders">
+          <Icon name="repeat" size={16} />
         </button>
-        <button className="btn-ghost" aria-label="Keyboard shortcuts" onClick={() => open('keys')}>
-          ?
+        <button className="btn-ghost" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onClick={() => open('keys')}>
+          <Icon name="help" size={16} />
         </button>
-        <button className="btn-ghost account" onClick={() => open('settings')}>
+        <button className="btn-ghost account" onClick={() => open('settings')} aria-label="Settings" title="Settings">
           <i className={'sync-dot ' + sync.sync} />
-          {accountLabel}
+          <Icon name="sliders" size={16} />
         </button>
       </footer>
     </section>

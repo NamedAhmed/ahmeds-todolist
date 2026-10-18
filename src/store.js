@@ -184,6 +184,13 @@ export function commit(label, changes) {
   emit();
 }
 
+// Save a preference (theme, wallpaper...) in the `settings` table. Unlike commit(), this is NOT
+// added to the undo list, so Ctrl+Z never flips your theme back. It still syncs like everything else.
+export function saveSetting(id, patch) {
+  apply([{ t: 'settings', id, patch }]);
+  emit();
+}
+
 // Reverse the last change. Returns its label, or null if there was nothing to undo.
 export function undo() {
   const last = undoStack.pop();

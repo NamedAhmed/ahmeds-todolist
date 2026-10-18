@@ -11,5 +11,6 @@ import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './base.css'; // basic styling: colours, fonts, buttons
 import './app.css';  // styling for the specific parts of the app
+import './appearance.css'; // themes and the animated wallpaper
 
 createRoot(document.getElementById('root')).render(<App />);

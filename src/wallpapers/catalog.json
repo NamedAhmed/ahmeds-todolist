@@ -1,0 +1,444 @@
+[
+  {
+    "id": "fluids",
+    "title": "Fluids",
+    "desc": "Fluid simulation using WebGL, reacts with system audio & cursor.",
+    "author": "PavelDoGreat",
+    "contact": "https://github.com/rocksdanister/WebGL-Fluid-Simulation",
+    "license": "MIT",
+    "licenseFile": "LICENSE.txt",
+    "entry": "index.html",
+    "thumbnail": "thumbnail.jpg",
+    "preview": "preview.gif",
+    "properties": [
+      {
+        "name": "audioReact",
+        "type": "checkbox",
+        "value": true,
+        "text": "Audio Visualiser"
+      },
+      {
+        "name": "randomSplats",
+        "type": "checkbox",
+        "value": true,
+        "text": "Random Splats"
+      },
+      {
+        "name": "quality",
+        "type": "dropdown",
+        "value": 0,
+        "text": "Quality",
+        "items": [
+          "High",
+          "Medium",
+          "Low",
+          "Very Low"
+        ]
+      },
+      {
+        "name": "simResolution",
+        "type": "dropdown",
+        "value": 2,
+        "text": "Sim Resolution",
+        "items": [
+          "32",
+          "64",
+          "128",
+          "256"
+        ]
+      },
+      {
+        "name": "densityDiffusion",
+        "max": 40,
+        "min": 0,
+        "tick": 41,
+        "text": "Density Diffusion",
+        "type": "slider",
+        "value": 10
+      },
+      {
+        "name": "velocityDiffusion",
+        "max": 400,
+        "min": 0,
+        "tick": 401,
+        "text": "Velocity Diffusion",
+        "type": "slider",
+        "value": 100
+      },
+      {
+        "name": "pressure",
+        "max": 100,
+        "min": 0,
+        "tick": 101,
+        "text": "Pressure",
+        "type": "slider",
+        "value": 10
+      },
+      {
+        "name": "vorticity",
+        "max": 50,
+        "min": 0,
+        "tick": 51,
+        "text": "Vorticity",
+        "type": "slider",
+        "value": 20
+      },
+      {
+        "name": "splatRadius",
+        "max": 100,
+        "min": 1,
+        "tick": 100,
+        "text": "Splat Radius",
+        "type": "slider",
+        "value": 20
+      },
+      {
+        "name": "shading",
+        "type": "checkbox",
+        "value": true,
+        "text": "Shading"
+      },
+      {
+        "name": "colorful",
+        "type": "checkbox",
+        "value": true,
+        "text": "Colorful"
+      },
+      {
+        "name": "bloomEnable",
+        "type": "checkbox",
+        "value": true,
+        "text": "Bloom"
+      },
+      {
+        "name": "bloomIntensity",
+        "max": 200,
+        "min": 10,
+        "tick": 191,
+        "text": "Bloom Intensity",
+        "type": "slider",
+        "value": 15
+      },
+      {
+        "name": "bloomThreshold",
+        "max": 100,
+        "min": 0,
+        "tick": 101,
+        "text": "Bloom Threshold",
+        "type": "slider",
+        "value": 75
+      },
+      {
+        "name": "sunRaysEnable",
+        "type": "checkbox",
+        "value": true,
+        "text": "Sunrays"
+      },
+      {
+        "name": "sunRaysWeight",
+        "max": 100,
+        "min": 30,
+        "tick": 71,
+        "text": "Sunray Weight",
+        "type": "slider",
+        "value": 40
+      },
+      {
+        "name": "bgColor",
+        "text": "BG Color",
+        "type": "color",
+        "value": "#000000"
+      },
+      {
+        "name": "imgSelect",
+        "type": "folderDropdown",
+        "value": "pexels-neosiam-601798.jpg",
+        "text": "Image",
+        "filter": "*.jpg|*.png",
+        "folder": "wallpapers",
+        "files": [
+          "mountain-surrounded-with-fog-1772973.jpg",
+          "pexels-neosiam-601798.jpg"
+        ]
+      },
+      {
+        "name": "bgImgChk",
+        "type": "checkbox",
+        "value": false,
+        "text": "Background"
+      }
+    ]
+  },
+  {
+    "id": "rain",
+    "title": "Rain",
+    "desc": "Rainy window with customization",
+    "author": "rocksdanister",
+    "contact": "https://github.com/rocksdanister/rain",
+    "license": "See License.txt",
+    "licenseFile": "License.txt",
+    "entry": "index.html",
+    "thumbnail": "thumbnail.jpg",
+    "preview": "preview.gif",
+    "properties": [
+      {
+        "name": "rainIntensity",
+        "max": 100,
+        "min": 0,
+        "text": "Intensity",
+        "type": "slider",
+        "value": 40
+      },
+      {
+        "name": "rainSpeed",
+        "max": 100,
+        "min": 0,
+        "text": "Speed",
+        "type": "slider",
+        "value": 25
+      },
+      {
+        "name": "brightness",
+        "max": 100,
+        "min": 0,
+        "text": "Brightness",
+        "type": "slider",
+        "value": 75
+      },
+      {
+        "name": "rainNormal",
+        "max": 100,
+        "min": 0,
+        "text": "Normal",
+        "type": "slider",
+        "value": 50
+      },
+      {
+        "name": "rainZoom",
+        "max": 300,
+        "min": 10,
+        "text": "Zoom",
+        "type": "slider",
+        "value": 261
+      },
+      {
+        "name": "mediaSelect",
+        "type": "folderDropdown",
+        "value": "photo:misty-mountain",
+        "text": "Background (.jpg, .png, .webm)",
+        "filter": "*.jpg|*.jpeg|*.png|*.webm",
+        "folder": "media",
+        "files": []
+      },
+      {
+        "name": "mediaScaling",
+        "type": "dropdown",
+        "value": 1,
+        "text": "Scaling",
+        "items": [
+          "Stretch",
+          "Fill"
+        ]
+      },
+      {
+        "name": "blurQuality",
+        "type": "dropdown",
+        "value": 1,
+        "text": "Blur Quality",
+        "items": [
+          "Off",
+          "Low",
+          "High",
+          "Very High"
+        ]
+      },
+      {
+        "name": "blurIntensity",
+        "max": 100,
+        "min": 0,
+        "text": "Blur Intensity",
+        "type": "slider",
+        "value": 50
+      },
+      {
+        "name": "parallaxIntensity",
+        "max": 5,
+        "min": 0,
+        "text": "Parallax",
+        "type": "slider",
+        "value": 1
+      },
+      {
+        "name": "displayScaling",
+        "max": 1,
+        "min": 0.1,
+        "step": 0.1,
+        "text": "Scaling",
+        "type": "slider",
+        "value": 1
+      },
+      {
+        "name": "animateChk",
+        "type": "checkbox",
+        "value": false,
+        "text": "Panning"
+      },
+      {
+        "name": "postProcessingChk",
+        "type": "checkbox",
+        "value": true,
+        "text": "Post Processing"
+      },
+      {
+        "name": "lightningChk",
+        "type": "checkbox",
+        "value": false,
+        "text": "Lightning"
+      },
+      {
+        "name": "fpsLock",
+        "type": "checkbox",
+        "value": true,
+        "text": "30FPS Lock"
+      },
+      {
+        "name": "debug",
+        "type": "checkbox",
+        "value": false,
+        "text": "Debug"
+      }
+    ]
+  },
+  {
+    "id": "the-hill",
+    "title": "The Hill",
+    "desc": "Shader generated hill.",
+    "author": "Yoichi Kobayashi",
+    "contact": "https://codepen.io/ykob/pen/aBrjaR",
+    "license": "",
+    "licenseFile": "license.txt",
+    "entry": "index.html",
+    "thumbnail": "lively_t.jpg",
+    "preview": "lively_p.gif",
+    "properties": [
+      {
+        "name": "hillOpacityFac",
+        "max": 1000,
+        "min": 0,
+        "tick": 1001,
+        "text": "Hill Opacity",
+        "type": "slider",
+        "value": 50
+      },
+      {
+        "name": "bgColor",
+        "text": "Background",
+        "type": "color",
+        "value": "#0e0e0e"
+      },
+      {
+        "name": "hillColor",
+        "text": "Hill",
+        "type": "color",
+        "value": "#ffffff"
+      },
+      {
+        "name": "fontColor",
+        "text": "Font",
+        "type": "color",
+        "value": "#ffffff"
+      },
+      {
+        "name": "timeToggle",
+        "type": "checkbox",
+        "value": true,
+        "text": "Time"
+      },
+      {
+        "name": "dateToggle",
+        "type": "checkbox",
+        "value": true,
+        "text": "Date"
+      },
+      {
+        "name": "_12hour",
+        "type": "checkbox",
+        "value": true,
+        "text": "12 Hour"
+      },
+      {
+        "name": "mmddyy",
+        "type": "checkbox",
+        "value": false,
+        "text": "Month/Day Format"
+      }
+    ]
+  },
+  {
+    "id": "triangles-light",
+    "title": "Triangles & Light",
+    "desc": "Triangle pattern generator with light that follow cursor.",
+    "author": "Maksim Surguy",
+    "contact": "https://codepen.io/msurguy/pen/sbIio",
+    "license": "",
+    "licenseFile": "license.txt",
+    "entry": "triangle.html",
+    "thumbnail": "lively_t.jpg",
+    "preview": "lively_p.gif",
+    "properties": [
+      {
+        "name": "label1",
+        "type": "label",
+        "value": "Mesh"
+      },
+      {
+        "name": "meshAmbient",
+        "text": "Ambient",
+        "type": "color",
+        "value": "#000000"
+      },
+      {
+        "name": "meshDiffuse",
+        "text": "Diffuse",
+        "type": "color",
+        "value": "#C0C0C0"
+      },
+      {
+        "name": "meshSlices",
+        "max": 800,
+        "min": 1,
+        "tick": 800,
+        "text": "Slices",
+        "type": "slider",
+        "value": 350
+      },
+      {
+        "name": "label2",
+        "type": "label",
+        "value": "Light"
+      },
+      {
+        "name": "lightAmbient",
+        "text": "Ambient",
+        "type": "color",
+        "value": "#C0C0C0"
+      },
+      {
+        "name": "lightDiffuse",
+        "text": "Diffuse",
+        "type": "color",
+        "value": "#808080"
+      },
+      {
+        "name": "lightDistance",
+        "max": 1000,
+        "min": 0,
+        "tick": 1001,
+        "text": "Distance",
+        "type": "slider",
+        "value": 135
+      }
+    ],
+    "seeThrough": true
+  }
+]

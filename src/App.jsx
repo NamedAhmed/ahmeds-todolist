@@ -8,30 +8,37 @@
 //   Modals (pop-up windows)       -> components/Modals.jsx
 //   Toasts (little messages)      -> components/Fire.jsx
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { getState, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
 import Tasks, { TaskDnd } from './components/Tasks.jsx';
 import { Notes } from './components/Side.jsx';
-import { KeysModal, RemindersModal, SettingsModal } from './components/Modals.jsx';
+import { DailyEditModal, KeysModal, RemindersModal } from './components/Modals.jsx';
+import { SettingsSheet } from './components/Settings.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
+import Icon from './components/Icons.jsx';
+import { Resizer, useColumns } from './components/Columns.jsx';
+import Wallpaper from './Wallpaper.jsx';
 
 // The three buttons in the bottom bar on a phone: [internal name, label shown].
 const TABS = [
-  ['calendar', 'Calendar'],
-  ['tasks', 'Tasks'],
-  ['notes', 'Notes'],
+  ['calendar', 'Calendar', 'calendar'],
+  ['tasks', 'Tasks', 'list'],
+  ['notes', 'Notes', 'note'],
 ];
 
 export default function App() {
   const today = useToday(); // today's date, e.g. "2026-10-18"
+  const grid = useRef(null); // the page's grid, for the column widths
+  const columns = useColumns(grid);
 
   // ---- things the screen remembers (React "state") ----
   const [day, setDay] = useState(null);     // a day picked on the calendar, or null for "everything"
   const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
+  const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
 
 
   // ---- Effect 1: once a day, when the app opens, point out a streak that died yesterday ----
@@ -134,13 +141,18 @@ export default function App() {
   // ---- What gets drawn on the screen ----
   return (
     <>
-      <div className="app" data-tab={tab}>
+      {/* The animated background and the theme. It sits behind everything. */}
+      <Wallpaper />
+
+      <div className="app" data-tab={tab} ref={grid} style={{ gridTemplateColumns: columns.template }} onClick={columns.onClick}>
         {/* TaskDnd wraps Calendar and Tasks so you can drag a task onto a calendar day. */}
         <TaskDnd day={day}>
-          <Calendar today={today} day={day} setDay={setDay} open={setModal} />
+          <Calendar today={today} day={day} setDay={setDay} open={setModal} editDaily={setEditingDaily} />
+          <Resizer index={0} grid={grid} {...columns} />
           <Tasks today={today} day={day} setDay={setDay} />
         </TaskDnd>
 
+        <Resizer index={1} grid={grid} {...columns} />
         <section className="col col-notes" aria-label="Notes">
           <Notes />
         </section>
@@ -148,19 +160,22 @@ export default function App() {
 
       {/* The bottom bar. It is only visible on a phone (see app.css). */}
       <nav className="tabbar" aria-label="Sections">
-        {TABS.map(([id, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
-            {label}
+        {TABS.map(([id, label, icon]) => (
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)} aria-label={label} title={label}>
+            <Icon name={icon} size={22} />
           </button>
         ))}
-        <button onClick={doUndo} aria-label="Undo">↶</button>
+        <button onClick={doUndo} aria-label="Undo" title="Undo">
+          <Icon name="undo" size={22} />
+        </button>
       </nav>
 
       {/* Pop-up windows. Only the one named in `modal` is shown. */}
       <AnimatePresence>
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
-        {modal === 'settings' && <SettingsModal key="s" onClose={() => setModal(null)} />}
+        {modal === 'settings' && <SettingsSheet key="s" onClose={() => setModal(null)} />}
         {modal === 'keys' && <KeysModal key="k" onClose={() => setModal(null)} />}
+        {editingDaily && <DailyEditModal key="d" id={editingDaily} onClose={() => setEditingDaily(null)} />}
       </AnimatePresence>
 
       {/* The little messages that slide in at the bottom. */}
