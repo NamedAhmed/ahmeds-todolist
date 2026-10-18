@@ -230,6 +230,10 @@ const TaskRow = memo(function TaskRow({ s, task, today, open, onToggleOpen, onMo
           <RowMenu items={menu} open={menuOpen} onOpenChange={setMenuOpen} />
         </span>
       </div>
+      <span className="quick">
+        <button tabIndex={-1} onClick={() => edit(true)}>Rename</button>
+        <button tabIndex={-1} className="danger" onClick={remove}>Delete</button>
+      </span>
       {isProject && !done && <div className="progress" style={{ '--p': pct + '%' }} role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100" />}
       <AnimatePresence initial={false}>{isProject && open && <ProjectBody s={s} task={task} />}</AnimatePresence>
     </li>
