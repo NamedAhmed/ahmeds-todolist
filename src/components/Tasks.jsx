@@ -1,11 +1,11 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
-import { between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
 
@@ -37,25 +37,38 @@ function Title({ value, editing, setEditing, onSave }) {
 }
 
 // The one control a row shows on hover. Everything you can do to a task lives in here.
-function RowMenu({ items }) {
-  const [open, setOpen] = useState(false);
+// Controlled by the row so a key can open it; arrows move through it and Escape hands focus back to the row.
+function RowMenu({ items, open, onOpenChange }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e) => { if (e.type === 'keydown' ? e.key === 'Escape' : !ref.current.contains(e.target)) setOpen(false); };
+    ref.current.querySelector('[role=menuitem]')?.focus();
+    const close = (e) => {
+      if (e.type === 'pointerdown' ? !ref.current.contains(e.target) : e.key === 'Escape') {
+        onOpenChange(false);
+        if (e.type === 'keydown') ref.current.closest('li')?.focus();
+      }
+    };
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', close);
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', close); };
-  }, [open]);
+  }, [open, onOpenChange]);
+  const arrows = (e) => {
+    const step = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const btns = [...ref.current.querySelectorAll('[role=menuitem]')];
+    btns[(btns.indexOf(document.activeElement) + step + btns.length) % btns.length].focus();
+  };
   return (
     <span className={'menu-wrap' + (open ? ' open' : '')} ref={ref}>
-      <button className="more" aria-label="More" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
+      <button className="more" tabIndex={-1} aria-label="More" aria-expanded={open} onClick={() => onOpenChange(!open)}>⋯</button>
       <AnimatePresence>
         {open && (
-          <motion.div className="menu" role="menu" initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }}>
-            {items.filter(Boolean).map((item) => item === '-'
-              ? <hr key={Math.random()} />
-              : <button key={item.label} role="menuitem" className={(item.danger ? 'danger ' : '') + (item.on ? 'on' : '')} onClick={() => { setOpen(false); item.run(); }}>{item.label}</button>)}
+          <motion.div className="menu" role="menu" onKeyDown={arrows} initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }}>
+            {items.filter(Boolean).map((item, i) => item === '-'
+              ? <hr key={'hr' + i} />
+              : <button key={item.label} role="menuitem" className={(item.danger ? 'danger ' : '') + (item.on ? 'on' : '')} onClick={() => { onOpenChange(false); item.run(); }}>{item.label}</button>)}
           </motion.div>
         )}
       </AnimatePresence>
@@ -63,10 +76,32 @@ function RowMenu({ items }) {
   );
 }
 
+// Rows are keyboard stops. Focus moves between them without touching their inner controls.
+const rowsOf = (li) => [...li.parentElement.children].filter((c) => c.matches('li.task[tabindex]'));
+function stepFocus(li, to) {
+  const rows = rowsOf(li);
+  const next = to === 'first' ? rows[0] : to === 'last' ? rows.at(-1) : rows[rows.indexOf(li) + to];
+  next?.focus();
+}
+// Every row answers the same movement keys; `act` supplies the row's own verbs.
+function rowKeys(e, act) {
+  if (e.target !== e.currentTarget || e.ctrlKey || e.metaKey) return;
+  const li = e.currentTarget;
+  const nav = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1, Home: 'first', End: 'last' }[e.key];
+  if (nav !== undefined && !e.altKey) { e.preventDefault(); return stepFocus(li, nav); }
+  const verb = e.altKey ? ({ ArrowUp: act.up, ArrowDown: act.down })[e.key] : ({
+    ' ': act.toggle, x: act.toggle, Enter: act.enter, e: act.rename, d: act.date, m: act.menu, ContextMenu: act.menu,
+    '[': act.earlier, ']': act.later, Delete: act.remove, Backspace: act.remove, s: act.skip
+  })[e.key];
+  if (!verb) return;
+  e.preventDefault();
+  verb();
+}
+
 function DueButton({ due, today, done, inputRef }) {
   const info = dueInfo(due, today);
   if (!due) return null;
-  return <button type="button" className={'due ' + (done ? '' : info.cls)} onClick={() => inputRef.current.showPicker?.()}>{info.text}</button>;
+  return <button type="button" tabIndex={-1} className={'due ' + (done ? '' : info.cls)} onClick={() => inputRef.current.showPicker?.()}>{info.text}</button>;
 }
 
 // ---------- finishing things ----------
@@ -134,10 +169,12 @@ function ProjectBody({ s, task }) {
 
 // ---------- one row ----------
 // At rest a row is a checkbox, a name and a date. Hovering adds the grip and one menu button.
-function TaskRow({ s, task, today, open, onToggleOpen, sortable }) {
+const TaskRow = memo(function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, disabled: !sortable });
   const [closing, setClosing] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const liRef = useRef(null);
   const dateRef = useRef(null);
   const isProject = task.kind === 'project';
   const done = task.done || closing;
@@ -153,56 +190,74 @@ function TaskRow({ s, task, today, open, onToggleOpen, sortable }) {
   };
   useEffect(() => { if (task.done) setClosing(false); }, [task.done]);
 
+  // Leaving the rename box by keyboard lands back on the row, not on nothing.
+  const edit = (on) => { setEditing(on); if (!on) requestAnimationFrame(() => { if (document.activeElement === document.body) liRef.current?.focus(); }); };
+  const shiftDue = (n) => patch('due date changed', { due: addDays(task.due || today, n) });
+  const remove = () => {
+    const rows = rowsOf(liRef.current), i = rows.indexOf(liRef.current), keep = rows[i + 1] ?? rows[i - 1];
+    removeTask(task);
+    setTimeout(() => keep?.isConnected && keep.focus(), 80);
+  };
+  const keys = (e) => rowKeys(e, {
+    toggle, enter: isProject ? () => onToggleOpen(task.id) : () => edit(true), rename: () => edit(true),
+    date: () => dateRef.current.showPicker?.(), menu: () => setMenuOpen(true), earlier: () => shiftDue(-1), later: () => shiftDue(1),
+    remove, up: sortable && (() => onMove(task.id, -1)), down: sortable && (() => onMove(task.id, 1))
+  });
+
   const menu = [
-    { label: 'Rename', run: () => setEditing(true) },
+    { label: 'Rename', run: () => edit(true) },
     { label: task.due ? 'Change date' : 'Set a date', run: () => dateRef.current.showPicker?.() },
     task.due && { label: 'Remove date', run: () => patch('date removed', { due: null }) },
-    { label: isProject ? 'Turn into a task' : 'Turn into a project', run: () => { patch(isProject ? 'made a task' : 'made a project', { kind: isProject ? 'task' : 'project' }); if (!isProject && !open) onToggleOpen(); } },
+    { label: isProject ? 'Turn into a task' : 'Turn into a project', run: () => { patch(isProject ? 'made a task' : 'made a project', { kind: isProject ? 'task' : 'project' }); if (!isProject && !open) onToggleOpen(task.id); } },
     '-',
     { label: 'Delete', danger: true, run: () => removeTask(task) }
   ];
 
   const style = { transform: CSS.Translate.toString(transform), transition, viewTransitionName: isDragging ? 'none' : `t-${task.id}` };
   return (
-    <li ref={setNodeRef} style={style} data-task={task.id} className={['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ')}>
+    <li ref={(node) => { setNodeRef(node); liRef.current = node; }} style={style} data-task={task.id} tabIndex={0} onKeyDown={keys} className={['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ')}>
       <div className="task-main">
-        {sortable && <button className="grip" aria-label="Drag to reorder" {...attributes} {...listeners}>⋮⋮</button>}
-        <button className={'check' + (isProject ? ' square' : '')} aria-pressed={done} aria-label={(done ? 'Mark not done: ' : 'Mark done: ') + task.title} onClick={toggle}><CheckIcon /></button>
+        {sortable && <button className="grip" aria-label="Drag to reorder" {...attributes} {...listeners} tabIndex={-1}>⋮⋮</button>}
+        <button tabIndex={-1} className={'check' + (isProject ? ' square' : '')} aria-pressed={done} aria-label={(done ? 'Mark not done: ' : 'Mark done: ') + task.title} onClick={toggle}><CheckIcon /></button>
         {isProject && !editing
-          ? <button className="task-title as-button" onClick={onToggleOpen} aria-expanded={open}>{task.title}</button>
-          : <Title value={task.title} editing={editing} setEditing={setEditing} onSave={(title) => patch('task renamed', { title })} />}
+          ? <button tabIndex={-1} className="task-title as-button" onClick={() => onToggleOpen(task.id)} aria-expanded={open}>{task.title}</button>
+          : <Title value={task.title} editing={editing} setEditing={edit} onSave={(title) => patch('task renamed', { title })} />}
         {late > 0 && <span className="jab">{lateJab(late, task.created || 0)}</span>}
         <span className="row-end">
           {isProject && <span className="count">{subs.filter((x) => x.done).length}/{subs.length}</span>}
           <DueButton due={task.due} today={today} done={done} inputRef={dateRef} />
           <input ref={dateRef} className="hidden-date" type="date" value={task.due || ''} onChange={(e) => patch('due date changed', { due: e.target.value || null })} tabIndex={-1} aria-hidden="true" />
-          <RowMenu items={menu} />
+          <RowMenu items={menu} open={menuOpen} onOpenChange={setMenuOpen} />
         </span>
       </div>
       {isProject && !done && <div className="progress" style={{ '--p': pct + '%' }} role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100" />}
       <AnimatePresence initial={false}>{isProject && open && <ProjectBody s={s} task={task} />}</AnimatePresence>
     </li>
   );
-}
+// A row only repaints when its own task, the day, or (for a project) its steps change, not on every edit elsewhere.
+}, (a, b) => a.task === b.task && a.today === b.today && a.open === b.open && a.sortable === b.sortable && a.onMove === b.onMove
+  && (a.task.kind !== 'project' || a.s.tasks === b.s.tasks));
 
 // A reminder's turn in the list. Not a stored task: it exists because its rule says today is the day.
 function ReminderRow({ reminder, date, today }) {
   const [closing, setClosing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const info = dueInfo(date, today);
   const finish = (skipped) => {
     setClosing(true);
     const key = doneKey(reminder.id, date);
     setTimeout(() => smooth(() => commit(skipped ? 'reminder skipped' : 'reminder done', [{ t: 'completions', id: key, set: { id: key, ref: reminder.id, date, kind: 'reminder', skipped } }])), 400);
   };
+  const keys = (e) => rowKeys(e, { toggle: () => date <= today && finish(false), enter: () => date <= today && finish(false), skip: () => finish(true), menu: () => setMenuOpen(true) });
   return (
-    <li className={'task reminder' + (closing ? ' done' : '')} style={{ viewTransitionName: `r-${reminder.id}` }}>
+    <li className={'task reminder' + (closing ? ' done' : '')} style={{ viewTransitionName: `r-${reminder.id}` }} tabIndex={0} onKeyDown={keys}>
       <div className="task-main">
-        <button className="check" aria-label={'Mark done: ' + reminder.title} onClick={() => finish(false)} disabled={date > today}><CheckIcon /></button>
+        <button tabIndex={-1} className="check" aria-label={'Mark done: ' + reminder.title} onClick={() => finish(false)} disabled={date > today}><CheckIcon /></button>
         <span className="task-title">{reminder.title}</span>
         <span className="row-end">
           <span className="tag" title={ruleText(reminder.rule)}>↻ {ruleText(reminder.rule)}</span>
           <span className={'due ' + info.cls}>{info.text}</span>
-          <RowMenu items={[{ label: 'Skip this one', run: () => finish(true) }]} />
+          <RowMenu items={[{ label: 'Skip this one', run: () => finish(true) }]} open={menuOpen} onOpenChange={setMenuOpen} />
         </span>
       </div>
     </li>
@@ -250,6 +305,12 @@ const openTasks = (s, day, today) => all(s, 'tasks').filter((t) => !t.parent && 
 // Over a day cell the pointer decides; inside the list the nearest row does.
 const collide = (args) => { const hits = pointerWithin(args); return hits.length ? hits : closestCenter(args); };
 
+// Move one task to a new slot; only that task's position changes.
+function reorder(list, from, to) {
+  const moved = arrayMove(list, from, to);
+  commit('reordered', [{ t: 'tasks', id: list[from].id, patch: { position: between(moved[to - 1]?.position, moved[to + 1]?.position) } }]);
+}
+
 export function TaskDnd({ day, children }) {
   const [active, setActive] = useState(null);
   const sensors = useSensors(
@@ -270,8 +331,7 @@ export function TaskDnd({ day, children }) {
     const from = open.findIndex((t) => t.id === active.id);
     const to = open.findIndex((t) => t.id === over.id);
     if (from < 0 || to < 0) return;
-    const moved = arrayMove(open, from, to);
-    commit('reordered', [{ t: 'tasks', id: active.id, patch: { position: between(moved[to - 1]?.position, moved[to + 1]?.position) } }]);
+    reorder(open, from, to);
   };
   const dragged = active && all(getState(), 'tasks').find((t) => t.id === active);
   return (
@@ -309,11 +369,18 @@ export default function Tasks({ today, day, setDay }) {
   }, [top, today]);
   const line = useMemo(() => headline({ ...stats, seed: stats.open * 7 + stats.overdue * 3 + stats.doneToday }), [stats]);
 
-  const toggleOpen = (id) => {
+  const toggleOpen = useCallback((id) => {
     setOpenIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
     // once the project has unfolded, bring all of it into view
     setTimeout(() => document.querySelector(`[data-task="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 380);
-  };
+  }, []);
+  // Stable, so memoised rows aren't invalidated by it; it reads the current day from a ref.
+  const view = useRef({});
+  view.current = { day, today };
+  const moveRow = useCallback((id, dir) => {
+    const list = openTasks(getState(), view.current.day, view.current.today), from = list.findIndex((t) => t.id === id), to = from + dir;
+    if (from >= 0 && to >= 0 && to < list.length) reorder(list, from, to);
+  }, []);
   const lateCount = open.filter((t) => isLate(t, day, today)).length;
   const lateReminders = reminders.filter((x) => !day && x.date < today);
   const dueReminders = reminders.filter((x) => !lateReminders.includes(x));
@@ -344,7 +411,7 @@ export default function Tasks({ today, day, setDay }) {
             {open.map((t, i) => (
               <Fragment key={t.id}>
                 {lateTotal > 0 && i === lateCount && <><li className="group-head">Coming up</li>{dueReminders.map(reminderRow)}</>}
-                <TaskRow s={s} task={t} today={today} sortable open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />
+                <TaskRow s={s} task={t} today={today} sortable open={openIds.has(t.id)} onToggleOpen={toggleOpen} onMove={moveRow} />
               </Fragment>
             ))}
             {lateTotal > 0 && lateCount === open.length && <><li className="group-head">Coming up</li>{dueReminders.map(reminderRow)}</>}
@@ -355,7 +422,7 @@ export default function Tasks({ today, day, setDay }) {
               ? <span className="mono">Finished · {done.length}</span>
               : <button className="mono" onClick={() => setShowDone(!showDone)}>{showDone ? 'Hide' : 'Show'} finished · {done.length}</button>}</li>
           )}
-          {finishedShown && done.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable={false} open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />)}
+          {finishedShown && done.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable={false} open={openIds.has(t.id)} onToggleOpen={toggleOpen} onMove={moveRow} />)}
       </ul>
     </section>
   );
