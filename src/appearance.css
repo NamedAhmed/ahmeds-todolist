@@ -1,0 +1,1363 @@
+/* ======================================================================
+   appearance.css = themes, the wallpaper layers, and the Settings sheet.
+
+   HOW THEMES WORK
+   - The default theme ("ember", shown as Default in Settings) is the :root block in base.css.
+   - Every other theme re-defines the same names. A theme sets more than colours:
+       colours      --bg  --text  --accent ...
+       shape        --r-sm  --r-md  --r-lg  (corner roundness), --bw (border width),
+                    --app-pad / --app-gap / --col-radius (floating cards or flat strips)
+       material     --panel-bg  --panel-blur  --panel-shadow  --field-bg
+       fonts        --serif  --sans  --mono
+     The whole app uses var(--name), so changing these re-styles everything.
+   - appearance.js puts the chosen theme on the page as <html data-theme="liquid">, and the
+     selector [data-theme="liquid"] below then wins over the default.
+   - Because the selector is just [data-theme=...], any element can wear a theme. The theme cards
+     in Settings do exactly that, to preview their own colours and shapes.
+   - Some themes need extra rules (glass, paper texture, scanlines). Those are at the END of this file,
+     under THEME EXTRAS.
+   - Use 6-digit hex colours (#rrggbb) for --accent, --blue, --green, --warn and --text where you can:
+     the liquid wallpaper reads them.
+
+   TO ADD A THEME: copy a block below, change the name and values, then add it to THEMES in appearance.js.
+   ====================================================================== */
+
+/* DEFAULT. It is also the :root block in base.css; repeated here so a theme CARD can show it
+   while another theme is active. */
+[data-theme="ember"] {
+  --bg: #0c0b0a;
+  --line: #221f1b;
+  --surface: #151311;
+  --text: #efe9df;
+  --muted: #8a847a;
+  --faint: #4a453e;
+  --accent: #ff6b57;
+  --blue: #6cb8ff;
+  --green: #7ee0a1;
+  --warn: #f0b35a;
+  --track: #1c1a17;
+  --line-hi: #3a352f;
+  --line-mid: #2a2622;
+  --panel-a: #17150f;
+  --panel-b: #1f1c18;
+  --panel-c: #1a1815;
+  --text-soft: #d9d2c6;
+  --scrim: rgba(6, 5, 4, 0.8);
+  --hover-fill: #ffffff;
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+  --bw: 1px;
+  --divider: 1px;
+  --app-pad: 0px;
+  --app-gap: 0px;
+  --col-radius: 0px;
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --panel-bg: #151311;
+  --panel-blur: 0px;
+  --panel-shadow: 0 0 0 0 transparent;
+  --field-bg: #0c0b0a;
+  --serif: "Instrument Serif", Georgia, serif;
+  --sans: "Geist", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, monospace;
+}
+
+/* LIGHT. The same shapes as Default, in warm daylight colours. */
+[data-theme="light"] {
+  --bg: #f6f2ea;
+  --line: #e2dccf;
+  --surface: #ffffff;
+  --text: #231f1a;
+  --muted: #766e63;
+  --faint: #b3aa9b;
+  --accent: #e5533d;
+  --blue: #2f7fd1;
+  --green: #2e9e63;
+  --warn: #c9861a;
+  --track: #e9e3d6;
+  --line-hi: #cfc6b4;
+  --line-mid: #ddd5c4;
+  --panel-a: #efe9dc;
+  --panel-b: #ffffff;
+  --panel-c: #f2ede2;
+  --text-soft: #3d372f;
+  --scrim: rgba(246, 242, 234, 0.8);
+  --hover-fill: #4a4238;
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+  --bw: 1px;
+  --divider: 1px;
+  --app-pad: 0px;
+  --app-gap: 0px;
+  --col-radius: 0px;
+  --shadow-pop: 0 10px 30px rgba(60, 40, 10, 0.18);
+  --panel-bg: #ffffff;
+  --panel-blur: 0px;
+  --panel-shadow: 0 0 0 0 transparent;
+  --field-bg: #f6f2ea;
+  --serif: "Instrument Serif", Georgia, serif;
+  --sans: "Geist", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+
+/* LIQUID. Glass: see-through, blurred panels that float over the background, with big soft corners.
+   (The blur is under THEME EXTRAS.) */
+[data-theme="liquid"] {
+  --bg: #0b0b0d;
+  --line: rgba(255, 255, 255, 0.14);
+  --surface: rgba(255, 255, 255, 0.1);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.64);
+  --faint: rgba(255, 255, 255, 0.36);
+  --accent: #5eb8ff;
+  --blue: #7cc7ff;
+  --green: #5ee0a0;
+  --warn: #ffcf6b;
+  --track: rgba(255, 255, 255, 0.13);
+  --line-hi: rgba(255, 255, 255, 0.28);
+  --line-mid: rgba(255, 255, 255, 0.2);
+  --panel-a: rgba(255, 255, 255, 0.07);
+  --panel-b: rgba(255, 255, 255, 0.14);
+  --panel-c: rgba(255, 255, 255, 0.1);
+  --text-soft: rgba(255, 255, 255, 0.88);
+  --scrim: rgba(10, 10, 12, 0.5);
+  --hover-fill: rgba(255, 255, 255, 0.92);
+  --r-xs: 8px;
+  --r-sm: 14px;
+  --r-md: 20px;
+  --r-lg: 30px;
+  --r-pill: 999px;
+  --bw: 1px;
+  --divider: 0px;
+  --app-pad: 14px;
+  --app-gap: 14px;
+  --col-radius: 30px;
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.4);
+  --panel-bg: rgba(255, 255, 255, 0.1);
+  --panel-blur: 24px;
+  --panel-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --field-bg: rgba(255, 255, 255, 0.08);
+  --serif: "Inter", -apple-system, "SF Pro Display", system-ui, sans-serif;
+  --sans: "Inter", -apple-system, "SF Pro Text", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, monospace;
+}
+
+/* PAPER. A warm notebook: cream pages, ink, serif type, square corners, thicker lines, hard shadows. */
+[data-theme="paper"] {
+  --bg: #efe6d2;
+  --line: #cfc2a2;
+  --surface: #f8f1e1;
+  --text: #2b2418;
+  --muted: #6f624a;
+  --faint: #a99a79;
+  --accent: #b4412c;
+  --blue: #2f5d8a;
+  --green: #4f7a3a;
+  --warn: #b07a1c;
+  --track: #e0d5b9;
+  --line-hi: #8a7a56;
+  --line-mid: #b9ab88;
+  --panel-a: #f3ead6;
+  --panel-b: #fbf6ea;
+  --panel-c: #ece2c9;
+  --text-soft: #3f3624;
+  --scrim: rgba(239, 230, 210, 0.82);
+  --hover-fill: #4a3f2a;
+  --r-xs: 2px;
+  --r-sm: 3px;
+  --r-md: 4px;
+  --r-lg: 6px;
+  --r-pill: 4px;
+  --bw: 1.5px;
+  --divider: 2px;
+  --app-pad: 0px;
+  --app-gap: 0px;
+  --col-radius: 0px;
+  --shadow-pop: 4px 4px 0 rgba(43, 36, 24, 0.22);
+  --panel-bg: #f8f1e1;
+  --panel-blur: 0px;
+  --panel-shadow: 4px 4px 0 rgba(43, 36, 24, 0.2);
+  --field-bg: #fbf6ea;
+  --serif: "Fraunces", Georgia, serif;
+  --sans: "Lora", Georgia, serif;
+  --mono: "Courier Prime", "Courier New", monospace;
+  color-scheme: light;
+}
+
+/* TERMINAL. Green on black, monospace everywhere, sharp corners, a faint glow. */
+[data-theme="terminal"] {
+  --bg: #050a06;
+  --line: #12351d;
+  --surface: #08120a;
+  --text: #b8ffc8;
+  --muted: #4fae6a;
+  --faint: #24582f;
+  --accent: #39ff7a;
+  --blue: #4dd7ff;
+  --green: #39ff7a;
+  --warn: #ffd24d;
+  --track: #0c1c10;
+  --line-hi: #1f6a36;
+  --line-mid: #164d27;
+  --panel-a: #07100a;
+  --panel-b: #0d1c11;
+  --panel-c: #0a160d;
+  --text-soft: #9be6ae;
+  --scrim: rgba(2, 6, 3, 0.86);
+  --hover-fill: #39ff7a;
+  --r-xs: 0px;
+  --r-sm: 0px;
+  --r-md: 0px;
+  --r-lg: 0px;
+  --r-pill: 0px;
+  --bw: 1px;
+  --divider: 1px;
+  --app-pad: 0px;
+  --app-gap: 0px;
+  --col-radius: 0px;
+  --shadow-pop: 0 0 22px rgba(57, 255, 122, 0.18);
+  --panel-bg: #08120a;
+  --panel-blur: 0px;
+  --panel-shadow: 0 0 26px rgba(57, 255, 122, 0.12);
+  --field-bg: #050a06;
+  --serif: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --sans: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --mono: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+}
+
+/* Colours change smoothly when you pick another theme. */
+body {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+
+/* ======================================================================
+   THE WALLPAPER LAYERS (see Wallpaper.jsx)
+   z-index: -1 puts them behind everything, on top of the page's background colour.
+   ====================================================================== */
+.wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.wallpaper-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+/* A Lively wallpaper is a whole web page, shown in a frame that fills the screen. */
+.wallpaper-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+.wallpaper-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* A film in the theme's background colour over everything above. --dim is the Settings slider (0 to 0.9). */
+.wallpaper-dim {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  opacity: var(--dim, 0.3);
+}
+
+
+/* ======================================================================
+   READABILITY: FROSTED PANELS
+   When a picture or wallpaper is showing, Wallpaper.jsx sets data-backdrop on the page, and the three
+   columns get a frosted panel: the theme colour at --glass strength, plus a blur of whatever is behind.
+   (--glass and --glass-blur both come from the "Glass" slider: a higher value tints and blurs more.)
+   ====================================================================== */
+html[data-backdrop] .col {
+  background: color-mix(in srgb, var(--bg) var(--glass, 55%), transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 18px)) saturate(1.15);
+  backdrop-filter: blur(var(--glass-blur, 18px)) saturate(1.15);
+}
+/* The panel already backs the text, so rows and the footer don't need a backing of their own. */
+html[data-backdrop] .task,
+html[data-backdrop] .col-foot {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+
+/* ======================================================================
+   THE SETTINGS WINDOW
+   ====================================================================== */
+.modal.wide {
+  width: min(780px, 100%);
+}
+
+/* The tab row: Account | Appearance | Data */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: var(--bw) solid var(--line);
+  margin: -6px 0 4px;
+}
+.tab {
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* The Appearance tab: sections stacked with space between them. */
+.appearance {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.appearance section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.appearance h3 {
+  margin: 0;
+}
+
+/* Theme cards: a small sample of each theme (it wears its own data-theme, so the colours are its own). */
+.theme-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+}
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--r-md);
+  border: var(--bw) solid var(--line-hi);
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+.theme-card:hover {
+  transform: translateY(-2px);
+}
+.theme-card.picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.theme-card-sample {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 5px 7px;
+  align-items: center;
+  padding: 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: var(--bw) solid var(--line);
+}
+.theme-card-sample .dot {
+  grid-row: span 2;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.theme-card-sample .bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--text);
+  opacity: 0.8;
+}
+.theme-card-sample .bar.short {
+  width: 55%;
+  background: var(--muted);
+}
+
+/* Tiles: the wallpaper gallery and the picture library. */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+}
+.tile-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  width: 100%;
+}
+.tile-preview {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg);
+  border: var(--bw) solid var(--line-hi);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.tile-preview video,
+.tile-preview img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tile:hover .tile-preview {
+  border-color: var(--muted);
+  transform: translateY(-2px);
+}
+.tile.picked .tile-preview {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.tile-label {
+  font-size: 13px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile.picked .tile-label {
+  color: var(--text);
+}
+.tile-off {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tile-add .tile-off {
+  font-size: 28px;
+  letter-spacing: 0;
+}
+.tile-add .tile-preview {
+  border-style: dashed;
+}
+.tile-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--scrim);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.tile:hover .tile-delete,
+.tile-delete:focus-visible {
+  opacity: 1;
+}
+
+/* The wallpaper browser (Wallpapers.jsx) */
+.tile-author {
+  margin-top: -4px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wp-toolbar .field {
+  flex: 1;
+}
+
+/* The chosen wallpaper's own settings: a quiet card with one hairline-separated row per setting. */
+.customize {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 22px 12px;
+  border-radius: var(--r-lg);
+  border: var(--bw) solid var(--line);
+  background: var(--panel-a);
+}
+.customize-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: var(--bw) solid var(--line);
+}
+.customize-title h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--text);
+}
+.customize-meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.customize a,
+.credits a,
+.pictures a {
+  color: var(--text-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--line-hi);
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+.customize a:hover,
+.credits a:hover,
+.pictures a:hover {
+  color: var(--text);
+}
+.props {
+  display: flex;
+  flex-direction: column;
+}
+.prop {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 52%);
+  align-items: center;
+  gap: 20px;
+  min-height: 48px;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+.prop + .prop,
+.prop-label + .prop {
+  border-top: var(--bw) solid var(--line);
+}
+.prop-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prop-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+.prop-control .slider {
+  flex: 1;
+}
+.prop-control .select {
+  width: 100%;
+}
+.prop-value {
+  min-width: 38px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 12px;
+}
+.prop-label {
+  margin: 18px 0 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 400;
+}
+.more-settings {
+  align-self: center;
+  margin: 6px 0 4px;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-top: var(--bw) solid var(--line);
+  width: 100%;
+  transition: color 0.2s ease;
+}
+.more-settings:hover {
+  color: var(--text);
+}
+.credits {
+  font-size: 12px;
+}
+
+/* A slim slider. --fill (set by Slider.jsx) is how far along it is, so the part before the knob is coloured. */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--line-hi) var(--fill));
+}
+.slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-hi);
+}
+.slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 4px var(--panel-a);
+  transition: transform 0.15s ease;
+}
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 4px var(--panel-a);
+}
+.slider:hover::-webkit-slider-thumb,
+.slider:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* An on/off switch. The real checkbox is invisible on top of it. */
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.switch input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.switch i {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  background: var(--line-hi);
+  transition: background-color 0.2s ease;
+}
+.switch i::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.2s var(--ease), background-color 0.2s ease;
+}
+.switch input:checked + i {
+  background: var(--accent);
+}
+.switch input:checked + i::after {
+  transform: translateX(16px);
+  background: var(--bg);
+}
+.switch input:focus-visible + i {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* A drop-down list. */
+.select {
+  height: 36px;
+  padding: 0 34px 0 12px;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-sm);
+  background-color: var(--field-bg);
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 15px, calc(100% - 12px) 15px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  -webkit-appearance: none;
+  appearance: none;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.select:hover {
+  border-color: var(--muted);
+}
+
+/* The custom drop-down (Select.jsx). The closed button reuses .select above. */
+.dropdown {
+  position: relative;
+  width: 100%;
+}
+.dropdown .select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+.dropdown-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dropdown-thumb {
+  flex-shrink: 0;
+  width: 40px;
+  height: 26px;
+  border-radius: var(--r-xs);
+  object-fit: cover;
+  background: var(--track);
+}
+.dropdown-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 6px;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  scrollbar-width: thin;
+}
+.dropdown-group {
+  padding: 10px 10px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-soft);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.dropdown-option:hover,
+.dropdown-option:focus-visible {
+  background: var(--panel-b);
+  color: var(--text);
+  outline: none;
+}
+.dropdown-option.picked {
+  color: var(--text);
+}
+.dropdown-option.picked::after {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* A colour: a round swatch you click to pick another. */
+.color {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid var(--line-hi);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+.color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+.color::-moz-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+/* A file is being dragged over the picture library. */
+.pictures.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: 8px;
+  border-radius: var(--r-md);
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.range-row .slider {
+  flex: 1;
+}
+.range-row .mono {
+  min-width: 36px;
+  text-align: right;
+}
+.lively-help {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.file-hidden {
+  display: none;
+}
+
+
+/* ======================================================================
+   EDITING A DAILY (the pop-up from clicking a daily's name)
+   ====================================================================== */
+/* The daily's name is a button now, styled to look like plain text. */
+.daily-name-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.daily-name-btn:hover {
+  color: var(--accent);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.palette-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 2px var(--surface);
+  transition: transform 0.15s ease;
+}
+.palette-swatch:hover {
+  transform: scale(1.12);
+}
+.palette-swatch.picked {
+  border-color: var(--text);
+}
+.palette input[type="color"] {
+  width: 38px;
+  height: 30px;
+  padding: 0;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-sm);
+  background: none;
+  cursor: pointer;
+}
+
+
+/* ======================================================================
+   THE SETTINGS SHEET (Sheet.jsx): slides up from the bottom, leaves the page visible above it.
+   ====================================================================== */
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
+  border-top: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow:
+    0 -18px 60px rgba(0, 0, 0, 0.28),
+    var(--panel-shadow);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* The grab bar at the top: drag it to resize the sheet. */
+.sheet-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 24px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.sheet-handle span {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-hi);
+  transition: background-color 0.2s ease;
+}
+.sheet-handle:hover span,
+.sheet-handle:focus-visible span {
+  background: var(--muted);
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px 24px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 0 28px 10px;
+  border-bottom: var(--bw) solid var(--line);
+}
+.sheet-head h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+.sheet-head .tabs {
+  flex: 1;
+  margin: 0;
+  border: 0;
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 28px 36px;
+  scrollbar-width: thin;
+}
+/* Content is centred and not wider than reads well. */
+.sheet-body > * {
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+/* ======================================================================
+   FONT CHOICES (Appearance tab)
+   ====================================================================== */
+.font-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.font-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-md);
+  background: var(--panel-a);
+  color: var(--text);
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    transform 0.15s ease;
+}
+.font-choice:hover {
+  border-color: var(--muted);
+  transform: translateY(-1px);
+}
+.font-choice.picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.font-sample {
+  font-size: 30px;
+  line-height: 1;
+}
+.font-name {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+
+/* ======================================================================
+   THE LIQUID WALLPAPER (liquid.js draws a small canvas; the browser scales it up and blurs it into liquid)
+   ====================================================================== */
+.liquid-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: blur(7px) saturate(1.3);
+  transform: scale(1.08); /* so the blurred edges stay off-screen */
+}
+.liquid-preview {
+  background: var(--bg);
+}
+.liquid-preview .liquid-canvas {
+  filter: blur(1.5px) saturate(1.3);
+  transform: none;
+}
+
+
+/* ======================================================================
+   THEME EXTRAS: what a theme does beyond the variables above.
+   (These come last so they win over the general rules earlier in the file.)
+   ====================================================================== */
+
+/* ---- For every theme: windows, menus and the sheet take their material from the theme ---- */
+.modal,
+.menu,
+.dropdown-list {
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
+}
+
+/* ---- Theme cards in Settings: each card wears its own theme, so it shows that theme's shapes. ---- */
+.theme-card {
+  font-family: var(--sans);
+}
+.theme-card[data-theme="liquid"] {
+  background: linear-gradient(135deg, #2c2c30, #0e0e10);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.theme-card[data-theme="liquid"] .theme-card-sample {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.theme-card[data-theme="paper"] .theme-card-sample {
+  box-shadow: 2px 2px 0 rgba(43, 36, 24, 0.25);
+}
+.theme-card[data-theme="terminal"] .theme-card-sample {
+  box-shadow: 0 0 12px rgba(57, 255, 122, 0.25);
+}
+
+/* ---- LIQUID: Apple-style glass ---- */
+/* Plain glass: the panels are see-through and blur what is behind them. NOTHING is laid over the page: no
+   tint, no dim film, no shine. If text is hard to read over a bright background, raise "Backing" in Settings
+   (the Glass setting), or leave Auto on: it adds backing only when your picture or video is bright. The
+   backing itself comes from the general rule "html[data-backdrop] .col" in the READABILITY section. */
+/* The glass, in plain CSS (no filters beyond one backdrop blur per panel, so it stays fast). The way Apple's
+   Liquid Glass reads is: a clear, frosted body whose colours are boosted (saturate); a thin bright rim where
+   light hits the edge, strongest on the top-left and again, fainter, on the bottom-right; a soft glow just
+   inside those edges; and a shadow under the pane that lifts it off the background. Everything except the
+   blur is a box-shadow, which costs nothing to draw. The middle is left clear: nothing is laid over the text.
+   --lg-blur (Frost), --lg-sat (Vibrancy), --lg-shine (Shine) and --lg-depth (Depth) are the settings. */
+html[data-theme="liquid"] .col {
+  border: 1px solid rgba(255, 255, 255, calc(0.08 + var(--lg-shine, 0.6) * 0.16));
+  box-shadow:
+    inset 1.5px 1.5px 0 -0.5px rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.95)),
+    inset -1px -1px 0 0 rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.4)),
+    inset 10px 10px 26px -14px rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.4)),
+    inset -10px -10px 26px -16px rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.2)),
+    0 calc(6px + 22px * var(--lg-depth, 0.5)) calc(16px + 44px * var(--lg-depth, 0.5)) rgba(0, 0, 0, calc(0.1 + 0.25 * var(--lg-depth, 0.5)));
+  -webkit-backdrop-filter: blur(max(var(--glass-blur, 0px), min(var(--lg-blur, 14px), var(--lg-blur-cap, 99px)))) saturate(var(--lg-sat, 1.6)) brightness(1.05);
+  backdrop-filter: blur(max(var(--glass-blur, 0px), min(var(--lg-blur, 14px), var(--lg-blur-cap, 99px)))) saturate(var(--lg-sat, 1.6)) brightness(1.05);
+}
+html[data-theme="liquid"] .sheet {
+  background: color-mix(in srgb, var(--bg) var(--glass, 0%), transparent);
+  border-top: 1px solid rgba(255, 255, 255, calc(0.08 + var(--lg-shine, 0.6) * 0.16));
+  box-shadow:
+    inset 0 1.5px 0 -0.5px rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.95)),
+    inset 0 12px 26px -16px rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.35)),
+    0 -12px calc(24px + 30px * var(--lg-depth, 0.5)) rgba(0, 0, 0, calc(0.1 + 0.2 * var(--lg-depth, 0.5)));
+  -webkit-backdrop-filter: blur(max(var(--glass-blur, 0px), min(var(--lg-blur, 14px), var(--lg-blur-cap, 99px)))) saturate(var(--lg-sat, 1.6)) brightness(1.05);
+  backdrop-filter: blur(max(var(--glass-blur, 0px), min(var(--lg-blur, 14px), var(--lg-blur-cap, 99px)))) saturate(var(--lg-sat, 1.6)) brightness(1.05);
+}
+html[data-theme="liquid"] :is(.field, .task-form, .btn-ghost, .note-item.active) {
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, calc(var(--lg-shine, 0.6) * 0.5));
+}
+html[data-theme="liquid"] .wallpaper-dim {
+  display: none;
+}
+/* Windows and menus are small floating panels, plain blurred glass. */
+html[data-theme="liquid"] :is(.modal, .menu, .dropdown-list) {
+  background: rgba(20, 20, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), 0 18px 50px rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+}
+/* Rows sit directly on the glass. */
+html[data-theme="liquid"] .task,
+html[data-theme="liquid"] .col-foot {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-theme="liquid"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* ---- PAPER: a sheet of paper with a little grain, and hard ink shadows ---- */
+html[data-theme="paper"] body {
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.17  0 0 0 0 0.14  0 0 0 0 0.09  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+html[data-theme="paper"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: -0.01em;
+}
+html[data-theme="paper"] :is(.task-form, .customize, .tile-preview, .font-choice) {
+  box-shadow: 3px 3px 0 rgba(43, 36, 24, 0.14);
+}
+
+/* ---- TERMINAL: a faint glow on the text, scan lines over everything, headings in capitals ---- */
+html[data-theme="terminal"] body {
+  text-shadow: 0 0 6px rgba(57, 255, 122, 0.2);
+}
+html[data-theme="terminal"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.16) 3px);
+}
+html[data-theme="terminal"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  font-size: 22px;
+}
+html[data-theme="terminal"] .task-form::before {
+  content: ">";
+  color: var(--accent);
+  align-self: center;
+  padding-left: 12px;
+}
+
+
+/* ======================================================================
+   THE "LOOK" TAB (Look.jsx) and the gallery (Background.jsx)
+   ====================================================================== */
+.look {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.look section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.look h3 {
+  margin: 0;
+}
+/* Theme and Font sit side by side when there is room. */
+.look-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 30px 44px;
+}
+/* A heading inside the gallery grid ("Photos", "Yours"): a whole row of its own. */
+.tile-group {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 14px 0 -2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tile-group span {
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--faint);
+}
+.tile-group a {
+  color: var(--text-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--line-hi);
+  text-underline-offset: 3px;
+}
+.readability {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px 44px;
+}
+/* A file is being dragged over the gallery. */
+.background.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: 8px;
+  border-radius: var(--r-md);
+}
+
+
+/* ======================================================================
+   THE PAGE GETS SHORTER while the Settings sheet is open (see Sheet.jsx)
+   The page keeps its full width and its height shrinks smoothly to the room above the sheet, with the
+   columns reflowing inside it. (--sheet-offset is the sheet's height.)
+   ====================================================================== */
+.app {
+  transition:
+    height 0.35s var(--ease),
+    margin 0.35s var(--ease),
+    border-radius 0.35s var(--ease);
+}
+html[data-sheet] .app {
+  height: calc(100vh - var(--sheet-offset, 0px) - 24px);
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: 28px;
+}
+/* A short page can't keep the footer buttons pinned to the bottom (they would sit on top of the content). */
+html[data-sheet] .col-foot {
+  position: static;
+}
+/* While you drag the sheet's handle the page follows straight away, with no easing. */
+html[data-sheet-dragging] .app {
+  transition: none;
+}
+/* On a phone the page scrolls instead: it keeps its size and leaves room for the sheet. */
+@media (max-width: 900px) {
+  html[data-sheet] .app {
+    height: auto;
+    margin: 0 0 var(--sheet-offset, 0px);
+    overflow: visible;
+    border-radius: 0;
+  }
+}
+
+
+/* The "Auto" row in Settings > Readability. */
+.auto-row {
+  gap: 14px;
+}
+.auto-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+
+/* The text colour choices in Settings > Text & readability. */
+.text-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.text-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.text-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1.5px solid var(--line-hi);
+  border-radius: 50%;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+.text-swatch:hover {
+  transform: scale(1.1);
+}
+.text-swatch.picked {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text);
+}
+.text-swatch.theme-swatch {
+  width: auto;
+  padding: 0 11px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.readability .text-row {
+  grid-column: 1 / -1;
+}
+
+/* A small text button inside a hint (for example "Reset glass"). */
+.link-button {
+  padding: 0;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A moving background (an animated wallpaper or a video) has to be re-blurred behind the panels on every frame, so there the frost is capped to keep it smooth. */
+html[data-animated] {
+  --lg-blur-cap: 8px;
+}

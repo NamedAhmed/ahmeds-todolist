@@ -4,6 +4,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import Icon from './Icons.jsx';
 import { undo } from '../store.js';
 import { quip } from '../lib.js';
 
@@ -118,8 +119,8 @@ export function Toasts() {
           >
             <span>{t.text}</span>
             {t.undoable && (
-              <button className="toast-undo" onClick={() => clickUndo(t.id)}>
-                Undo
+              <button className="toast-undo" onClick={() => clickUndo(t.id)} aria-label="Undo" title="Undo">
+                <Icon name="undo" size={16} />
               </button>
             )}
           </motion.div>

@@ -21,50 +21,32 @@
 //   commit() is how everything gets saved (see store.js)
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
+import DragLayer from './DragLayer.jsx';
+import Icon from './Icons.jsx';
 
 
 // ======================================================================
 // SMOOTH RE-SORTING
 // ======================================================================
-// Runs `change` (a function that saves something) and, if the browser supports it,
-// animates the rows sliding to their new places. Otherwise it just runs `change`.
+// Runs `change` (a function that saves something). Rows used to slide to their new places using the browser's
+// page-wide "view transition", but that takes a snapshot of the whole page first, which made every change feel
+// slow, so now the change simply happens.
 function smooth(change) {
-  const prefersLessMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const canAnimate = document.startViewTransition && !prefersLessMotion && !document.hidden;
-  if (!canAnimate) return change();
-
-  // The browser calls `once` when it is ready to animate. If the window is hidden or covered,
-  // that can take a long time, so a 250ms timer makes sure the change still happens.
-  // The `ran` flag makes sure it only happens once.
-  let ran = false;
-  function once() {
-    if (ran) return;
-    ran = true;
-    flushSync(change);
-  }
-
-  const transition = document.startViewTransition(once);
-  setTimeout(once, 250);
-
-  // Ignore errors from the animation (e.g. if it was skipped).
-  for (const promise of [transition.ready, transition.finished, transition.updateCallbackDone]) {
-    promise.catch(() => {});
-  }
+  change();
 }
 
 // The tick mark drawn inside the round check button.
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#0c0b0a" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--bg)' }} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
   );
@@ -153,8 +135,8 @@ function RowMenu({ items, open, onOpenChange }) {
 
   return (
     <span className={'menu-wrap' + (open ? ' open' : '')} ref={ref}>
-      <button className="more" tabIndex={-1} aria-label="More" aria-expanded={open} onClick={() => onOpenChange(!open)}>
-        ⋯
+      <button className="more" tabIndex={-1} aria-label="More" title="More" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+        <Icon name="dots" size={18} />
       </button>
 
       <AnimatePresence>
@@ -184,7 +166,8 @@ function RowMenu({ items, open, onOpenChange }) {
                   className={(item.danger ? 'danger ' : '') + (item.on ? 'on' : '')}
                   onClick={chooseItem}
                 >
-                  {item.label}
+                  {item.icon && <Icon name={item.icon} size={16} />}
+                  <span>{item.label}</span>
                 </button>
               );
             })}
@@ -290,7 +273,7 @@ function DueButton({ due, today, done, inputRef }) {
 // FINISHING, REOPENING AND DELETING TASKS
 // ======================================================================
 
-// Mark a task as done. The little delay (420ms) lets the tick animation play first.
+// Mark a task as done. The tiny delay (140ms) lets the tick animation start first.
 function finishTask(task) {
   const changes = [{ t: 'tasks', id: task.id, patch: { done: true, done_at: Date.now() } }];
 
@@ -303,7 +286,7 @@ function finishTask(task) {
     }
   }
 
-  setTimeout(() => smooth(() => commit('task finished', changes)), 420);
+  setTimeout(() => smooth(() => commit('task finished', changes)), 140);
 
   // A rude comment. Better ones for projects and for tasks that were very late.
   if (task.kind === 'project') {
@@ -358,7 +341,7 @@ function Subtask({ sub }) {
       patch('step finished', { done: true, done_at: Date.now() });
       setClosing(false);
       sass('stepDone', [], { chance: 0.25 });
-    }, 380);
+    }, 140);
   }
 
   return (
@@ -384,7 +367,7 @@ function Subtask({ sub }) {
           aria-label={`Delete ${sub.title}`}
           onClick={() => commit('step deleted', [{ t: 'tasks', id: sub.id, set: null }])}
         >
-          ×
+          <Icon name="x" size={14} />
         </button>
       </div>
     </motion.li>
@@ -480,7 +463,7 @@ function ProjectBody({ s, task }) {
 const TaskRow = memo(
   function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable }) {
     // Drag-and-drop helpers from the dnd-kit library.
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
       id: task.id,
       disabled: !sortable,
     });
@@ -571,19 +554,18 @@ const TaskRow = memo(
     }
 
     const menu = [
-      { label: 'Rename', run: () => edit(true) },
-      { label: task.due ? 'Change date' : 'Set a date', run: () => dateRef.current.showPicker?.() },
-      task.due && { label: 'Remove date', run: () => patch('date removed', { due: null }) },
-      { label: isProject ? 'Turn into a task' : 'Turn into a project', run: turnIntoOtherKind },
+      { label: 'Rename', icon: 'pencil', run: () => edit(true) },
+      { label: task.due ? 'Change date' : 'Set a date', icon: 'calendar', run: () => dateRef.current.showPicker?.() },
+      task.due && { label: 'Remove date', icon: 'x', run: () => patch('date removed', { due: null }) },
+      { label: isProject ? 'Turn into a task' : 'Turn into a project', icon: isProject ? 'task' : 'folder', run: turnIntoOtherKind },
       '-',
-      { label: 'Delete', danger: true, run: () => removeTask(task) },
+      { label: 'Delete', icon: 'trash', danger: true, run: () => removeTask(task) },
     ];
 
-    // Inline styles: movement while dragging, and a name so the browser can animate this row.
+    // Inline style: the row moves aside while another one is dragged past it.
     const style = {
       transform: CSS.Translate.toString(transform),
       transition,
-      viewTransitionName: isDragging ? 'none' : `t-${task.id}`,
     };
 
     const className = ['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ');
@@ -596,18 +578,13 @@ const TaskRow = memo(
         }}
         style={style}
         data-task={task.id}
+        data-sortable={sortable || undefined}
+        {...listeners}
         tabIndex={0}
         onKeyDown={onKeyDown}
         className={className}
       >
         <div className="task-main">
-          {/* The drag handle ⋮⋮ */}
-          {sortable && (
-            <button className="grip" aria-label="Drag to reorder" {...attributes} {...listeners} tabIndex={-1}>
-              ⋮⋮
-            </button>
-          )}
-
           {/* The round (or square, for projects) check button */}
           <button
             tabIndex={-1}
@@ -661,11 +638,11 @@ const TaskRow = memo(
 
         {/* Quick buttons that appear while Shift is held (see App.jsx) */}
         <span className="quick">
-          <button tabIndex={-1} onClick={() => edit(true)}>
-            Rename
+          <button tabIndex={-1} aria-label="Rename" title="Rename" onClick={() => edit(true)}>
+            <Icon name="pencil" size={16} />
           </button>
-          <button tabIndex={-1} className="danger" onClick={remove}>
-            Delete
+          <button tabIndex={-1} className="danger" aria-label="Delete" title="Delete" onClick={remove}>
+            <Icon name="trash" size={16} />
           </button>
         </span>
 
@@ -718,7 +695,7 @@ function ReminderRow({ reminder, date, today }) {
     const label = skipped ? 'reminder skipped' : 'reminder done';
     const completion = { id: key, ref: reminder.id, date, kind: 'reminder', skipped };
 
-    setTimeout(() => smooth(() => commit(label, [{ t: 'completions', id: key, set: completion }])), 400);
+    setTimeout(() => smooth(() => commit(label, [{ t: 'completions', id: key, set: completion }])), 140);
   }
 
   // A future reminder can't be ticked yet (only today or earlier).
@@ -738,7 +715,6 @@ function ReminderRow({ reminder, date, today }) {
   return (
     <li
       className={'task reminder' + (closing ? ' done' : '')}
-      style={{ viewTransitionName: `r-${reminder.id}` }}
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
@@ -755,10 +731,10 @@ function ReminderRow({ reminder, date, today }) {
         <span className="task-title">{reminder.title}</span>
         <span className="row-end">
           <span className="tag" title={ruleText(reminder.rule)}>
-            ↻ {ruleText(reminder.rule)}
+            <Icon name="repeat" size={12} /> {ruleText(reminder.rule)}
           </span>
           <span className={'due ' + info.cls}>{info.text}</span>
-          <RowMenu items={[{ label: 'Skip this one', run: () => finish(true) }]} open={menuOpen} onOpenChange={setMenuOpen} />
+          <RowMenu items={[{ label: 'Skip this one', icon: 'x', run: () => finish(true) }]} open={menuOpen} onOpenChange={setMenuOpen} />
         </span>
       </div>
     </li>
@@ -823,8 +799,9 @@ function AddRow({ day, today }) {
         className="kind-switch"
         onClick={() => setKind(kind === 'task' ? 'project' : 'task')}
         title="Switch between task and project"
+        aria-label={kind === 'task' ? 'Task: switch to project' : 'Project: switch to task'}
       >
-        {kind === 'task' ? 'Task' : 'Project'}
+        <Icon name={kind === 'task' ? 'task' : 'folder'} size={16} />
       </button>
       <input
         id="task-due"
@@ -833,8 +810,8 @@ function AddRow({ day, today }) {
         onChange={(event) => setPicked(event.target.value || null)}
         aria-label="Due date"
       />
-      <button type="submit" className="btn-add">
-        Add
+      <button type="submit" className="btn-add" aria-label="Add" title="Add">
+        <Icon name="plus" size={18} />
       </button>
     </form>
   );
@@ -883,15 +860,44 @@ function reorder(list, from, to) {
   sass('reordered', [], { chance: 0.2 });
 }
 
+// You can grab a row ANYWHERE to drag it, except on things you type in or click (a text box, the menu, the insides
+// of a project): there, pressing and moving selects text or does what that thing does instead.
+const NO_DRAG = 'input, textarea, select, .menu, .project-body, [contenteditable]';
+const grabbable = (event) => !event.target.closest(NO_DRAG);
+
+// The mouse: a drag starts after the pointer has moved 4px, so a plain click still clicks.
+class RowPointerSensor extends PointerSensor {
+  static activators = [
+    { eventName: 'onPointerDown', handler: ({ nativeEvent: event }) => event.isPrimary && event.button === 0 && grabbable(event) },
+  ];
+}
+
+// A finger: a drag starts after holding for a moment (a quick swipe still scrolls the list).
+class RowTouchSensor extends TouchSensor {
+  static activators = [{ eventName: 'onTouchStart', handler: ({ nativeEvent: event }) => event.touches.length === 1 && grabbable(event) }];
+}
+
+// The card that floats under the pointer while a task is dragged.
+function TaskCard({ task }) {
+  const info = dueInfo(task.due, todayStr());
+  return (
+    <div className="drag-card">
+      <span className="drag-mark">
+        <Icon name={task.kind === 'project' ? 'folder' : 'task'} size={18} />
+      </span>
+      <span className="drag-title">{task.title}</span>
+      {task.due && <span className="drag-due mono">{info.text}</span>}
+    </div>
+  );
+}
+
 // Wraps the calendar and the list (App.jsx puts them inside this).
 export function TaskDnd({ day, children }) {
   const [active, setActive] = useState(null); // the id of the task being dragged, or null
 
-  // Three ways to start a drag: mouse (after moving 4px), touch (after holding 180ms), or keyboard.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(RowPointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(RowTouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } })
   );
 
   // Runs when you let go of a dragged task.
@@ -915,7 +921,7 @@ export function TaskDnd({ day, children }) {
     reorder(open, from, to);
   }
 
-  // The task being dragged (shown as a floating chip under the mouse).
+  // The task being dragged.
   const dragged = active && all(getState(), 'tasks').find((t) => t.id === active);
 
   return (
@@ -927,7 +933,7 @@ export function TaskDnd({ day, children }) {
       onDragEnd={onDragEnd}
     >
       {children}
-      <DragOverlay dropAnimation={null}>{dragged && <div className="drag-chip">{dragged.title}</div>}</DragOverlay>
+      <DragLayer>{dragged && <TaskCard task={dragged} />}</DragLayer>
     </DndContext>
   );
 }
@@ -1010,7 +1016,7 @@ export default function Tasks({ today, day, setDay }) {
     // Once the project has unfolded, scroll so all of it is visible.
     setTimeout(() => {
       document.querySelector(`[data-task="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }, 380);
+    }, 160);
   }, []);
 
   // ---- Move a row with Alt+arrows ----
@@ -1045,13 +1051,15 @@ export default function Tasks({ today, day, setDay }) {
         <button
           className={'day-toggle' + (day === today ? ' on' : '')}
           aria-pressed={day === today}
+          aria-label="Today only"
+          title="Today only"
           onClick={() => setDay(day === today ? null : today)}
         >
-          Today only
+          <Icon name="sun" size={16} />
         </button>
         {day && day !== today && (
-          <button className="day-clear" onClick={() => setDay(null)}>
-            {shortDate(day)} only ×
+          <button className="day-clear" onClick={() => setDay(null)} aria-label="Show all days" title="Show all days">
+            {shortDate(day)} <Icon name="x" size={12} />
           </button>
         )}
       </header>
@@ -1113,10 +1121,12 @@ export default function Tasks({ today, day, setDay }) {
         {done.length > 0 && (
           <li className="done-head">
             {day ? (
-              <span className="mono">Finished · {done.length}</span>
+              <span className="mono done-count">
+                <Icon name="task" size={14} /> {done.length}
+              </span>
             ) : (
-              <button className="mono" onClick={() => setShowDone(!showDone)}>
-                {showDone ? 'Hide' : 'Show'} finished · {done.length}
+              <button className="mono done-count" onClick={() => setShowDone(!showDone)} aria-label={showDone ? 'Hide finished' : 'Show finished'} title={showDone ? 'Hide finished' : 'Show finished'}>
+                <Icon name={showDone ? 'eyeOff' : 'eye'} size={14} /> {done.length}
               </button>
             )}
           </li>

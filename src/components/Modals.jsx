@@ -1,17 +1,17 @@
 // Modals.jsx = the pop-up windows (a "modal" is a window that appears over the page).
 //
+//   (Settings is not here: it is a sheet that slides up from the bottom, see Settings.jsx.)
 //   Modal           the empty window frame the others use (dark backdrop, Close button, Esc to close)
 //   RemindersModal  list and add repeating reminders
-//   SettingsModal   sign in / sign out, and download a backup
+//   DailyEditModal  rename a daily and change its colour
 //   KeysModal       the keyboard shortcut cheat sheet
 //
 // App.jsx decides which one is open.
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { all, commit, exportJson, uid, useStore } from '../store.js';
-import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
-import { DOW, MON, empties, quip, ruleText } from '../lib.js';
+import { all, commit, uid, useStore } from '../store.js';
+import { DAILY_COLORS, DOW, MON, empties, quip, ruleText } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 
 // A CSS selector that finds everything you can Tab to inside the window.
@@ -21,8 +21,8 @@ const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea
 // ======================================================================
 // THE WINDOW FRAME
 // ======================================================================
-// Props: title (shown at the top), onClose (function to close it), children (what goes inside).
-function Modal({ title, onClose, children }) {
+// Props: title (shown at the top), onClose (function to close it), wide (a bigger window), children (what goes inside).
+function Modal({ title, onClose, wide, children }) {
   const box = useRef(null); // points at the window's HTML element
 
   // Keyboard behaviour for accessibility:
@@ -83,7 +83,7 @@ function Modal({ title, onClose, children }) {
       <motion.div
         ref={box}
         tabIndex={-1}
-        className="modal"
+        className={'modal' + (wide ? ' wide' : '')}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -258,167 +258,65 @@ export function RemindersModal({ today, onClose }) {
 
 
 // ======================================================================
-// SETTINGS WINDOW (sign in + backup)
+// EDIT A DAILY WINDOW
 // ======================================================================
+// Opened by clicking a daily's name in the Calendar column. You can rename it and pick its colour:
+// one of the ten palette colours, or any colour from the colour picker at the end of the row.
+// Props: id (which daily), onClose.
+export function DailyEditModal({ id, onClose }) {
+  const s = useStore();
+  const daily = s.dailies[id];
+  const missing = !daily || daily._deleted; // for example it was removed on another device
 
-// The sign-in part. How signing in works:
-//   1. You type your email and press "Email me" -> sendCode() asks Supabase to email you.
-//   2. The email has a link AND a code. Click the link, or type the code here -> verifyCode().
-//   3. Once signed in, sync.js takes over and keeps your data in sync.
-function Account() {
-  const sync = useSync(); // { user, sync: 'signed-out' | 'syncing' | 'synced' | 'error' | 'off', error }
+  const [name, setName] = useState(daily?.name ?? '');
+  const [color, setColor] = useState(daily?.color ?? DAILY_COLORS[0]);
 
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [sent, setSent] = useState(false);   // has the email been sent yet?
-  const [busy, setBusy] = useState(false);   // waiting for the server?
-  const [error, setError] = useState('');    // an error message to show
+  useEffect(() => {
+    if (missing) onClose();
+  }, [missing, onClose]);
+  if (missing) return null;
 
-  // No Supabase keys in the settings file (.env.local): syncing is switched off.
-  if (!supabase) {
-    return <p className="hint">Sync is off: this copy has no Supabase keys, so everything stays in this browser.</p>;
-  }
-
-  // Already signed in: show who you are, plus Sync now and Sign out buttons.
-  if (sync.user) {
-    let statusText;
-    if (sync.sync === 'syncing') statusText = 'Syncing…';
-    else if (sync.sync === 'error') statusText = `Sync failed: ${sync.error}`;
-    else statusText = 'Everything is synced.';
-
-    return (
-      <div className="stack">
-        <p className="hint">
-          Signed in as <b>{sync.user.email}</b>. {statusText}
-        </p>
-        <div className="seg-row">
-          <button className="btn-ghost" onClick={syncNow}>
-            Sync now
-          </button>
-          <button className="btn-ghost danger" onClick={signOut}>
-            Sign out
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Run a slow action (talking to the server) while showing "Hold on…" and catching any error.
-  async function runWithStatus(action) {
-    setBusy(true);
-    setError('');
-    try {
-      await action();
-    } catch (err) {
-      setError(err.message || String(err));
-    }
-    setBusy(false);
-  }
-
-  // Runs when you press Enter or the main button.
-  function submit(event) {
+  function save(event) {
     event.preventDefault();
-
-    if (sent) {
-      // Step 2: check the code you typed.
-      runWithStatus(async () => {
-        await verifyCode(email, code.trim());
-        toast(quip('synced'));
-      });
-    } else {
-      // Step 1: send the email.
-      runWithStatus(async () => {
-        await sendCode(email);
-        setSent(true);
-      });
-    }
+    const trimmed = name.trim();
+    if (!trimmed) return; // a daily needs a name
+    commit('daily edited', [{ t: 'dailies', id, patch: { name: trimmed, color } }]);
+    onClose();
   }
-
-  // Go back to step 1 so you can use a different email.
-  function useAnotherEmail() {
-    setSent(false);
-    setCode('');
-  }
-
-  // Text for the main button.
-  let buttonText;
-  if (busy) buttonText = 'Hold on…';
-  else if (sent) buttonText = 'Sign in';
-  else buttonText = 'Email me';
 
   return (
-    <form className="stack" onSubmit={submit}>
-      <p className="hint">
-        {sent
-          ? 'Check your email. Click the link in it, or type the code here.'
-          : 'Sign in to sync between your laptop and phone. No password, just an email.'}
-      </p>
-
-      <input
-        className="field"
-        type="email"
-        required
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        placeholder="you@example.com"
-        aria-label="Email"
-        disabled={sent}
-      />
-
-      {/* The code box only appears after the email was sent */}
-      {sent && (
+    <Modal title="Edit daily" onClose={onClose}>
+      <form className="stack" onSubmit={save}>
         <input
           className="field"
-          inputMode="numeric"
-          autoFocus
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          placeholder="Code from the email"
-          aria-label="Code"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Name"
+          aria-label="Daily name"
         />
-      )}
 
-      {error && <p className="error">{error}</p>}
+        <h3 className="mono">Colour</h3>
+        <div className="palette">
+          {DAILY_COLORS.map((swatch) => (
+            <button
+              type="button"
+              key={swatch}
+              className={'palette-swatch' + (color === swatch ? ' picked' : '')}
+              style={{ background: swatch }}
+              aria-label={`Colour ${swatch}`}
+              aria-pressed={color === swatch}
+              onClick={() => setColor(swatch)}
+            />
+          ))}
+          <input type="color" value={color} onChange={(event) => setColor(event.target.value)} aria-label="Custom colour" />
+        </div>
 
-      <div className="seg-row">
-        <button className="btn-add" type="submit" disabled={busy}>
-          {buttonText}
-        </button>
-        {sent && (
-          <button type="button" className="btn-ghost" onClick={useAnotherEmail}>
-            Use another email
+        <div className="seg-row">
+          <button className="btn-add" type="submit" disabled={!name.trim()}>
+            Save
           </button>
-        )}
-      </div>
-    </form>
-  );
-}
-
-export function SettingsModal({ onClose }) {
-  // "Download a backup": makes a temporary link to a .json file and clicks it for you.
-  function downloadBackup() {
-    const file = new Blob([exportJson()], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(file);
-    link.download = 'todolist-backup.json';
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }
-
-  return (
-    <Modal title="Settings" onClose={onClose}>
-      <h3 className="mono">Account</h3>
-      <Account />
-
-      <h3 className="mono">Your data</h3>
-      <div className="seg-row">
-        <button className="btn-ghost" onClick={downloadBackup}>
-          Download a backup
-        </button>
-      </div>
-      <p className="hint">
-        Ctrl+Z undoes anything. Ctrl+Shift+Z brings it back, in case you regret your regret.
-      </p>
+        </div>
+      </form>
     </Modal>
   );
 }

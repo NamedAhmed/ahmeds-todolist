@@ -18,7 +18,10 @@ export default defineConfig({
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }]
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/auth/],
+        // The wallpaper pages (public/lively/) are separate web pages shown in a frame. They must not be
+        // answered with the app's own page, and they are too big to save for offline use up front.
+        navigateFallbackDenylist: [/^\/auth/, /^\/lively\//],
+        globIgnores: ['lively/**'],
         runtimeCaching: [{
           urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
           handler: 'CacheFirst',

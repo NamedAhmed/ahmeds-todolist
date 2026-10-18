@@ -27,6 +27,34 @@
   --sans: "Geist", system-ui, sans-serif;
   --mono: "Geist Mono", ui-monospace, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Extra greys and fills that themes can change (see appearance.css for the other themes) */
+  --track: #1c1a17;
+  --line-hi: #3a352f;
+  --line-mid: #2a2622;
+  --panel-a: #17150f;
+  --panel-b: #1f1c18;
+  --panel-c: #1a1815;
+  --text-soft: #d9d2c6;
+  --scrim: rgba(6, 5, 4, 0.8);
+  --hover-fill: #fff;
+
+  /* Shape and material. Themes change these (see appearance.css), which is how a theme changes more than colours. */
+  --r-xs: 6px;      /* corner roundness: tiny things (progress bars, small chips) */
+  --r-sm: 10px;     /* buttons, inputs */
+  --r-md: 14px;     /* menus, cards */
+  --r-lg: 22px;     /* big panels and windows */
+  --r-pill: 999px;  /* fully round ends (toasts, chips) */
+  --bw: 1px;        /* border width */
+  --divider: 1px;   /* the line between columns */
+  --app-pad: 0px;   /* space around the three columns */
+  --app-gap: 0px;   /* space between the three columns */
+  --col-radius: 0px;
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5);  /* shadow of menus */
+  --panel-bg: var(--surface);   /* the material of windows, menus and the settings sheet */
+  --panel-blur: 0px;            /* how much of what's behind them is blurred (glass) */
+  --panel-shadow: 0 0 0 0 transparent;
+  --field-bg: var(--bg);        /* inputs */
 }
 
 * {
@@ -72,8 +100,11 @@ button {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.4fr) minmax(320px, 1.2fr);
   height: 100vh;
+  padding: var(--app-pad);
+  column-gap: 0; /* the gaps between the columns are the resize handles (see Columns.jsx) */
 }
 .col {
+  border-radius: var(--col-radius);
   padding: 40px 36px;
   display: flex;
   flex-direction: column;
@@ -82,7 +113,7 @@ button {
   min-height: 0;
 }
 .col ~ .col {
-  border-left: 1px solid var(--line);
+  border-left: var(--divider) solid var(--line);
 }
 
 .col-head {
@@ -118,7 +149,7 @@ button {
 }
 .ring-placeholder circle {
   fill: none;
-  stroke: #1c1a17;
+  stroke: var(--track);
   stroke-width: 14;
 }
 .ring-day {
@@ -145,13 +176,13 @@ button {
   gap: 8px;
   align-items: center;
   padding: 6px 6px 6px 18px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-pill);
   background: var(--surface);
   transition: border-color 0.2s ease;
 }
 .task-form:focus-within {
-  border-color: #3a352f;
+  border-color: var(--line-hi);
 }
 .task-form input {
   border: 0;
@@ -174,7 +205,7 @@ button {
   height: 40px;
   padding: 0 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--text);
   color: var(--bg);
   font-weight: 600;
@@ -183,7 +214,7 @@ button {
     background-color 0.2s ease;
 }
 .btn-add:hover {
-  background: #fff;
+  background: var(--hover-fill);
 }
 .btn-add:active {
   transform: scale(0.96);
@@ -202,7 +233,7 @@ button {
   align-items: center;
   gap: 14px;
   padding: 16px 4px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--bw) solid var(--line);
   transition: opacity 0.3s ease;
 }
 .task.enter {
@@ -280,7 +311,7 @@ button {
   background: var(--muted);
   transform: scaleX(0);
   transform-origin: left;
-  transition: transform 0.35s var(--ease);
+  transition: transform 0.2s var(--ease);
 }
 .task.done .task-title {
   color: var(--faint);
@@ -311,7 +342,7 @@ button {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--faint);
   font-size: 18px;
@@ -328,7 +359,7 @@ button {
 }
 .del:hover {
   color: var(--accent);
-  background: #1c1a17;
+  background: var(--track);
 }
 
 .empty {
@@ -346,8 +377,8 @@ button {
 .btn-ghost {
   height: 32px;
   padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  border: var(--bw) solid var(--line);
   background: transparent;
   color: var(--muted);
   font-size: 13px;
@@ -358,7 +389,7 @@ button {
 }
 .btn-ghost:hover {
   color: var(--text);
-  border-color: #3a352f;
+  border-color: var(--line-hi);
 }
 .btn-ghost.danger:hover {
   color: var(--accent);
@@ -386,7 +417,7 @@ button {
   text-align: left;
   padding: 10px 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: transparent;
   display: flex;
   flex-direction: column;
@@ -394,7 +425,7 @@ button {
   transition: background-color 0.2s ease;
 }
 .note-item:hover {
-  background: #17150f;
+  background: var(--panel-a);
 }
 .note-item.active {
   background: var(--surface);
@@ -451,7 +482,7 @@ button {
   outline: none;
   font-size: 15px;
   line-height: 1.7;
-  color: #d9d2c6;
+  color: var(--text-soft);
 }
 .note-foot {
   display: flex;
@@ -471,10 +502,11 @@ button {
   .app {
     grid-template-columns: 1fr;
     height: auto;
+    margin-bottom: var(--sheet-offset, 0px); /* room for the settings sheet */
   }
   .col ~ .col {
     border-left: 0;
-    border-top: 1px solid var(--line);
+    border-top: var(--bw) solid var(--line);
   }
   .col {
     padding: 28px 20px;
@@ -503,4 +535,30 @@ button {
     animation: none !important;
     transition: none !important;
   }
+}
+
+
+/* ---- Scrollbars: thin, no white track, a thumb that is a faint shade of the text colour. ---- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 24%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 24%, transparent);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text) 40%, transparent);
+  background-clip: padding-box;
 }
