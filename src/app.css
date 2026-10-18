@@ -274,3 +274,15 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .group-head.late { color: var(--accent); }
 .group-head:first-child { padding-top: 4px; }
 .task-list { padding-bottom: 40px; }
+
+/* a focused row gets a soft card; the shortcut sheet */
+.task[tabindex]:focus-visible { outline: none; background: color-mix(in srgb, var(--text) 5%, transparent); border-radius: 12px; border-bottom-color: transparent; }
+.task[tabindex]:focus-visible .grip, .task[tabindex]:focus-visible .more { opacity: 1; }
+.modal:focus { outline: none; }
+.keys { display: grid; gap: 16px; max-height: calc(100dvh - 220px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2a2622 transparent; }
+.keys h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 400; }
+.keys dl { margin: 0; display: grid; gap: 4px; }
+.keys dl > div { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; }
+.keys dt { white-space: nowrap; }
+.keys dd { margin: 0; color: var(--muted); text-align: right; }
+kbd { font-family: var(--mono); font-size: 12px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }

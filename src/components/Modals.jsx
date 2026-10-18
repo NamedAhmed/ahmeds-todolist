@@ -1,20 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { all, commit, exportJson, uid, useStore } from '../store.js';
 import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { DOW, MON, empties, quip, ruleText } from '../lib.js';
 import { toast } from './Fire.jsx';
 
+const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea, [tabindex]:not([tabindex="-1"])';
+
 function Modal({ title, onClose, children }) {
+  const box = useRef(null);
+  // Focus moves into the dialog, Tab stays inside it, and closing hands focus back to where it came from.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const opener = document.activeElement;
+    (box.current.querySelector('input, select, textarea') ?? box.current).focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape') return onClose();
+      if (e.key !== 'Tab') return;
+      const items = [...box.current.querySelectorAll(FOCUSABLE)];
+      const first = items[0], last = items.at(-1);
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); opener?.isConnected && opener.focus(); };
   }, [onClose]);
   return (
     <motion.div className="scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.div className="modal" role="dialog" aria-modal="true" aria-label={title}
+      <motion.div ref={box} tabIndex={-1} className="modal" role="dialog" aria-modal="true" aria-label={title}
         initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}>
         <header className="col-head"><h2>{title}</h2><button className="btn-ghost" onClick={onClose}>Close</button></header>
@@ -151,6 +164,28 @@ export function SettingsModal({ onClose }) {
         <button className="btn-ghost" onClick={download}>Download a backup</button>
       </div>
       <p className="hint">Ctrl+Z undoes anything. Ctrl+Shift+Z brings it back, in case you regret your regret.</p>
+    </Modal>
+  );
+}
+
+// ---------- keyboard ----------
+const KEYS = [
+  ['Anywhere', [['n', 'Add a task'], ['t', 'Today only, on or off'], ['c', 'Calendar'], ['l', 'Task list'], ['o', 'Notes'], ['r', 'Reminders'], ['Ctrl Z', 'Undo (Shift: redo)'], ['?', 'This list']]],
+  ['On a task', [['↑ ↓ or j k', 'Move between tasks'], ['Space or x', 'Done, or not done'], ['Enter', 'Open a project, or rename a task'], ['e', 'Rename'], ['d', 'Pick a date'], ['[  ]', 'Due a day earlier or later'], ['Alt ↑ ↓', 'Reorder'], ['m', 'Menu'], ['Delete', 'Delete (Ctrl Z brings it back)']]],
+  ['On the calendar', [['← → ↑ ↓', 'Move between days'], ['Enter', 'Show that day only']]]
+];
+
+export function KeysModal({ onClose }) {
+  return (
+    <Modal title="Keyboard" onClose={onClose}>
+      <div className="keys">
+        {KEYS.map(([group, rows]) => (
+          <section key={group}>
+            <h3 className="mono">{group}</h3>
+            <dl>{rows.map(([k, what]) => <div key={k}><dt><kbd>{k}</kbd></dt><dd>{what}</dd></div>)}</dl>
+          </section>
+        ))}
+      </div>
     </Modal>
   );
 }

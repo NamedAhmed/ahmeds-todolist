@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core';
 import { all, commit, getState, uid, useStore } from '../store.js';
@@ -92,7 +92,7 @@ function BigRing({ s, date, today }) {
 }
 
 // A small day: one ring cut into a segment per daily.
-function DayCell({ s, date, today, selected, marks, onPick }) {
+const DayCell = memo(function DayCell({ s, date, today, selected, marks, onPick, tabbable }) {
   const dailies = dailiesOn(s, date);
   const n = dailies.length;
   const gap = n > 1 ? (n > 8 ? 0.12 : 0.2) : 0;
@@ -100,7 +100,7 @@ function DayCell({ s, date, today, selected, marks, onPick }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'day:' + date, data: { date } });
   const cls = ['day', isOver && 'is-over', date === today && 'is-today', selected && 'is-selected', date > today && 'is-future', mark?.overdue && 'is-overdue'].filter(Boolean).join(' ');
   return (
-    <button ref={setNodeRef} className={cls} onClick={() => onPick(date)} aria-pressed={selected} aria-label={`${DOW[toDate(date).getDay()]} ${MON[toDate(date).getMonth()]} ${toDate(date).getDate()}`}>
+    <button ref={setNodeRef} className={cls} tabIndex={tabbable ? 0 : -1} onClick={() => onPick(date)} aria-pressed={selected} aria-label={`${DOW[toDate(date).getDay()]} ${MON[toDate(date).getMonth()]} ${toDate(date).getDate()}`}>
       <svg viewBox="0 0 40 40">
         <g transform="rotate(-90 20 20)">
           {n === 0 && <circle className="track" cx="20" cy="20" r="17" strokeWidth="3" />}
@@ -118,7 +118,13 @@ function DayCell({ s, date, today, selected, marks, onPick }) {
       {mark && <i className={'day-dot' + (mark.task ? '' : mark.done ? ' done' : ' reminder')} />}
     </button>
   );
-}
+// Only repaint a day when its own rings, dot or selection change, not on every edit elsewhere.
+}, (a, b) => {
+  const m = a.marks[a.date], n = b.marks[b.date];
+  return a.date === b.date && a.today === b.today && a.selected === b.selected && a.tabbable === b.tabbable
+    && a.s.dailies === b.s.dailies && a.s.completions === b.s.completions
+    && m?.task === n?.task && m?.done === n?.done && m?.overdue === n?.overdue;
+});
 
 /** Which days have something due (or something finished), so the calendar can dot them. */
 function useMarks(s, weeks, today) {
@@ -198,6 +204,16 @@ export default function Calendar({ today, day, setDay, open }) {
   const marks = useMarks(s, weeks, today);
   const dailies = dailiesOn(s, shown);
   const d = toDate(shown);
+  const dates = weeks.flat();
+  const tabDate = dates.includes(shown) ? shown : dates[0];   // one stop for Tab; arrows do the rest
+  // Arrow keys walk the grid: left and right by a day, up and down by a week.
+  const walk = (e) => {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    if (!step || !e.target.matches('.day')) return;
+    e.preventDefault();
+    const days = [...e.currentTarget.querySelectorAll('.day')];
+    days[Math.min(days.length - 1, Math.max(0, days.indexOf(e.target) + step))].focus();
+  };
 
   return (
     <section className="col col-calendar" aria-label="Calendar">
@@ -212,10 +228,10 @@ export default function Calendar({ today, day, setDay, open }) {
         <div className="cal-head">
           {DOW.map((n) => <span key={n} className="mono">{n[0]}</span>)}
         </div>
-        <motion.div className="cal-grid" layout transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
-          {weeks.flat().map((date) => (
-            <DayCell key={date} s={s} date={date} today={today} selected={day === date} marks={marks}
-              onPick={(picked) => setDay(picked === day || (picked === today && !day) ? null : picked)} />
+        <motion.div className="cal-grid" layout onKeyDown={walk} transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
+          {dates.map((date) => (
+            <DayCell key={date} s={s} date={date} today={today} selected={day === date} marks={marks} tabbable={date === tabDate}
+              onPick={(picked) => setDay((cur) => (picked === cur || (picked === today && !cur) ? null : picked))} />
           ))}
         </motion.div>
         <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)}>{month ? 'Two weeks' : 'Month'}</button>
@@ -236,6 +252,7 @@ export default function Calendar({ today, day, setDay, open }) {
 
       <footer className="col-foot">
         <button className="btn-ghost" onClick={() => open('reminders')}>↻ Reminders</button>
+        <button className="btn-ghost" aria-label="Keyboard shortcuts" onClick={() => open('keys')}>?</button>
         <button className="btn-ghost account" onClick={() => open('settings')}>
           <i className={'sync-dot ' + sync.sync} />
           {sync.user ? sync.user.email.split('@')[0] : sync.sync === 'off' ? 'Settings' : 'Sign in'}
