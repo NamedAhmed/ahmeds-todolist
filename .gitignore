@@ -1,0 +1,5 @@
+# brainstorming visual companion
+.superpowers/
+node_modules/
+dist/
+.env*.local
