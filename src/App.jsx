@@ -1,3 +1,13 @@
+// App.jsx = the top of the app. It puts the three columns on screen
+// (Calendar, Tasks, Notes) and handles the keyboard shortcuts.
+//
+// A quick tour:
+//   <Calendar>  the left column  -> components/Calendar.jsx
+//   <Tasks>     the middle column -> components/Tasks.jsx
+//   <Notes>     the right column  -> components/Side.jsx
+//   Modals (pop-up windows)       -> components/Modals.jsx
+//   Toasts (little messages)      -> components/Fire.jsx
+
 import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { getState, redo } from './store.js';
@@ -8,87 +18,152 @@ import { Notes } from './components/Side.jsx';
 import { KeysModal, RemindersModal, SettingsModal } from './components/Modals.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 
-const TABS = [['calendar', 'Calendar'], ['tasks', 'Tasks'], ['notes', 'Notes']];
+// The three buttons in the bottom bar on a phone: [internal name, label shown].
+const TABS = [
+  ['calendar', 'Calendar'],
+  ['tasks', 'Tasks'],
+  ['notes', 'Notes'],
+];
 
 export default function App() {
-  const today = useToday();
-  const [day, setDay] = useState(null);       // a day picked on the calendar, or null for "everything"
-  const [modal, setModal] = useState(null);   // 'reminders' | 'settings' | null
-  const [tab, setTab] = useState('tasks');    // which column a phone is showing
+  const today = useToday(); // today's date, e.g. "2026-10-18"
 
-  // Once a day, on opening: point out a streak that died yesterday.
+  // ---- things the screen remembers (React "state") ----
+  const [day, setDay] = useState(null);     // a day picked on the calendar, or null for "everything"
+  const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | null
+  const [tab, setTab] = useState('tasks');  // which column a phone is showing
+
+
+  // ---- Effect 1: once a day, when the app opens, point out a streak that died yesterday ----
   useEffect(() => {
+    // We remember the last day we did this, so it only happens once per day.
     if (localStorage.getItem('todolist:roasted') === today) return;
     localStorage.setItem('todolist:roasted', today);
-    const dead = brokenStreaks(getState(), today)[0];
-    if (dead) setTimeout(() => toast(quip('broken', dead.name, dead.was)), 900);
+
+    const deadStreak = brokenStreaks(getState(), today)[0]; // the biggest broken streak, if any
+    if (deadStreak) {
+      // Wait a moment so the message appears after the page has loaded.
+      setTimeout(() => toast(quip('broken', deadStreak.name, deadStreak.was)), 900);
+    }
   }, [today]);
 
-  // While Shift is held, rows show Rename and Delete (the page carries data-shift for the CSS).
+
+  // ---- Effect 2: while the Shift key is held, show the Rename and Delete buttons ----
+  // We put an attribute called data-shift on the page. The CSS (app.css) reads it.
   useEffect(() => {
     const root = document.documentElement;
-    const set = (e) => { if (e.key === 'Shift') root.toggleAttribute('data-shift', e.type === 'keydown'); };
-    const clear = () => root.removeAttribute('data-shift');
-    window.addEventListener('keydown', set);
-    window.addEventListener('keyup', set);
-    window.addEventListener('blur', clear);
-    return () => { window.removeEventListener('keydown', set); window.removeEventListener('keyup', set); window.removeEventListener('blur', clear); clear(); };
+
+    function onShiftKey(event) {
+      if (event.key !== 'Shift') return;
+      const shiftIsDown = event.type === 'keydown';
+      root.toggleAttribute('data-shift', shiftIsDown); // add the attribute if down, remove if up
+    }
+
+    function clearShift() {
+      root.removeAttribute('data-shift');
+    }
+
+    window.addEventListener('keydown', onShiftKey);
+    window.addEventListener('keyup', onShiftKey);
+    window.addEventListener('blur', clearShift); // clicking away from the window counts as letting go
+
+    // Cleanup when the app closes.
+    return () => {
+      window.removeEventListener('keydown', onShiftKey);
+      window.removeEventListener('keyup', onShiftKey);
+      window.removeEventListener('blur', clearShift);
+      clearShift();
+    };
   }, []);
 
-  // Keyboard, anywhere except inside a text box (where typing and the browser's own undo win).
+
+  // ---- Effect 3: keyboard shortcuts ----
+  // These work anywhere EXCEPT inside a text box (where typing and the browser's own undo should win).
   useEffect(() => {
-    // On a phone the three columns are tabs, so show the right one before moving focus into it.
-    const go = (to, selector) => { setTab(to); requestAnimationFrame(() => (document.querySelector(selector) ?? document.querySelector(`.col-${to}`))?.focus()); };
-    const onKey = (e) => {
-      if (e.target.closest('input, textarea, select, [contenteditable]') || e.defaultPrevented) return;
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key.toLowerCase() !== 'z') return;
-        e.preventDefault();
-        if (e.shiftKey) { if (redo()) toast(quip('redo')); }
-        else doUndo();
+    // Show a column and move the cursor into it.
+    // On a phone the three columns are tabs, so we show the right tab first.
+    function goTo(column, selector) {
+      setTab(column);
+      requestAnimationFrame(() => {
+        const element = document.querySelector(selector) ?? document.querySelector(`.col-${column}`);
+        element?.focus();
+      });
+    }
+
+    function onKey(event) {
+      // Ignore the key if you're typing in a box, or something else already handled it.
+      if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (event.defaultPrevented) return;
+
+      // Ctrl+Z = undo, Ctrl+Shift+Z = redo (Cmd on a Mac).
+      if (event.ctrlKey || event.metaKey) {
+        if (event.key.toLowerCase() !== 'z') return;
+        event.preventDefault();
+        if (event.shiftKey) {
+          if (redo()) toast(quip('redo'));
+        } else {
+          doUndo();
+        }
         return;
       }
-      if (e.altKey) return;
-      const to = {
-        n: () => go('tasks', '#task-title'), a: () => go('tasks', '#task-title'), '/': () => go('tasks', '#task-title'),
-        l: () => go('tasks', '.task-list > li.task[tabindex]'),
-        c: () => go('calendar', '.day[tabindex="0"]'),
-        o: () => go('notes', '.note-item'),
-        t: () => setDay((cur) => (cur === today ? null : today)),
-        r: () => setModal('reminders'), '?': () => setModal('keys')
-      }[e.key];
-      if (!to) return;
-      e.preventDefault();
-      to();
-    };
+
+      if (event.altKey) return;
+
+      // The single-key shortcuts. Each key runs a small action.
+      const key = event.key;
+      let action = null;
+
+      if (key === 'n' || key === 'a' || key === '/') action = () => goTo('tasks', '#task-title');       // new task
+      else if (key === 'l') action = () => goTo('tasks', '.task-list > li.task[tabindex]');            // task list
+      else if (key === 'c') action = () => goTo('calendar', '.day[tabindex="0"]');                     // calendar
+      else if (key === 'o') action = () => goTo('notes', '.note-item');                                // notes
+      else if (key === 't') action = () => setDay((current) => (current === today ? null : today));    // toggle "today"
+      else if (key === 'r') action = () => setModal('reminders');                                      // reminders window
+      else if (key === '?') action = () => setModal('keys');                                          // shortcuts window
+
+      if (!action) return; // not one of our keys
+      event.preventDefault();
+      action();
+    }
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [today]);
 
+
+  // ---- What gets drawn on the screen ----
   return (
     <>
       <div className="app" data-tab={tab}>
+        {/* TaskDnd wraps Calendar and Tasks so you can drag a task onto a calendar day. */}
         <TaskDnd day={day}>
           <Calendar today={today} day={day} setDay={setDay} open={setModal} />
           <Tasks today={today} day={day} setDay={setDay} />
         </TaskDnd>
+
         <section className="col col-notes" aria-label="Notes">
           <Notes />
         </section>
       </div>
 
+      {/* The bottom bar. It is only visible on a phone (see app.css). */}
       <nav className="tabbar" aria-label="Sections">
         {TABS.map(([id, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+            {label}
+          </button>
         ))}
         <button onClick={doUndo} aria-label="Undo">↶</button>
       </nav>
 
+      {/* Pop-up windows. Only the one named in `modal` is shown. */}
       <AnimatePresence>
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
         {modal === 'settings' && <SettingsModal key="s" onClose={() => setModal(null)} />}
         {modal === 'keys' && <KeysModal key="k" onClose={() => setModal(null)} />}
       </AnimatePresence>
+
+      {/* The little messages that slide in at the bottom. */}
       <Toasts />
     </>
   );

@@ -1,144 +1,278 @@
+// store.js = the ONE place where all your data (tasks, dailies, notes...) lives.
+//
+// How it works, in plain words:
+//   - "state" is one big object holding everything.
+//   - To change anything you call commit(). Nothing else is allowed to change the state.
+//   - commit() also remembers how to undo the change, saves to your browser,
+//     and marks the changed items as "_dirty" so sync.js knows to upload them.
+//   - Components call useStore() and re-draw automatically when the state changes.
+
 import { useSyncExternalStore } from 'react';
 
-// ---------- the one place data lives ----------
-// state = { tasks: { id: record }, dailies: { ... }, ... }
-// Every change goes through commit(). It updates state, remembers how to undo itself,
-// saves to this browser, and flags the changed records as _dirty so sync.js pushes them.
+
+// ======================================================================
+// SETUP
+// ======================================================================
+
+// The kinds of data we keep. Each one is a "table": an object of items, keyed by id.
+// state looks like: { tasks: { "id1": {...}, "id2": {...} }, dailies: {...}, notes: {...} ... }
 export const TABLES = ['tasks', 'dailies', 'completions', 'reminders', 'notes', 'settings'];
+
+// The name we save under in the browser's localStorage.
 const KEY = 'todolist:v2';
 
-const empty = () => Object.fromEntries(TABLES.map((t) => [t, {}]));
+// A fresh state with every table empty.
+function empty() {
+  const result = {};
+  for (const table of TABLES) {
+    result[table] = {};
+  }
+  return result;
+}
 
+// Read the saved data from the browser when the app starts.
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
     if (saved) return { ...empty(), ...saved };
-  } catch { /* corrupt save: start clean */ }
+  } catch {
+    // The save was corrupt. Ignore it and start clean.
+  }
+  // Nothing saved yet: check for data from the very first version of the app.
   return migrateV1(empty());
 }
 
-// Bring over anything made in the three-file MVP.
-function migrateV1(s) {
+// Bring over tasks and notes made in the first version of the app (stored under 'todolist:v1').
+function migrateV1(state) {
   try {
     const old = JSON.parse(localStorage.getItem('todolist:v1'));
-    if (!old) return s;
-    (old.tasks || []).forEach((t, i) => {
-      s.tasks[t.id] = { id: t.id, title: t.title, due: t.due, done: !!t.done, progress: 0, kind: 'task', position: i, created_at: t.createdAt, _dirty: true };
+    if (!old) return state;
+
+    const oldTasks = old.tasks || [];
+    oldTasks.forEach((task, index) => {
+      state.tasks[task.id] = {
+        id: task.id,
+        title: task.title,
+        due: task.due,
+        done: !!task.done,
+        progress: 0,
+        kind: 'task',
+        position: index,
+        created_at: task.createdAt,
+        _dirty: true,
+      };
     });
-    (old.notes || []).forEach((n) => {
-      s.notes[n.id] = { id: n.id, title: n.title, body: n.body, edited_at: n.updatedAt, _dirty: true };
+
+    const oldNotes = old.notes || [];
+    oldNotes.forEach((note) => {
+      state.notes[note.id] = {
+        id: note.id,
+        title: note.title,
+        body: note.body,
+        edited_at: note.updatedAt,
+        _dirty: true,
+      };
     });
-  } catch { /* nothing to migrate */ }
-  return s;
+  } catch {
+    // Nothing to bring over.
+  }
+  return state;
 }
 
-let state = load();
-const listeners = new Set();
-const undoStack = [];
-const redoStack = [];
+// ---- the live variables ----
+let state = load();             // all the data
+const listeners = new Set();    // functions to call whenever the state changes (React components)
+const undoStack = [];           // past changes, so Ctrl+Z works
+const redoStack = [];           // undone changes, so Ctrl+Shift+Z works
 
-export const getState = () => state;
-export const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
-export const useStore = () => useSyncExternalStore(subscribe, getState);
-export const uid = () => crypto.randomUUID();
 
-/** Live (not deleted) records of a table, as an array. */
-export const all = (s, table) => Object.values(s[table]).filter((r) => !r._deleted);
+// ======================================================================
+// READING THE DATA
+// ======================================================================
 
+export function getState() {
+  return state;
+}
+
+// Lets a component say "tell me when the state changes". Returns a function to stop listening.
+export function subscribe(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+// What components use: gives back the current state and re-draws when it changes.
+export function useStore() {
+  return useSyncExternalStore(subscribe, getState);
+}
+
+// Make a new random unique id for a new item.
+export function uid() {
+  return crypto.randomUUID();
+}
+
+// All the items in a table that haven't been deleted, as a list.
+export function all(currentState, table) {
+  return Object.values(currentState[table]).filter((item) => !item._deleted);
+}
+
+
+// ======================================================================
+// CHANGING THE DATA
+// ======================================================================
+
+// Tell everyone the state changed, and save to the browser shortly after.
+// We wait 150ms so lots of quick changes only cause one save.
 let saveTimer;
 function emit() {
-  listeners.forEach((fn) => fn());
+  listeners.forEach((listener) => listener());
+
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); }
-    catch (e) { console.warn('Could not save locally', e); }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn('Could not save locally', error);
+    }
   }, 150);
 }
 
-// Apply a list of changes and return the list that reverses them.
-// change = { t: table, id, patch }   merge fields into a record (creates it if missing)
-//        | { t: table, id, set }     replace the whole record (set: null deletes it)
+// Apply a list of changes to the state, and return the list of changes that would reverse them.
+// A change is one of:
+//   { t: tableName, id, patch: {...} }   add/update only these fields (creates the item if missing)
+//   { t: tableName, id, set: {...} }     replace the whole item
+//   { t: tableName, id, set: null }      delete the item
 function apply(changes) {
   const inverse = [];
-  const next = { ...state };
-  for (const c of changes) {
-    const prev = next[c.t][c.id];
-    inverse.unshift({ t: c.t, id: c.id, set: prev && !prev._deleted ? prev : null });
-    let rec;
-    if ('set' in c) rec = c.set ? { ...c.set } : { id: c.id, _deleted: true };
-    else rec = { ...(prev && !prev._deleted ? prev : { id: c.id }), ...c.patch };
-    rec._dirty = true;
-    next[c.t] = { ...next[c.t], [c.id]: rec };
+  const next = { ...state }; // copy, so we never edit the old state directly
+
+  for (const change of changes) {
+    const previous = next[change.t][change.id];
+    const previousExists = previous && !previous._deleted;
+
+    // Remember how to put things back. (unshift = add to the front, so undo runs in reverse order)
+    inverse.unshift({
+      t: change.t,
+      id: change.id,
+      set: previousExists ? previous : null,
+    });
+
+    // Work out the new version of the item.
+    let item;
+    if ('set' in change) {
+      if (change.set) item = { ...change.set };
+      else item = { id: change.id, _deleted: true }; // deleting keeps a marker so sync can tell the server
+    } else {
+      const base = previousExists ? previous : { id: change.id };
+      item = { ...base, ...change.patch };
+    }
+
+    item._dirty = true; // "this needs uploading"
+    next[change.t] = { ...next[change.t], [change.id]: item };
   }
+
   state = next;
   return inverse;
 }
 
-/** The only way to change data. `label` names the action for the undo toast. */
+// THE way to change data. `label` is the name shown in the undo message.
 export function commit(label, changes) {
-  if (!changes.length) return;
+  if (changes.length === 0) return;
+
   undoStack.push({ label, changes: apply(changes) });
-  if (undoStack.length > 200) undoStack.shift();
-  redoStack.length = 0;
+  if (undoStack.length > 200) undoStack.shift(); // only remember the last 200 actions
+  redoStack.length = 0;                          // a new change wipes the redo list
   emit();
 }
 
+// Reverse the last change. Returns its label, or null if there was nothing to undo.
 export function undo() {
   const last = undoStack.pop();
   if (!last) return null;
+
   redoStack.push({ label: last.label, changes: apply(last.changes) });
   emit();
   return last.label;
 }
 
+// Re-do the change that was just undone. Returns its label, or null if there was nothing.
 export function redo() {
   const last = redoStack.pop();
   if (!last) return null;
+
   undoStack.push({ label: last.label, changes: apply(last.changes) });
   emit();
   return last.label;
 }
 
-// ---------- used only by sync.js ----------
+
+// ======================================================================
+// USED ONLY BY sync.js (uploading and downloading)
+// ======================================================================
+
+// Every item that has changed since the last upload.
 export function dirtyRecords() {
-  const out = [];
-  for (const t of TABLES) for (const rec of Object.values(state[t])) if (rec._dirty) out.push({ t, rec });
-  return out;
+  const result = [];
+  for (const table of TABLES) {
+    for (const item of Object.values(state[table])) {
+      if (item._dirty) result.push({ t: table, rec: item });
+    }
+  }
+  return result;
 }
 
-/** After a successful push. Skips records edited again while the push was in flight. */
+// After a successful upload: remove the _dirty flag.
+// If an item was edited again while uploading, leave it dirty so it uploads next time.
 export function markClean(pushed) {
   const next = { ...state };
+
   for (const { t, rec } of pushed) {
-    if (next[t][rec.id] !== rec) continue;
-    const { _dirty, ...clean } = rec;
+    if (next[t][rec.id] !== rec) continue; // it changed during the upload, skip it
+
+    const { _dirty, ...clean } = rec; // copy without the _dirty field
     next[t] = { ...next[t], [rec.id]: clean };
   }
+
   state = next;
   emit();
 }
 
-/** Rows pulled from the server. A local unsynced edit wins until it has been pushed. */
+// Rows downloaded from the server. A local change that hasn't uploaded yet wins over the server.
 export function applyRemote(rows) {
   const next = { ...state };
   let changed = false;
+
   for (const row of rows) {
-    if (!next[row.tbl]) continue;
-    if (next[row.tbl][row.id]?._dirty) continue;
-    const rec = row.deleted ? { id: row.id, _deleted: true } : { ...row.data, id: row.id };
-    next[row.tbl] = { ...next[row.tbl], [row.id]: rec };
+    if (!next[row.tbl]) continue;                  // unknown table, ignore
+    if (next[row.tbl][row.id]?._dirty) continue;   // we have a newer local edit, keep it
+
+    let item;
+    if (row.deleted) item = { id: row.id, _deleted: true };
+    else item = { ...row.data, id: row.id };
+
+    next[row.tbl] = { ...next[row.tbl], [row.id]: item };
     changed = true;
   }
-  if (changed) { state = next; emit(); }
+
+  if (changed) {
+    state = next;
+    emit();
+  }
 }
 
+// Mark everything as needing upload (used the first time you sign in).
 export function markAllDirty() {
   const next = {};
-  for (const t of TABLES) next[t] = Object.fromEntries(Object.entries(state[t]).map(([id, r]) => [id, { ...r, _dirty: true }]));
+  for (const table of TABLES) {
+    next[table] = {};
+    for (const [id, item] of Object.entries(state[table])) {
+      next[table][id] = { ...item, _dirty: true };
+    }
+  }
   state = next;
   emit();
 }
 
+// Wipe everything (used when a different account signs in on this browser).
 export function resetAll() {
   state = empty();
   undoStack.length = 0;
@@ -146,14 +280,30 @@ export function resetAll() {
   emit();
 }
 
+// All your data as a nicely formatted JSON text (used by the export button).
 export function exportJson() {
   const out = {};
-  for (const t of TABLES) out[t] = all(state, t).map(({ _dirty, ...r }) => r);
+  for (const table of TABLES) {
+    out[table] = all(state, table).map((item) => {
+      const { _dirty, ...clean } = item; // leave out the internal _dirty flag
+      return clean;
+    });
+  }
   return JSON.stringify(out, null, 2);
 }
 
-// Another tab changed the save: take its version so the two never fight.
-window.addEventListener('storage', (e) => {
-  if (e.key !== KEY || !e.newValue) return;
-  try { state = { ...empty(), ...JSON.parse(e.newValue) }; listeners.forEach((fn) => fn()); } catch { /* ignore */ }
+
+// ======================================================================
+// MULTIPLE TABS
+// ======================================================================
+// If you have the app open in two browser tabs and one saves, the other
+// picks up the new data so the two never fight each other.
+window.addEventListener('storage', (event) => {
+  if (event.key !== KEY || !event.newValue) return;
+  try {
+    state = { ...empty(), ...JSON.parse(event.newValue) };
+    listeners.forEach((listener) => listener());
+  } catch {
+    // Ignore a broken save.
+  }
 });

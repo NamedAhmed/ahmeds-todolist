@@ -1,264 +1,613 @@
+// Calendar.jsx = the left column: a big ring for the chosen day, a small calendar,
+// and the list of "dailies" (habits you tick every day).
+//
+// Pieces in this file, top to bottom:
+//   toggleDaily   tick / untick a daily
+//   flamePath     draws the fire around a finished ring (maths, you can ignore it)
+//   BigRing       the large ring at the top
+//   DayCell       one small day in the calendar grid
+//   useMarks      works out which days get a dot
+//   DailyRow      one row in the dailies list
+//   AddDaily      the "Add a daily…" box
+//   DailyStrip    the phone-only strip of dailies above the task list
+//   Calendar      the whole column (this is what App.jsx uses)
+
 import { memo, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
 import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, streakOf, toDate, ymd } from '../lib.js';
 import { Flame, sass, toast } from './Fire.jsx';
 
+// Streak lengths that get a congratulation message.
 const MILESTONES = [3, 7, 14, 21, 30, 50, 100, 200, 365];
 
-/** Tick or untick a daily for a date. Only the big moments get a comment. */
+
+// ======================================================================
+// TICKING A DAILY
+// ======================================================================
+// Tick or untick a daily for a date. Only the big moments get a comment.
 export function toggleDaily(daily, date, today) {
+  // Each tick is saved as a "completion" with a key like "dailyId:2026-10-18".
   const key = doneKey(daily.id, date);
+
+  // Already ticked? Then this click UNticks it.
   if (isDone(getState(), daily.id, date)) {
-    commit('daily unticked', [{ t: 'completions', id: key, set: null }]);
+    commit('daily unticked', [{ t: 'completions', id: key, set: null }]); // set: null = delete
     sass('dailyUnticked', [], { chance: 0.6 });
     return;
   }
-  commit('daily done', [{ t: 'completions', id: key, set: { id: key, ref: daily.id, date, kind: 'daily' } }]);
+
+  // Otherwise tick it.
+  commit('daily done', [
+    { t: 'completions', id: key, set: { id: key, ref: daily.id, date, kind: 'daily' } },
+  ]);
+
+  // Only comment when ticking TODAY (not when fixing up a past day).
   if (date !== today) return;
-  const s = getState();
-  const list = dailiesOn(s, date);
-  const streak = streakOf(s, daily.id, today);
-  if (list.every((d) => isDone(s, d.id, date))) toast(quip('allDailies'));
-  else if (MILESTONES.includes(streak)) toast(quip('streak', streak));
-  else sass('dailyDone', [], { chance: 0.25 });
+
+  const state = getState();
+  const dailiesToday = dailiesOn(state, date);
+  const streak = streakOf(state, daily.id, today);
+
+  const everythingDone = dailiesToday.every((d) => isDone(state, d.id, date));
+  if (everythingDone) {
+    toast(quip('allDailies'));
+  } else if (MILESTONES.includes(streak)) {
+    toast(quip('streak', streak));
+  } else {
+    sass('dailyDone', [], { chance: 0.25 });
+  }
 }
 
-// The fire behind a finished ring: a flat silhouette of flame tongues rising around its top half.
-// Each tongue has a round belly and a tip that curls to one side; tongues are tallest at the top.
-// The shape closes along the ring itself, so nothing shows through the middle.
+
+// ======================================================================
+// THE FIRE AROUND A FINISHED RING (just drawing, safe to ignore)
+// ======================================================================
+// When every daily is done, flames appear around the top half of the ring.
+// This function builds the outline of those flames as an SVG "path" (a list of curve instructions).
+//   tongues = how many flame tips
+//   height  = how tall the tallest flame is
+//   curl    = which way the tips lean
+//   base    = the radius of the ring the flames sit on
+// It uses circle maths (sin/cos) to place points around the ring.
 function flamePath(tongues, height, curl, base = 96) {
-  const pt = (deg, r) => `${(100 + r * Math.cos((deg * Math.PI) / 180)).toFixed(1)} ${(100 + r * Math.sin((deg * Math.PI) / 180)).toFixed(1)}`;
-  const sizes = [1, 0.5, 0.82, 0.58, 1, 0.52, 0.86, 0.6];
-  const from = -172, span = 164, step = span / tongues;
-  let d = `M${pt(from, base)}`;
-  for (let i = 0; i < tongues; i++) {
-    const a = from + i * step;
-    const h = height * (0.35 + 0.65 * Math.sin(Math.PI * ((i + 0.5) / tongues))) * sizes[i % sizes.length];
-    d += ` C${pt(a - step * 0.05, base + h * 0.55)} ${pt(a + step * (0.3 + curl), base + h * 0.7)} ${pt(a + step * (0.5 + curl * 2), base + h)}`;
-    d += ` C${pt(a + step * 0.62, base + h * 0.5)} ${pt(a + step * 1.02, base + h * 0.4)} ${pt(a + step, base)}`;
+  // Turn an angle (in degrees) and a distance from the centre into the text "x y".
+  function point(degrees, radius) {
+    const x = 100 + radius * Math.cos((degrees * Math.PI) / 180);
+    const y = 100 + radius * Math.sin((degrees * Math.PI) / 180);
+    return `${x.toFixed(1)} ${y.toFixed(1)}`;
   }
-  return `${d} A${base} ${base} 0 ${span > 180 ? 1 : 0} 0 ${pt(from, base)} Z`;   // back along the ring to the start
+
+  const sizes = [1, 0.5, 0.82, 0.58, 1, 0.52, 0.86, 0.6]; // so the flames aren't all the same height
+  const from = -172;                // start angle
+  const span = 164;                 // how many degrees of the ring the flames cover
+  const step = span / tongues;      // degrees per flame
+
+  let path = `M${point(from, base)}`; // "M" = move to the starting point
+
+  for (let i = 0; i < tongues; i++) {
+    const angle = from + i * step;
+
+    // Flames are tallest in the middle of the arc and shorter at the ends.
+    const middleBoost = 0.35 + 0.65 * Math.sin(Math.PI * ((i + 0.5) / tongues));
+    const h = height * middleBoost * sizes[i % sizes.length];
+
+    // "C" = draw a curve. First up the side of the flame to its tip...
+    path += ` C${point(angle - step * 0.05, base + h * 0.55)} ${point(angle + step * (0.3 + curl), base + h * 0.7)} ${point(angle + step * (0.5 + curl * 2), base + h)}`;
+    // ...then back down to the ring.
+    path += ` C${point(angle + step * 0.62, base + h * 0.5)} ${point(angle + step * 1.02, base + h * 0.4)} ${point(angle + step, base)}`;
+  }
+
+  // Close the shape by drawing back along the ring to the start ("A" = arc, "Z" = close).
+  const bigArc = span > 180 ? 1 : 0;
+  return `${path} A${base} ${base} 0 ${bigArc} 0 ${point(from, base)} Z`;
 }
+
+// Two layers of flame (back = tall, front = short) built once, when the app loads.
 const FIRE_BACK = flamePath(6, 42, 0.1);
 const FIRE_FRONT = flamePath(7, 22, -0.08);
 
-// Today's ring: one concentric ring per daily. More dailies means thinner rings, never a different shape.
+
+// ======================================================================
+// THE BIG RING
+// ======================================================================
+// One circle ring per daily, nested inside each other. More dailies = thinner rings.
+// Clicking a ring ticks that daily.
 function BigRing({ s, date, today }) {
   const dailies = dailiesOn(s, date);
-  const n = dailies.length;
-  const done = dailies.filter((d) => isDone(s, d.id, date)).length;
-  const ablaze = n > 0 && done === n;
-  const band = 57 / Math.max(n, 3);
+  const count = dailies.length;
+  const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
+  const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
+
+  // Ring sizes: they share the space, but never get thicker than 14.
+  const band = 57 / Math.max(count, 3);
   const width = Math.min(14, band * 0.72);
-  const d = toDate(date);
+
+  const dateObject = toDate(date);
+
   return (
-    <div className={'big-ring' + (ablaze ? ' ablaze' : '')}>
+    <div className={'big-ring' + (everythingDone ? ' ablaze' : '')}>
+      {/* The flames, animated in and out */}
       <AnimatePresence>
-        {ablaze && (
-          <motion.svg className="ring-fire" viewBox="0 0 200 200" aria-hidden="true"
-            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
+        {everythingDone && (
+          <motion.svg
+            className="ring-fire"
+            viewBox="0 0 200 200"
+            aria-hidden="true"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+          >
             <path className="fire-back" d={FIRE_BACK} />
             <path className="fire-front" d={FIRE_FRONT} />
           </motion.svg>
         )}
       </AnimatePresence>
+
       <svg viewBox="0 0 200 200">
-        {n === 0 && [88, 68, 48].map((r) => <circle key={r} className="track" cx="100" cy="100" r={r} strokeWidth="14" />)}
+        {/* No dailies yet: show three empty grey rings */}
+        {count === 0 &&
+          [88, 68, 48].map((radius) => (
+            <circle key={radius} className="track" cx="100" cy="100" r={radius} strokeWidth="14" />
+          ))}
+
+        {/* One ring per daily */}
         {dailies.map((daily, i) => {
-          const r = 95 - band * i - width / 2;
-          const on = isDone(s, daily.id, date);
+          const radius = 95 - band * i - width / 2; // each ring is a bit smaller than the last
+          const isOn = isDone(s, daily.id, date);
+
           return (
             <g key={daily.id} transform="rotate(-90 100 100)">
-              <circle className="track hit" cx="100" cy="100" r={r} strokeWidth={width}
-                onClick={() => toggleDaily(daily, date, today)}>
+              {/* The grey track. It is also the clickable area. */}
+              <circle
+                className="track hit"
+                cx="100"
+                cy="100"
+                r={radius}
+                strokeWidth={width}
+                onClick={() => toggleDaily(daily, date, today)}
+              >
                 <title>{daily.name}</title>
               </circle>
-              <motion.circle cx="100" cy="100" r={r} fill="none" stroke={daily.color} strokeWidth={width} strokeLinecap="round"
-                style={{ pointerEvents: 'none' }} initial={false}
-                animate={{ pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
-                transition={{ pathLength: { type: 'spring', stiffness: 60, damping: 16 }, opacity: { duration: 0.2 } }} />
+
+              {/* The coloured part that "fills in" when the daily is done */}
+              <motion.circle
+                cx="100"
+                cy="100"
+                r={radius}
+                fill="none"
+                stroke={daily.color}
+                strokeWidth={width}
+                strokeLinecap="round"
+                style={{ pointerEvents: 'none' }}
+                initial={false}
+                animate={{ pathLength: isOn ? 1 : 0, opacity: isOn ? 1 : 0 }}
+                transition={{
+                  pathLength: { type: 'spring', stiffness: 60, damping: 16 },
+                  opacity: { duration: 0.2 },
+                }}
+              />
             </g>
           );
         })}
       </svg>
+
+      {/* The day number and "2/3" in the middle */}
       <div className="ring-center">
-        <motion.span key={date} className="ring-day" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>{d.getDate()}</motion.span>
-        {n > 0 && <span className="mono">{done}/{n}</span>}
+        <motion.span key={date} className="ring-day" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+          {dateObject.getDate()}
+        </motion.span>
+        {count > 0 && (
+          <span className="mono">
+            {doneCount}/{count}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-// A small day: one ring cut into a segment per daily.
-const DayCell = memo(function DayCell({ s, date, today, selected, marks, onPick, tabbable }) {
-  const dailies = dailiesOn(s, date);
-  const n = dailies.length;
-  const gap = n > 1 ? (n > 8 ? 0.12 : 0.2) : 0;
-  const mark = marks[date];
-  const { setNodeRef, isOver } = useDroppable({ id: 'day:' + date, data: { date } });
-  const cls = ['day', isOver && 'is-over', date === today && 'is-today', selected && 'is-selected', date > today && 'is-future', mark?.overdue && 'is-overdue'].filter(Boolean).join(' ');
-  return (
-    <button ref={setNodeRef} className={cls} tabIndex={tabbable ? 0 : -1} onClick={() => onPick(date)} aria-pressed={selected} aria-label={`${DOW[toDate(date).getDay()]} ${MON[toDate(date).getMonth()]} ${toDate(date).getDate()}`}>
-      <svg viewBox="0 0 40 40">
-        <g transform="rotate(-90 20 20)">
-          {n === 0 && <circle className="track" cx="20" cy="20" r="17" strokeWidth="3" />}
-          {dailies.map((daily, i) => {
-            const on = isDone(s, daily.id, date);
-            return (
-              <circle key={daily.id} cx="20" cy="20" r="17" fill="none" strokeWidth="3.500" pathLength={n}
-                className={on ? 'seg on' : 'seg'} style={on ? { stroke: daily.color, color: daily.color } : undefined}
-                strokeDasharray={`${1 - gap} ${n - 1 + gap}`} strokeDashoffset={-(i + gap / 2)} />
-            );
-          })}
-        </g>
-      </svg>
-      <span className="day-num">{toDate(date).getDate()}</span>
-      {mark && <i className={'day-dot' + (mark.task ? '' : mark.done ? ' done' : ' reminder')} />}
-    </button>
-  );
-// Only repaint a day when its own rings, dot or selection change, not on every edit elsewhere.
-}, (a, b) => {
-  const m = a.marks[a.date], n = b.marks[b.date];
-  return a.date === b.date && a.today === b.today && a.selected === b.selected && a.tabbable === b.tabbable
-    && a.s.dailies === b.s.dailies && a.s.completions === b.s.completions
-    && m?.task === n?.task && m?.done === n?.done && m?.overdue === n?.overdue;
-});
 
-/** Which days have something due (or something finished), so the calendar can dot them. */
+// ======================================================================
+// ONE SMALL DAY IN THE CALENDAR GRID
+// ======================================================================
+// A small ring cut into one piece (segment) per daily, with the day number inside.
+// `memo` means "don't re-draw this day unless something relevant changed"
+// (the check is at the bottom of this function).
+const DayCell = memo(
+  function DayCell({ s, date, today, selected, marks, onPick, tabbable }) {
+    const dailies = dailiesOn(s, date);
+    const count = dailies.length;
+
+    // The small gap between segments.
+    let gap = 0;
+    if (count > 1) gap = count > 8 ? 0.12 : 0.2;
+
+    const mark = marks[date]; // the dot for this day, if any
+    const dateObject = toDate(date);
+
+    // Makes this day a place you can drop a dragged task. isOver = a task is hovering over it now.
+    const { setNodeRef, isOver } = useDroppable({ id: 'day:' + date, data: { date } });
+
+    // Build the CSS class list (see .day in app.css). `false` entries are removed by filter(Boolean).
+    const className = [
+      'day',
+      isOver && 'is-over',
+      date === today && 'is-today',
+      selected && 'is-selected',
+      date > today && 'is-future',
+      mark?.overdue && 'is-overdue',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    // Which kind of dot: a task is due (plain), something was finished ("done"), or a reminder ("reminder").
+    let dotClass = 'day-dot';
+    if (mark && !mark.task) dotClass += mark.done ? ' done' : ' reminder';
+
+    return (
+      <button
+        ref={setNodeRef}
+        className={className}
+        tabIndex={tabbable ? 0 : -1}
+        onClick={() => onPick(date)}
+        aria-pressed={selected}
+        aria-label={`${DOW[dateObject.getDay()]} ${MON[dateObject.getMonth()]} ${dateObject.getDate()}`}
+      >
+        <svg viewBox="0 0 40 40">
+          <g transform="rotate(-90 20 20)">
+            {count === 0 && <circle className="track" cx="20" cy="20" r="17" strokeWidth="3" />}
+
+            {/* One segment of the ring per daily. strokeDasharray cuts the circle into pieces. */}
+            {dailies.map((daily, i) => {
+              const isOn = isDone(s, daily.id, date);
+              return (
+                <circle
+                  key={daily.id}
+                  cx="20"
+                  cy="20"
+                  r="17"
+                  fill="none"
+                  strokeWidth="3.5"
+                  pathLength={count}
+                  className={isOn ? 'seg on' : 'seg'}
+                  style={isOn ? { stroke: daily.color, color: daily.color } : undefined}
+                  strokeDasharray={`${1 - gap} ${count - 1 + gap}`}
+                  strokeDashoffset={-(i + gap / 2)}
+                />
+              );
+            })}
+          </g>
+        </svg>
+
+        <span className="day-num">{dateObject.getDate()}</span>
+        {mark && <i className={dotClass} />}
+      </button>
+    );
+  },
+
+  // The "should we skip re-drawing?" check. Returns true when NOTHING relevant to this day changed.
+  // This only makes the app faster. It never changes what you see.
+  (before, after) => {
+    const markBefore = before.marks[before.date];
+    const markAfter = after.marks[after.date];
+
+    return (
+      before.date === after.date &&
+      before.today === after.today &&
+      before.selected === after.selected &&
+      before.tabbable === after.tabbable &&
+      before.s.dailies === after.s.dailies &&
+      before.s.completions === after.s.completions &&
+      markBefore?.task === markAfter?.task &&
+      markBefore?.done === markAfter?.done &&
+      markBefore?.overdue === markAfter?.overdue
+    );
+  }
+);
+
+
+// ======================================================================
+// WHICH DAYS GET A DOT
+// ======================================================================
+// Works out which days have something due (or something finished) so the calendar can dot them.
+// Returns an object like { "2026-10-20": { task: true, overdue: false } }.
+// useMemo = only recalculate when the listed things change (an optimisation).
 function useMarks(s, weeks, today) {
   return useMemo(() => {
     const marks = {};
-    for (const t of all(s, 'tasks')) {
-      if (t.parent) continue;
-      if (t.done) { if (t.done_at) { const d = ymd(new Date(t.done_at)); marks[d] ||= { done: true }; } continue; }
-      if (t.due) marks[t.due] = { task: true, overdue: t.due < today };
+
+    // 1. Tasks (not their sub-steps).
+    for (const task of all(s, 'tasks')) {
+      if (task.parent) continue;
+
+      if (task.done) {
+        // A finished task marks the day it was finished.
+        if (task.done_at) {
+          const finishedOn = ymd(new Date(task.done_at));
+          if (!marks[finishedOn]) marks[finishedOn] = { done: true };
+        }
+        continue;
+      }
+
+      // An unfinished task marks its due date (overdue if that date has passed).
+      if (task.due) marks[task.due] = { task: true, overdue: task.due < today };
     }
+
+    // 2. Reminders: mark upcoming days where a reminder happens (if that day has no task dot already).
     const reminders = all(s, 'reminders');
     for (const date of weeks.flat()) {
-      if (date < today || marks[date]?.task) continue;
-      if (reminders.some((r) => occursOn(r.rule, date) && !isDone(s, r.id, date))) marks[date] = { task: false };
+      if (date < today) continue;
+      if (marks[date]?.task) continue;
+
+      const hasReminder = reminders.some(
+        (reminder) => occursOn(reminder.rule, date) && !isDone(s, reminder.id, date)
+      );
+      if (hasReminder) marks[date] = { task: false };
     }
+
     return marks;
   }, [s.tasks, s.reminders, s.completions, weeks, today]);
 }
 
+
+// ======================================================================
+// ONE ROW IN THE DAILIES LIST
+// ======================================================================
 function DailyRow({ s, daily, date, today }) {
-  const on = isDone(s, daily.id, date);
+  const isOn = isDone(s, daily.id, date);
   const streak = streakOf(s, daily.id, today);
+
+  // The flame gets bigger for longer streaks.
+  let flameSize = 14;
+  if (streak >= 30) flameSize = 18;
+  else if (streak >= 7) flameSize = 16;
+
+  // The × button: hide this daily from now on (it keeps its history in the past).
+  function archive() {
+    commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]);
+    toast(quip('dailyArchived'), { undoable: true });
+  }
+
   return (
-    <motion.li className={'daily' + (on ? ' on' : '')} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
-      <button className="daily-check" style={{ '--c': daily.color }} aria-pressed={on} aria-label={daily.name}
-        onClick={() => toggleDaily(daily, date, today)} />
+    <motion.li
+      className={'daily' + (isOn ? ' on' : '')}
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+    >
+      <button
+        className="daily-check"
+        style={{ '--c': daily.color }}
+        aria-pressed={isOn}
+        aria-label={daily.name}
+        onClick={() => toggleDaily(daily, date, today)}
+      />
       <span className="daily-name">{daily.name}</span>
-      <span className={'streak' + (streak ? '' : ' cold')} title={streak ? `${streak} days in a row` : 'No streak. Yet. Allegedly.'}>
-        <Flame streak={streak} size={streak >= 30 ? 18 : streak >= 7 ? 16 : 14} />
-        <motion.b key={streak} initial={{ scale: 1.5 }} animate={{ scale: 1 }}>{streak}</motion.b>
+
+      <span
+        className={'streak' + (streak ? '' : ' cold')}
+        title={streak ? `${streak} days in a row` : 'No streak. Yet. Allegedly.'}
+      >
+        <Flame streak={streak} size={flameSize} />
+        <motion.b key={streak} initial={{ scale: 1.5 }} animate={{ scale: 1 }}>
+          {streak}
+        </motion.b>
       </span>
-      <button className="del" aria-label={`Archive ${daily.name}`}
-        onClick={() => { commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]); toast(quip('dailyArchived'), { undoable: true }); }}>×</button>
+
+      <button className="del" aria-label={`Archive ${daily.name}`} onClick={archive}>
+        ×
+      </button>
     </motion.li>
   );
 }
 
+
+// ======================================================================
+// THE "ADD A DAILY" BOX
+// ======================================================================
 function AddDaily({ s, today }) {
-  const [name, setName] = useState('');
-  const submit = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    const list = all(s, 'dailies');
-    commit('daily added', [{ t: 'dailies', id: uid(), patch: { name: name.trim(), color: DAILY_COLORS[list.length % DAILY_COLORS.length], position: list.length, created: today } }]);
+  const [name, setName] = useState(''); // what is typed in the box
+
+  // Runs when you press Enter.
+  function submit(event) {
+    event.preventDefault(); // stop the page from reloading
+    if (!name.trim()) return; // ignore an empty box
+
+    const existing = all(s, 'dailies');
+    const color = DAILY_COLORS[existing.length % DAILY_COLORS.length]; // next colour in the list
+
+    commit('daily added', [
+      {
+        t: 'dailies',
+        id: uid(),
+        patch: { name: name.trim(), color, position: existing.length, created: today },
+      },
+    ]);
     setName('');
     sass('dailyAdded', [], { chance: 0.7 });
-  };
+  }
+
   return (
     <form className="daily-add" onSubmit={submit}>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a daily…" aria-label="New daily" />
+      <input
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder="Add a daily…"
+        aria-label="New daily"
+      />
     </form>
   );
 }
 
-/** Phones: a slim row of dailies above the task list, so the whole daily loop is one screen. */
+
+// ======================================================================
+// PHONE-ONLY STRIP OF DAILIES
+// ======================================================================
+// On phones: a slim row of dailies above the task list, so the whole daily routine fits one screen.
 export function DailyStrip({ today }) {
   const s = useStore();
   const dailies = dailiesOn(s, today);
-  if (!dailies.length) return null;
+  if (dailies.length === 0) return null; // nothing to show
+
   return (
     <div className="daily-strip">
-      {dailies.map((d) => (
-        <button key={d.id} className={'strip-pill' + (isDone(s, d.id, today) ? ' on' : '')} style={{ '--c': d.color }}
-          onClick={() => toggleDaily(d, today, today)}>
-          <i />{d.name}<Flame streak={streakOf(s, d.id, today)} size={11} />
+      {dailies.map((daily) => (
+        <button
+          key={daily.id}
+          className={'strip-pill' + (isDone(s, daily.id, today) ? ' on' : '')}
+          style={{ '--c': daily.color }}
+          onClick={() => toggleDaily(daily, today, today)}
+        >
+          <i />
+          {daily.name}
+          <Flame streak={streakOf(s, daily.id, today)} size={11} />
         </button>
       ))}
     </div>
   );
 }
 
+
+// ======================================================================
+// THE WHOLE CALENDAR COLUMN
+// ======================================================================
+// Props (the inputs App.jsx gives it):
+//   today   today's date text
+//   day     the day picked by the user, or null
+//   setDay  function to pick a day
+//   open    function to open a pop-up window ('reminders', 'keys', 'settings')
 export default function Calendar({ today, day, setDay, open }) {
   const s = useStore();
-  const sync = useSync();
-  const [month, setMonth] = useState(false);
-  const shown = day ?? today;
+  const sync = useSync(); // are we signed in / syncing?
+
+  const [month, setMonth] = useState(false); // false = two weeks, true = whole month
+
+  const shown = day ?? today;                              // the day the big ring shows
   const weeks = useMemo(() => calendarWeeks(today, month), [today, month]);
   const marks = useMarks(s, weeks, today);
   const dailies = dailiesOn(s, shown);
-  const d = toDate(shown);
-  const dates = weeks.flat();
-  const tabDate = dates.includes(shown) ? shown : dates[0];   // one stop for Tab; arrows do the rest
-  // Arrow keys walk the grid: left and right by a day, up and down by a week.
-  const walk = (e) => {
-    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
-    if (!step || !e.target.matches('.day')) return;
-    e.preventDefault();
-    const days = [...e.currentTarget.querySelectorAll('.day')];
-    days[Math.min(days.length - 1, Math.max(0, days.indexOf(e.target) + step))].focus();
-  };
+  const shownDate = toDate(shown);
+  const dates = weeks.flat();                              // all the days as one flat list
+
+  // For keyboard users: only ONE day is a Tab stop (tabbable). Arrow keys move between the rest.
+  const tabDate = dates.includes(shown) ? shown : dates[0];
+
+  // Arrow keys walk the grid: left/right by one day, up/down by a week.
+  function walkWithArrowKeys(event) {
+    let step = 0;
+    if (event.key === 'ArrowLeft') step = -1;
+    if (event.key === 'ArrowRight') step = 1;
+    if (event.key === 'ArrowUp') step = -7;
+    if (event.key === 'ArrowDown') step = 7;
+
+    if (!step) return;                        // not an arrow key
+    if (!event.target.matches('.day')) return; // focus isn't on a day button
+
+    event.preventDefault();
+    const dayButtons = [...event.currentTarget.querySelectorAll('.day')];
+    const wanted = dayButtons.indexOf(event.target) + step;
+    const clamped = Math.min(dayButtons.length - 1, Math.max(0, wanted)); // stay inside the grid
+    dayButtons[clamped].focus();
+  }
+
+  // Clicking a day selects it. Clicking the selected day (or today when nothing is selected) clears it.
+  function pickDay(picked) {
+    setDay((current) => {
+      const clearing = picked === current || (picked === today && !current);
+      return clearing ? null : picked;
+    });
+  }
+
+  // The little text next to "Dailies", e.g. "· Oct 18" when looking at another day.
+  const dailiesSuffix = day && day !== today ? ` · ${MON[shownDate.getMonth()]} ${shownDate.getDate()}` : '';
+
+  // The text on the account button at the bottom.
+  let accountLabel;
+  if (sync.user) accountLabel = sync.user.email.split('@')[0]; // the part before the @
+  else if (sync.sync === 'off') accountLabel = 'Settings';
+  else accountLabel = 'Sign in';
 
   return (
     <section className="col col-calendar" aria-label="Calendar">
       <header className="col-head">
         <h2>Calendar</h2>
-        <span className="mono">{DOW[d.getDay()]} · {MON[d.getMonth()]} {d.getDate()}</span>
+        <span className="mono">
+          {DOW[shownDate.getDay()]} · {MON[shownDate.getMonth()]} {shownDate.getDate()}
+        </span>
       </header>
 
       <BigRing s={s} date={shown} today={today} />
 
       <div className="cal">
+        {/* The row of letters: S M T W T F S */}
         <div className="cal-head">
-          {DOW.map((n) => <span key={n} className="mono">{n[0]}</span>)}
+          {DOW.map((name) => (
+            <span key={name} className="mono">
+              {name[0]}
+            </span>
+          ))}
         </div>
-        <motion.div className="cal-grid" layout onKeyDown={walk} transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
+
+        {/* The grid of days */}
+        <motion.div
+          className="cal-grid"
+          layout
+          onKeyDown={walkWithArrowKeys}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        >
           {dates.map((date) => (
-            <DayCell key={date} s={s} date={date} today={today} selected={day === date} marks={marks} tabbable={date === tabDate}
-              onPick={(picked) => setDay((cur) => (picked === cur || (picked === today && !cur) ? null : picked))} />
+            <DayCell
+              key={date}
+              s={s}
+              date={date}
+              today={today}
+              selected={day === date}
+              marks={marks}
+              tabbable={date === tabDate}
+              onPick={pickDay}
+            />
           ))}
         </motion.div>
-        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)}>{month ? 'Two weeks' : 'Month'}</button>
+
+        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)}>
+          {month ? 'Two weeks' : 'Month'}
+        </button>
       </div>
 
+      {/* The list of dailies */}
       <div className="dailies">
         <div className="mini-head">
-          <span className="mono">Dailies{day && day !== today ? ` · ${MON[d.getMonth()]} ${d.getDate()}` : ''}</span>
+          <span className="mono">Dailies{dailiesSuffix}</span>
         </div>
+
         <ul className="daily-list">
           <AnimatePresence initial={false}>
-            {dailies.map((daily) => <DailyRow key={daily.id} s={s} daily={daily} date={shown} today={today} />)}
+            {dailies.map((daily) => (
+              <DailyRow key={daily.id} s={s} daily={daily} date={shown} today={today} />
+            ))}
           </AnimatePresence>
         </ul>
-        {!dailies.length && <p className="empty small">{empties.dailies}</p>}
+
+        {dailies.length === 0 && <p className="empty small">{empties.dailies}</p>}
         <AddDaily s={s} today={today} />
       </div>
 
+      {/* The buttons at the bottom of the column */}
       <footer className="col-foot">
-        <button className="btn-ghost" onClick={() => open('reminders')}>↻ Reminders</button>
-        <button className="btn-ghost" aria-label="Keyboard shortcuts" onClick={() => open('keys')}>?</button>
+        <button className="btn-ghost" onClick={() => open('reminders')}>
+          ↻ Reminders
+        </button>
+        <button className="btn-ghost" aria-label="Keyboard shortcuts" onClick={() => open('keys')}>
+          ?
+        </button>
         <button className="btn-ghost account" onClick={() => open('settings')}>
           <i className={'sync-dot ' + sync.sync} />
-          {sync.user ? sync.user.email.split('@')[0] : sync.sync === 'off' ? 'Settings' : 'Sign in'}
+          {accountLabel}
         </button>
       </footer>
     </section>
