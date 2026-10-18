@@ -53,6 +53,7 @@ select, input[type='number'] { color-scheme: dark; }
 .day.is-selected.is-overdue .day-num { color: var(--bg); }
 .day-dot { position: absolute; bottom: -3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--warn); }
 .day-dot.reminder { background: var(--blue); }
+.day-dot.done { background: var(--green); opacity: .7; }
 .day.is-overdue .day-dot { background: var(--accent); }
 .cal-toggle { align-self: center; margin-top: 6px; height: 26px; font-size: 12px; }
 
@@ -75,7 +76,7 @@ select, input[type='number'] { color-scheme: dark; }
 }
 .daily-add input:focus, .sub-add:focus { border-bottom-color: #3a352f; }
 
-.col-foot { margin-top: auto; padding-top: 8px; display: flex; justify-content: space-between; gap: 8px; }
+.col-foot { margin-top: auto; padding-top: 8px; position: sticky; bottom: 0; background: var(--bg); display: flex; justify-content: space-between; gap: 8px; }
 .account { display: inline-flex; align-items: center; gap: 8px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
 .sync-dot.synced { background: var(--green); }
@@ -151,7 +152,7 @@ button.due:hover { color: var(--text); }
 
 .task.reminder .check { border-color: var(--blue); }
 .done-head { padding: 18px 4px 6px; }
-.done-head button { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.done-head span, .done-head button { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
 .done-head button:hover { color: var(--muted); }
 
 /* a project's bar: one flat line along the bottom of its row, filled by its steps */
@@ -267,3 +268,9 @@ input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { o
 .day.is-over { transform: scale(1.2); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent); }
 
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* overdue and upcoming read as two groups; the list ends with room to spare */
+.group-head { padding: 16px 4px 4px; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); animation: row-in .35s var(--ease) backwards; }
+.group-head.late { color: var(--accent); }
+.group-head:first-child { padding-top: 4px; }
+.task-list { padding-bottom: 40px; }

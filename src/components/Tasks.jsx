@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
-import { between, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
 
@@ -164,7 +164,7 @@ function TaskRow({ s, task, today, open, onToggleOpen, sortable }) {
 
   const style = { transform: CSS.Translate.toString(transform), transition, viewTransitionName: isDragging ? 'none' : `t-${task.id}` };
   return (
-    <li ref={setNodeRef} style={style} className={['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ')}>
+    <li ref={setNodeRef} style={style} data-task={task.id} className={['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ')}>
       <div className="task-main">
         {sortable && <button className="grip" aria-label="Drag to reorder" {...attributes} {...listeners}>⋮⋮</button>}
         <button className={'check' + (isProject ? ' square' : '')} aria-pressed={done} aria-label={(done ? 'Mark not done: ' : 'Mark done: ') + task.title} onClick={toggle}><CheckIcon /></button>
@@ -243,7 +243,10 @@ function AddRow({ day, today }) {
 
 // ---------- drag and drop ----------
 // One context spans the calendar and the list, so a task can be reordered or dropped on a day.
-const openTasks = (s, day) => all(s, 'tasks').filter((t) => !t.parent && !t.done && (!day || t.due === day)).sort((a, b) => a.position - b.position);
+// Overdue tasks come first (each group keeps the user's own order), unless one day is being looked at.
+const isLate = (t, day, today) => !day && !!t.due && t.due < today;
+const openTasks = (s, day, today) => all(s, 'tasks').filter((t) => !t.parent && !t.done && (!day || t.due === day))
+  .sort((a, b) => isLate(b, day, today) - isLate(a, day, today) || a.position - b.position);
 // Over a day cell the pointer decides; inside the list the nearest row does.
 const collide = (args) => { const hits = pointerWithin(args); return hits.length ? hits : closestCenter(args); };
 
@@ -263,7 +266,7 @@ export function TaskDnd({ day, children }) {
       toast('Moved to ' + shortDate(date) + '.', { undoable: true });
       return;
     }
-    const open = openTasks(getState(), day);
+    const open = openTasks(getState(), day, todayStr());
     const from = open.findIndex((t) => t.id === active.id);
     const to = open.findIndex((t) => t.id === over.id);
     if (from < 0 || to < 0) return;
@@ -288,8 +291,8 @@ export default function Tasks({ today, day, setDay }) {
 
   const top = useMemo(() => all(s, 'tasks').filter((t) => !t.parent).sort((a, b) => a.position - b.position), [s.tasks]);
   const matches = (t) => !day || t.due === day;
-  const open = useMemo(() => openTasks(s, day), [s.tasks, day]);
-  const done = top.filter((t) => t.done && matches(t)).sort((a, b) => (b.done_at || 0) - (a.done_at || 0));
+  const open = useMemo(() => openTasks(s, day, today), [s.tasks, day, today]);
+  const done = top.filter((t) => t.done && (matches(t) || (t.done_at && ymd(new Date(t.done_at)) === day))).sort((a, b) => (b.done_at || 0) - (a.done_at || 0));
 
   const reminders = all(s, 'reminders')
     .map((r) => ({ r, date: day ? (occursOn(r.rule, day) && !isDone(s, r.id, day) ? day : null) : pendingOccurrence(s, r, today) }))
@@ -306,7 +309,17 @@ export default function Tasks({ today, day, setDay }) {
   }, [top, today]);
   const line = useMemo(() => headline({ ...stats, seed: stats.open * 7 + stats.overdue * 3 + stats.doneToday }), [stats]);
 
-  const toggleOpen = (id) => setOpenIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const toggleOpen = (id) => {
+    setOpenIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    // once the project has unfolded, bring all of it into view
+    setTimeout(() => document.querySelector(`[data-task="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 380);
+  };
+  const lateCount = open.filter((t) => isLate(t, day, today)).length;
+  const lateReminders = reminders.filter((x) => !day && x.date < today);
+  const dueReminders = reminders.filter((x) => !lateReminders.includes(x));
+  const lateTotal = lateCount + lateReminders.length;
+  const reminderRow = ({ r, date }) => <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />;
+  const finishedShown = showDone || !!day;
   const nothing = !open.length && !reminders.length;
 
   return (
@@ -324,15 +337,25 @@ export default function Tasks({ today, day, setDay }) {
       <AddRow day={day} today={today} />
 
       <ul className="task-list">
-          {reminders.map(({ r, date }) => <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />)}
+          {lateTotal > 0 && <li className="group-head late">Overdue · {lateTotal}</li>}
+          {lateReminders.map(reminderRow)}
+          {lateTotal === 0 && dueReminders.map(reminderRow)}
           <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-            {open.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />)}
+            {open.map((t, i) => (
+              <Fragment key={t.id}>
+                {lateTotal > 0 && i === lateCount && <><li className="group-head">Coming up</li>{dueReminders.map(reminderRow)}</>}
+                <TaskRow s={s} task={t} today={today} sortable open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />
+              </Fragment>
+            ))}
+            {lateTotal > 0 && lateCount === open.length && <><li className="group-head">Coming up</li>{dueReminders.map(reminderRow)}</>}
           </SortableContext>
           {nothing && <li className="empty-row"><p className="empty">{day ? empties.day : empties.tasks}</p></li>}
           {done.length > 0 && (
-            <li className="done-head"><button className="mono" onClick={() => setShowDone(!showDone)}>{showDone ? 'Hide' : 'Show'} finished · {done.length}</button></li>
+            <li className="done-head">{day
+              ? <span className="mono">Finished · {done.length}</span>
+              : <button className="mono" onClick={() => setShowDone(!showDone)}>{showDone ? 'Hide' : 'Show'} finished · {done.length}</button>}</li>
           )}
-          {showDone && done.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable={false} open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />)}
+          {finishedShown && done.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable={false} open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />)}
       </ul>
     </section>
   );
