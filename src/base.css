@@ -81,7 +81,7 @@ button {
   min-width: 0;
   min-height: 0;
 }
-.col + .col {
+.col ~ .col {
   border-left: 1px solid var(--line);
 }
 
@@ -472,7 +472,7 @@ button {
     grid-template-columns: 1fr;
     height: auto;
   }
-  .col + .col {
+  .col ~ .col {
     border-left: 0;
     border-top: 1px solid var(--line);
   }
