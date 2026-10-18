@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import { getState, redo } from './store.js';
 import { brokenStreaks, quips, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
-import Tasks from './components/Tasks.jsx';
+import Tasks, { TaskDnd } from './components/Tasks.jsx';
 import { Notes } from './components/Side.jsx';
 import { RemindersModal, SettingsModal } from './components/Modals.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
@@ -40,8 +40,10 @@ export default function App() {
   return (
     <>
       <div className="app" data-tab={tab}>
-        <Calendar today={today} day={day} setDay={setDay} open={setModal} />
-        <Tasks today={today} day={day} setDay={setDay} />
+        <TaskDnd day={day}>
+          <Calendar today={today} day={day} setDay={setDay} open={setModal} />
+          <Tasks today={today} day={day} setDay={setDay} />
+        </TaskDnd>
         <section className="col col-notes" aria-label="Notes">
           <Notes />
         </section>

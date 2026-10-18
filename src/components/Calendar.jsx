@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useDroppable } from '@dnd-kit/core';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
 import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, quips, streakOf, toDate } from '../lib.js';
@@ -96,9 +97,10 @@ function DayCell({ s, date, today, selected, marks, onPick }) {
   const n = dailies.length;
   const gap = n > 1 ? (n > 8 ? 0.12 : 0.2) : 0;
   const mark = marks[date];
-  const cls = ['day', date === today && 'is-today', selected && 'is-selected', date > today && 'is-future', mark?.overdue && 'is-overdue'].filter(Boolean).join(' ');
+  const { setNodeRef, isOver } = useDroppable({ id: 'day:' + date, data: { date } });
+  const cls = ['day', isOver && 'is-over', date === today && 'is-today', selected && 'is-selected', date > today && 'is-future', mark?.overdue && 'is-overdue'].filter(Boolean).join(' ');
   return (
-    <button className={cls} onClick={() => onPick(date)} aria-pressed={selected} aria-label={`${DOW[toDate(date).getDay()]} ${MON[toDate(date).getMonth()]} ${toDate(date).getDate()}`}>
+    <button ref={setNodeRef} className={cls} onClick={() => onPick(date)} aria-pressed={selected} aria-label={`${DOW[toDate(date).getDay()]} ${MON[toDate(date).getMonth()]} ${toDate(date).getDate()}`}>
       <svg viewBox="0 0 40 40">
         <g transform="rotate(-90 20 20)">
           {n === 0 && <circle className="track" cx="20" cy="20" r="17" strokeWidth="3" />}

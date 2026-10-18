@@ -93,7 +93,7 @@ button { cursor: pointer; }
   display: flex; align-items: center; gap: 14px;
   padding: 16px 4px;
   border-bottom: 1px solid var(--line);
-  transition: opacity .3s ease, transform .35s var(--ease);
+  transition: opacity .3s ease;
 }
 .task.enter { animation: enter .4s var(--ease) both; }
 .task.leaving { opacity: 0; transform: translateX(16px); }

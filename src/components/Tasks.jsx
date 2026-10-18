@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
@@ -241,6 +241,44 @@ function AddRow({ day, today }) {
   );
 }
 
+// ---------- drag and drop ----------
+// One context spans the calendar and the list, so a task can be reordered or dropped on a day.
+const openTasks = (s, day) => all(s, 'tasks').filter((t) => !t.parent && !t.done && (!day || t.due === day)).sort((a, b) => a.position - b.position);
+// Over a day cell the pointer decides; inside the list the nearest row does.
+const collide = (args) => { const hits = pointerWithin(args); return hits.length ? hits : closestCenter(args); };
+
+export function TaskDnd({ day, children }) {
+  const [active, setActive] = useState(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const onDragEnd = ({ active, over }) => {
+    setActive(null);
+    if (!over || active.id === over.id) return;
+    const date = over.data.current?.date;
+    if (date) {
+      commit('task moved', [{ t: 'tasks', id: active.id, patch: { due: date } }]);
+      toast('Moved to ' + shortDate(date) + '.', { undoable: true });
+      return;
+    }
+    const open = openTasks(getState(), day);
+    const from = open.findIndex((t) => t.id === active.id);
+    const to = open.findIndex((t) => t.id === over.id);
+    if (from < 0 || to < 0) return;
+    const moved = arrayMove(open, from, to);
+    commit('reordered', [{ t: 'tasks', id: active.id, patch: { position: between(moved[to - 1]?.position, moved[to + 1]?.position) } }]);
+  };
+  const dragged = active && all(getState(), 'tasks').find((t) => t.id === active);
+  return (
+    <DndContext sensors={sensors} collisionDetection={collide} onDragStart={({ active }) => setActive(active.id)} onDragCancel={() => setActive(null)} onDragEnd={onDragEnd}>
+      {children}
+      <DragOverlay dropAnimation={null}>{dragged && <div className="drag-chip">{dragged.title}</div>}</DragOverlay>
+    </DndContext>
+  );
+}
+
 // ---------- the column ----------
 // One plain list: reminders due, then open tasks in your order, then finished ones tucked away.
 export default function Tasks({ today, day, setDay }) {
@@ -250,7 +288,7 @@ export default function Tasks({ today, day, setDay }) {
 
   const top = useMemo(() => all(s, 'tasks').filter((t) => !t.parent).sort((a, b) => a.position - b.position), [s.tasks]);
   const matches = (t) => !day || t.due === day;
-  const open = top.filter((t) => !t.done && matches(t));
+  const open = useMemo(() => openTasks(s, day), [s.tasks, day]);
   const done = top.filter((t) => t.done && matches(t)).sort((a, b) => (b.done_at || 0) - (a.done_at || 0));
 
   const reminders = all(s, 'reminders')
@@ -267,19 +305,6 @@ export default function Tasks({ today, day, setDay }) {
     };
   }, [top, today]);
   const line = useMemo(() => headline({ ...stats, seed: stats.open * 7 + stats.overdue * 3 + stats.doneToday }), [stats]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-  const onDragEnd = ({ active, over }) => {
-    if (!over || active.id === over.id) return;
-    const from = open.findIndex((t) => t.id === active.id);
-    const to = open.findIndex((t) => t.id === over.id);
-    const moved = arrayMove(open, from, to);
-    commit('reordered', [{ t: 'tasks', id: active.id, patch: { position: between(moved[to - 1]?.position, moved[to + 1]?.position) } }]);
-  };
 
   const toggleOpen = (id) => setOpenIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   const nothing = !open.length && !reminders.length;
@@ -298,8 +323,7 @@ export default function Tasks({ today, day, setDay }) {
 
       <AddRow day={day} today={today} />
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <ul className="task-list">
+      <ul className="task-list">
           {reminders.map(({ r, date }) => <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />)}
           <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {open.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />)}
@@ -309,8 +333,7 @@ export default function Tasks({ today, day, setDay }) {
             <li className="done-head"><button className="mono" onClick={() => setShowDone(!showDone)}>{showDone ? 'Hide' : 'Show'} finished · {done.length}</button></li>
           )}
           {showDone && done.map((t) => <TaskRow key={t.id} s={s} task={t} today={today} sortable={false} open={openIds.has(t.id)} onToggleOpen={() => toggleOpen(t.id)} />)}
-        </ul>
-      </DndContext>
+      </ul>
     </section>
   );
 }
