@@ -220,7 +220,7 @@ select.field { width: auto; }
   .task-list { overflow: visible; }
   .grip, .more { opacity: 1; }
   .jab { display: none; }
-  .col-head h1 { font-size: 44px; }
+  
   #task-due { display: none; }
 
   .daily-strip { display: flex; gap: 6px; overflow-x: auto; margin: 0 -20px; padding: 2px 20px; scrollbar-width: none; }
@@ -244,7 +244,10 @@ select.field { width: auto; }
 html { scroll-behavior: smooth; }
 button { transition: color .2s ease, background-color .2s ease, border-color .2s ease, opacity .2s ease, transform .2s var(--ease); }
 button:not(:disabled):active { transform: scale(.95); }
-:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; transition: outline-offset .15s var(--ease); }
+:focus { outline: none; }
+/* keyboard focus only: a soft coral ring, never white */
+:focus-visible { outline: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { outline: none; }
 
 /* first paint: columns settle in one after another; new and unfolded rows fade down into place */
 @keyframes col-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -262,4 +265,6 @@ button:not(:disabled):active { transform: scale(.95); }
 
 /* dragging a task: the chip follows the pointer, days light up when it is over them */
 .drag-chip { padding: 12px 18px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 15px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.5); cursor: grabbing; }
-.day.is-over { transform: scale(1.2); box-shadow: 0 0 0 2px var(--text); }
+.day.is-over { transform: scale(1.2); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent); }
+
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }

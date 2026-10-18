@@ -54,8 +54,7 @@ button { cursor: pointer; }
   letter-spacing: -.02em;
   line-height: 1;
 }
-.col-head h1 { font-size: 56px; }
-.col-head h2 { font-size: 40px; }
+.col-head h1, .col-head h2 { font-size: 44px; }
 
 /* calendar placeholder */
 .ring-placeholder { position: relative; width: 100%; max-width: 280px; aspect-ratio: 1; margin: 12px auto 0; }
