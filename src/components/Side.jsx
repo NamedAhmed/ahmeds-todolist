@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { all, commit, uid, useStore } from '../store.js';
-import { empties, shortDate, ymd } from '../lib.js';
-import { toast } from './Fire.jsx';
+import { empties, quip, shortDate, ymd } from '../lib.js';
+import { sass, toast } from './Fire.jsx';
 
 // ---------- notes ----------
 function Editor({ note }) {
@@ -30,7 +30,7 @@ function Editor({ note }) {
       <footer className="note-foot">
         <span className="mono">{saved}</span>
         <button className="btn-ghost danger" type="button"
-          onClick={() => { clearTimeout(timer.current); commit('note deleted', [{ t: 'notes', id: note.id, set: null }]); toast('Note deleted. The world will cope.', { undoable: true }); }}>Delete</button>
+          onClick={() => { clearTimeout(timer.current); commit('note deleted', [{ t: 'notes', id: note.id, set: null }]); toast(quip('noteDeleted'), { undoable: true }); }}>Delete</button>
       </footer>
     </motion.div>
   );
@@ -46,6 +46,7 @@ export function Notes() {
     const id = uid();
     commit('note added', [{ t: 'notes', id, patch: { title: '', body: '', edited_at: Date.now() } }]);
     setActiveId(id);
+    sass('noteAdded', [], { chance: 0.5 });
   };
 
   return (

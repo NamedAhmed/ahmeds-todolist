@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { getState, redo } from './store.js';
-import { brokenStreaks, quips, useToday } from './lib.js';
+import { brokenStreaks, quip, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
 import Tasks, { TaskDnd } from './components/Tasks.jsx';
 import { Notes } from './components/Side.jsx';
@@ -21,7 +21,7 @@ export default function App() {
     if (localStorage.getItem('todolist:roasted') === today) return;
     localStorage.setItem('todolist:roasted', today);
     const dead = brokenStreaks(getState(), today)[0];
-    if (dead) setTimeout(() => toast(quips.broken(dead.name, dead.was)), 900);
+    if (dead) setTimeout(() => toast(quip('broken', dead.name, dead.was)), 900);
   }, [today]);
 
   // While Shift is held, rows show Rename and Delete (the page carries data-shift for the CSS).
@@ -44,7 +44,7 @@ export default function App() {
       if (e.ctrlKey || e.metaKey) {
         if (e.key.toLowerCase() !== 'z') return;
         e.preventDefault();
-        if (e.shiftKey) { if (redo()) toast('Redone. Make up your mind.'); }
+        if (e.shiftKey) { if (redo()) toast(quip('redo')); }
         else doUndo();
         return;
       }

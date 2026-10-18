@@ -3,8 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
-import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, quips, streakOf, toDate, ymd } from '../lib.js';
-import { Flame, toast } from './Fire.jsx';
+import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, streakOf, toDate, ymd } from '../lib.js';
+import { Flame, sass, toast } from './Fire.jsx';
 
 const MILESTONES = [3, 7, 14, 21, 30, 50, 100, 200, 365];
 
@@ -13,6 +13,7 @@ export function toggleDaily(daily, date, today) {
   const key = doneKey(daily.id, date);
   if (isDone(getState(), daily.id, date)) {
     commit('daily unticked', [{ t: 'completions', id: key, set: null }]);
+    sass('dailyUnticked', [], { chance: 0.6 });
     return;
   }
   commit('daily done', [{ t: 'completions', id: key, set: { id: key, ref: daily.id, date, kind: 'daily' } }]);
@@ -21,7 +22,8 @@ export function toggleDaily(daily, date, today) {
   const list = dailiesOn(s, date);
   const streak = streakOf(s, daily.id, today);
   if (list.every((d) => isDone(s, d.id, date))) toast(quip('allDailies'));
-  else if (MILESTONES.includes(streak)) toast(quips.streak(streak));
+  else if (MILESTONES.includes(streak)) toast(quip('streak', streak));
+  else sass('dailyDone', [], { chance: 0.25 });
 }
 
 // The fire behind a finished ring: a flat silhouette of flame tongues rising around its top half.
@@ -157,7 +159,7 @@ function DailyRow({ s, daily, date, today }) {
         <motion.b key={streak} initial={{ scale: 1.5 }} animate={{ scale: 1 }}>{streak}</motion.b>
       </span>
       <button className="del" aria-label={`Archive ${daily.name}`}
-        onClick={() => { commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]); toast('Archived. Quitting: the one habit you keep.', { undoable: true }); }}>×</button>
+        onClick={() => { commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]); toast(quip('dailyArchived'), { undoable: true }); }}>×</button>
     </motion.li>
   );
 }
@@ -170,6 +172,7 @@ function AddDaily({ s, today }) {
     const list = all(s, 'dailies');
     commit('daily added', [{ t: 'dailies', id: uid(), patch: { name: name.trim(), color: DAILY_COLORS[list.length % DAILY_COLORS.length], position: list.length, created: today } }]);
     setName('');
+    sass('dailyAdded', [], { chance: 0.7 });
   };
   return (
     <form className="daily-add" onSubmit={submit}>
