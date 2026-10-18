@@ -1,130 +1,317 @@
+// lib.js = small helper functions that the rest of the app shares.
+// Nothing in here draws anything on screen. It only does maths, dates and text.
+//
+// Sections in this file:
+//   1. dates        (turning dates into text and back, adding days)
+//   2. typed dates  (understanding "buy milk friday")
+//   3. dailies      (habits you tick off every day)
+//   4. reminders    (things that repeat weekly / monthly / yearly)
+//   5. tasks        (progress and ordering)
+//   6. the voice    (the rude messages the app says)
+
 import { useEffect, useState } from 'react';
-import * as chrono from 'chrono-node';
+import * as chrono from 'chrono-node'; // a library that understands "tomorrow", "next friday", etc.
 import { all } from './store.js';
 
-// ---------- dates ----------
-// toISOString() converts to UTC, which shifts the date in the evening. Build YYYY-MM-DD from local parts.
-export const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-export const toDate = (s) => new Date(s + 'T00:00');
-export const todayStr = () => ymd(new Date());
-export const addDays = (s, n) => { const d = toDate(s); d.setDate(d.getDate() + n); return ymd(d); };
-export const diffDays = (a, b) => Math.round((toDate(a) - toDate(b)) / 86400000);
-export const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const shortDate = (s) => { const d = toDate(s); return `${MON[d.getMonth()]} ${d.getDate()}`; };
 
-export function dueInfo(due, today) {
-  if (!due) return { text: '', cls: '' };
-  const diff = diffDays(due, today);
-  if (diff === 0) return { text: 'Today', cls: 'today' };
-  if (diff === 1) return { text: 'Tomorrow', cls: '' };
-  if (diff < 0) return { text: diff === -1 ? 'Yesterday' : `${-diff}d late`, cls: 'overdue' };
-  if (diff < 7) return { text: DOW[toDate(due).getDay()], cls: '' };
-  return { text: shortDate(due), cls: '' };
+// ======================================================================
+// 1. DATES
+// ======================================================================
+// In this app a date is always a plain text like "2026-10-18" (year-month-day).
+
+// Turn a JavaScript Date into "2026-10-18".
+// We build it from the local year/month/day on purpose. The easy way (toISOString)
+// uses UTC time, which gives the wrong day in the evening.
+export function ymd(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // getMonth() starts at 0, so add 1
+  const day = String(date.getDate()).padStart(2, '0');        // padStart makes "5" into "05"
+  return `${year}-${month}-${day}`;
 }
 
-/** Today's date, kept correct when the tab is left open past midnight. */
+// Turn "2026-10-18" back into a JavaScript Date (at midnight, local time).
+export function toDate(text) {
+  return new Date(text + 'T00:00');
+}
+
+// Today's date as "2026-10-18".
+export function todayStr() {
+  return ymd(new Date());
+}
+
+// Add days to a date text. Use a negative number to go back in time.
+// addDays("2026-10-18", 2) gives "2026-10-20".
+export function addDays(text, howMany) {
+  const date = toDate(text);
+  date.setDate(date.getDate() + howMany);
+  return ymd(date);
+}
+
+// How many days is a after b? (negative if a is before b)
+export function diffDays(a, b) {
+  const millisecondsPerDay = 86400000;
+  return Math.round((toDate(a) - toDate(b)) / millisecondsPerDay);
+}
+
+// Short names for the days and months. Index 0 = Sunday / January.
+export const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-10-18" -> "Oct 18"
+export function shortDate(text) {
+  const date = toDate(text);
+  return `${MON[date.getMonth()]} ${date.getDate()}`;
+}
+
+// Work out the label shown next to a task's due date, and its colour class.
+// Returns { text: 'Tomorrow', cls: '' }. cls is a CSS class name (see app.css).
+export function dueInfo(due, today) {
+  if (!due) return { text: '', cls: '' };
+
+  const diff = diffDays(due, today); // 0 = today, 1 = tomorrow, -1 = yesterday ...
+
+  if (diff === 0) return { text: 'Today', cls: 'today' };
+  if (diff === 1) return { text: 'Tomorrow', cls: '' };
+
+  if (diff < 0) {
+    if (diff === -1) return { text: 'Yesterday', cls: 'overdue' };
+    return { text: `${-diff}d late`, cls: 'overdue' };
+  }
+
+  if (diff < 7) return { text: DOW[toDate(due).getDay()], cls: '' }; // within a week: "Fri"
+  return { text: shortDate(due), cls: '' };                          // further away: "Nov 3"
+}
+
+// A React "hook" that gives the components today's date.
+// It re-checks every 30 seconds and when you come back to the tab,
+// so the app stays correct if you leave it open past midnight.
 export function useToday() {
   const [today, setToday] = useState(todayStr);
+
   useEffect(() => {
-    const check = () => setToday(todayStr());
+    function check() {
+      setToday(todayStr());
+    }
     const timer = setInterval(check, 30000);
     document.addEventListener('visibilitychange', check);
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', check); };
+
+    // Cleanup: stop the timer and listener when the component goes away.
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
   }, []);
+
   return today;
 }
 
-/** The two weeks (or whole month) shown in the calendar, as rows of 7 dates. */
+// The dates shown in the calendar, as a list of weeks. Each week is a list of 7 dates.
+// month = true  -> the whole current month
+// month = false -> just this week and next week
 export function calendarWeeks(today, month) {
-  const d = toDate(today);
-  let start, weeks;
+  const todayDate = toDate(today);
+  let start;      // the first date shown (always a Sunday)
+  let weekCount;  // how many rows of 7
+
   if (month) {
-    const first = new Date(d.getFullYear(), d.getMonth(), 1);
-    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    start = addDays(ymd(first), -first.getDay());
-    weeks = Math.ceil((first.getDay() + last.getDate()) / 7);
+    const firstOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+    const lastOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0);
+    start = addDays(ymd(firstOfMonth), -firstOfMonth.getDay()); // go back to the Sunday before
+    weekCount = Math.ceil((firstOfMonth.getDay() + lastOfMonth.getDate()) / 7);
   } else {
-    start = addDays(today, -d.getDay());
-    weeks = 2;
+    start = addDays(today, -todayDate.getDay()); // this week's Sunday
+    weekCount = 2;
   }
-  return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)));
+
+  const weeks = [];
+  for (let w = 0; w < weekCount; w++) {
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(addDays(start, w * 7 + i));
+    }
+    weeks.push(week);
+  }
+  return weeks;
 }
 
-// ---------- typed dates ----------
+
+// ======================================================================
+// 2. TYPED DATES
+// ======================================================================
 // "email landlord friday" -> { title: "email landlord", due: "2026-10-09", phrase: "friday" }
-// Only a phrase at the very end counts, so "call Friday about the car" keeps its name.
+// Only a date at the very END of the text counts, so "call Friday about the car"
+// keeps its full name.
+// Returns null when there is no date at the end.
 export function parseTyped(text) {
   const trimmed = text.trimEnd();
+
+  // Ask the chrono library to find dates in the text.
   const found = chrono.parse(trimmed, new Date(), { forwardDate: true });
   const last = found[found.length - 1];
-  if (!last || last.index === 0 || last.index + last.text.length !== trimmed.length) return null;
-  const title = trimmed.slice(0, last.index).replace(/\s+(on|by|due|at|for)\s*$/i, '').trim();
+
+  if (!last) return null;
+  if (last.index === 0) return null; // the whole text is a date, so there is no title
+  if (last.index + last.text.length !== trimmed.length) return null; // date isn't at the end
+
+  // The title is everything before the date, minus a leftover word like "on" or "by".
+  const title = trimmed
+    .slice(0, last.index)
+    .replace(/\s+(on|by|due|at|for)\s*$/i, '')
+    .trim();
   if (!title) return null;
+
   return { title, due: ymd(last.start.date()), phrase: last.text };
 }
 
-// ---------- dailies ----------
+
+// ======================================================================
+// 3. DAILIES (habits)
+// ======================================================================
+// Colours handed out to new dailies, in order.
 export const DAILY_COLORS = ['#ff6b57', '#6cb8ff', '#7ee0a1', '#f0b35a', '#c59bff', '#ff8fc7', '#5ee0d4', '#e6e25a', '#ff9d5c', '#9aa7ff'];
-export const doneKey = (id, date) => `${id}:${date}`;
 
-/** Dailies that existed on a given day, in display order. Past rings never change shape. */
-export function dailiesOn(s, date) {
-  return all(s, 'dailies')
-    .filter((d) => d.created <= date && (!d.archived || d.archived > date))
-    .sort((a, b) => a.position - b.position);
+// Each "I did this daily on this day" is stored under a key like "abc123:2026-10-18".
+export function doneKey(id, date) {
+  return `${id}:${date}`;
 }
 
-export const isDone = (s, id, date) => { const c = s.completions[doneKey(id, date)]; return !!c && !c._deleted; };
-
-/** Days in a row, counted back from today (or yesterday, so an unfinished today isn't a broken streak yet). */
-export function streakOf(s, id, today) {
-  let day = isDone(s, id, today) ? today : addDays(today, -1);
-  let n = 0;
-  while (isDone(s, id, day)) { n++; day = addDays(day, -1); }
-  return n;
+// The dailies that existed on a given day, in display order.
+// (A daily created later, or archived earlier, isn't shown on that day.)
+export function dailiesOn(state, date) {
+  const result = [];
+  for (const daily of all(state, 'dailies')) {
+    const alreadyCreated = daily.created <= date;
+    const notArchivedYet = !daily.archived || daily.archived > date;
+    if (alreadyCreated && notArchivedYet) result.push(daily);
+  }
+  result.sort((a, b) => a.position - b.position);
+  return result;
 }
 
-// ---------- reminders ----------
-// rule = { type: 'weekly', days: [0-6] } | { type: 'monthly', day: 1-31 } | { type: 'yearly', month: 0-11, day: 1-31 }
+// Was this daily ticked on this date? true / false.
+export function isDone(state, id, date) {
+  const completion = state.completions[doneKey(id, date)];
+  return !!completion && !completion._deleted;
+}
+
+// How many days in a row has this daily been done?
+// We count back from today, or from yesterday if today isn't ticked yet,
+// so an unfinished today doesn't count as a broken streak.
+export function streakOf(state, id, today) {
+  let day;
+  if (isDone(state, id, today)) day = today;
+  else day = addDays(today, -1);
+
+  let count = 0;
+  while (isDone(state, id, day)) {
+    count++;
+    day = addDays(day, -1);
+  }
+  return count;
+}
+
+
+// ======================================================================
+// 4. REMINDERS
+// ======================================================================
+// A reminder has a "rule" that says when it repeats. Three kinds:
+//   { type: 'weekly',  days: [0-6] }                  e.g. every Mon and Thu (0 = Sunday)
+//   { type: 'monthly', day: 1-31 }                    e.g. the 5th of every month
+//   { type: 'yearly',  month: 0-11, day: 1-31 }       e.g. every March 3rd (0 = January)
+
+// Does this rule happen on this date? true / false.
 export function occursOn(rule, date) {
   const d = toDate(date);
-  if (rule.type === 'weekly') return rule.days.includes(d.getDay());
-  const lastOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  const hit = d.getDate() === Math.min(rule.day, lastOfMonth);   // "the 31st" falls on the last day of short months
-  if (rule.type === 'monthly') return hit;
-  return hit && d.getMonth() === rule.month;
+
+  if (rule.type === 'weekly') {
+    return rule.days.includes(d.getDay());
+  }
+
+  // Monthly and yearly: "the 31st" falls on the LAST day of short months.
+  const daysInThisMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const dayMatches = d.getDate() === Math.min(rule.day, daysInThisMonth);
+
+  if (rule.type === 'monthly') return dayMatches;
+  return dayMatches && d.getMonth() === rule.month; // yearly also needs the right month
 }
 
+// Turn a rule into readable text, e.g. "Mon Thu" or "Monthly on the 5th".
 export function ruleText(rule) {
-  if (rule.type === 'weekly') return rule.days.length === 7 ? 'Every day' : rule.days.map((d) => DOW[d]).join(' ');
-  if (rule.type === 'monthly') return `Monthly on the ${rule.day}${ordinal(rule.day)}`;
+  if (rule.type === 'weekly') {
+    if (rule.days.length === 7) return 'Every day';
+    return rule.days.map((day) => DOW[day]).join(' ');
+  }
+  if (rule.type === 'monthly') {
+    return `Monthly on the ${rule.day}${ordinal(rule.day)}`;
+  }
   return `Every ${MON[rule.month]} ${rule.day}`;
 }
-const ordinal = (n) => (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
 
-/** The one occurrence of a reminder worth showing: the oldest unfinished one up to today. They never pile up. */
-export function pendingOccurrence(s, reminder, today) {
-  let day = reminder.created > addDays(today, -60) ? reminder.created : addDays(today, -60);
-  for (; day <= today; day = addDays(day, 1)) {
-    if (occursOn(reminder.rule, day) && !isDone(s, reminder.id, day)) return day;
+// 1 -> "st", 2 -> "nd", 3 -> "rd", everything else -> "th". (11, 12, 13 are "th".)
+function ordinal(n) {
+  if (n % 10 === 1 && n !== 11) return 'st';
+  if (n % 10 === 2 && n !== 12) return 'nd';
+  if (n % 10 === 3 && n !== 13) return 'rd';
+  return 'th';
+}
+
+// The ONE occurrence of a reminder worth showing: the oldest one up to today
+// that you haven't ticked. So missed reminders never pile up.
+// Returns a date text, or null if there is nothing pending.
+export function pendingOccurrence(state, reminder, today) {
+  // Only look back 60 days at most (or back to when the reminder was made).
+  const sixtyDaysAgo = addDays(today, -60);
+  let day = reminder.created > sixtyDaysAgo ? reminder.created : sixtyDaysAgo;
+
+  while (day <= today) {
+    if (occursOn(reminder.rule, day) && !isDone(state, reminder.id, day)) {
+      return day;
+    }
+    day = addDays(day, 1);
   }
   return null;
 }
 
-// ---------- tasks ----------
-export const subtasksOf = (s, id) => all(s, 'tasks').filter((t) => t.parent === id).sort((a, b) => a.position - b.position);
 
-/** A task's own percentage, or for a project the average of its subtasks. */
-export function progressOf(s, task) {
-  if (task.kind !== 'project') return task.done ? 100 : task.progress || 0;
-  const subs = subtasksOf(s, task.id);
-  if (!subs.length) return task.done ? 100 : 0;
-  return Math.round(subs.reduce((sum, t) => sum + (t.done ? 100 : t.progress || 0), 0) / subs.length);
+// ======================================================================
+// 5. TASKS
+// ======================================================================
+// The steps (subtasks) of a task, in display order.
+export function subtasksOf(state, id) {
+  const steps = all(state, 'tasks').filter((task) => task.parent === id);
+  steps.sort((a, b) => a.position - b.position);
+  return steps;
 }
 
-/** A position between two neighbours, so a reorder only ever changes the row that moved. */
-export const between = (a, b) => (a == null && b == null ? 0 : a == null ? b - 1 : b == null ? a + 1 : (a + b) / 2);
+// How finished is a task, as a number from 0 to 100?
+// - A normal task: 100 if done, otherwise its own progress number.
+// - A project: the average of its steps.
+export function progressOf(state, task) {
+  if (task.kind !== 'project') {
+    if (task.done) return 100;
+    return task.progress || 0;
+  }
+
+  const steps = subtasksOf(state, task.id);
+  if (steps.length === 0) return task.done ? 100 : 0;
+
+  let total = 0;
+  for (const step of steps) {
+    total += step.done ? 100 : step.progress || 0;
+  }
+  return Math.round(total / steps.length);
+}
+
+// A number that sits between two neighbours, so when you drag a task to a new spot
+// only that one task needs a new position number. a = the one above, b = the one below.
+// (null means "nothing there", i.e. the very top or very bottom of the list.)
+export function between(a, b) {
+  if (a == null && b == null) return 0;  // empty list
+  if (a == null) return b - 1;           // moving to the very top
+  if (b == null) return a + 1;           // moving to the very bottom
+  return (a + b) / 2;                    // somewhere in the middle
+}
+
 
 // ---------- the voice ----------
 // Savage on purpose: the target is your habits, never you. Headlines and jabs use a stable seed so a
