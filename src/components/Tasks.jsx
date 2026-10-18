@@ -6,7 +6,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
-import { toast } from './Fire.jsx';
+import { sass, toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
 
 /** Let the browser animate rows to their new places when the list re-sorts. */
@@ -111,9 +111,17 @@ function finishTask(task) {
   if (task.kind === 'project') for (const sub of subtasksOf(getState(), task.id)) if (!sub.done) changes.push({ t: 'tasks', id: sub.id, patch: { done: true, done_at: Date.now() } });
   setTimeout(() => smooth(() => commit('task finished', changes)), 420);
   if (task.kind === 'project') toast(quip('projectDone'));
+  else {
+    const days = task.due && task.due < todayStr() ? diffDays(todayStr(), task.due) : 0;
+    if (days >= 2) sass('taskDoneLate', [days], { chance: 0.7 });
+    else sass('taskDone', [], { chance: 0.35 });
+  }
 }
 
-const reopenTask = (task) => smooth(() => commit('task reopened', [{ t: 'tasks', id: task.id, patch: { done: false, done_at: null } }]));
+const reopenTask = (task) => {
+  smooth(() => commit('task reopened', [{ t: 'tasks', id: task.id, patch: { done: false, done_at: null } }]));
+  sass('reopened', [], { chance: 0.5 });
+};
 
 function removeTask(task) {
   const subs = subtasksOf(getState(), task.id);
@@ -130,7 +138,7 @@ function Subtask({ sub }) {
   const toggle = () => {
     if (sub.done) return patch('step reopened', { done: false });
     setClosing(true);
-    setTimeout(() => { patch('step finished', { done: true, done_at: Date.now() }); setClosing(false); }, 380);
+    setTimeout(() => { patch('step finished', { done: true, done_at: Date.now() }); setClosing(false); sass('stepDone', [], { chance: 0.25 }); }, 380);
   };
   return (
     <motion.li className={'task sub' + (done ? ' done' : '')} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 12 }}>
@@ -151,6 +159,7 @@ function ProjectBody({ s, task }) {
     if (!text.trim()) return;
     commit('step added', [{ t: 'tasks', id: uid(), patch: { title: text.trim(), parent: task.id, done: false, kind: 'task', position: (subs.at(-1)?.position ?? 0) + 1, created: Date.now() } }]);
     setText('');
+    sass('stepAdded', [], { chance: 0.2 });
   };
   return (
     <motion.div className="project-body" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
@@ -192,7 +201,7 @@ const TaskRow = memo(function TaskRow({ s, task, today, open, onToggleOpen, onMo
 
   // Leaving the rename box by keyboard lands back on the row, not on nothing.
   const edit = (on) => { setEditing(on); if (!on) requestAnimationFrame(() => { if (document.activeElement === document.body) liRef.current?.focus(); }); };
-  const shiftDue = (n) => patch('due date changed', { due: addDays(task.due || today, n) });
+  const shiftDue = (n) => { patch('due date changed', { due: addDays(task.due || today, n) }); sass(n > 0 ? 'later' : 'earlier', [], { chance: 0.6 }); };
   const remove = () => {
     const rows = rowsOf(liRef.current), i = rows.indexOf(liRef.current), keep = rows[i + 1] ?? rows[i - 1];
     removeTask(task);
@@ -221,7 +230,7 @@ const TaskRow = memo(function TaskRow({ s, task, today, open, onToggleOpen, onMo
         <button tabIndex={-1} className={'check' + (isProject ? ' square' : '')} aria-pressed={done} aria-label={(done ? 'Mark not done: ' : 'Mark done: ') + task.title} onClick={toggle}><CheckIcon /></button>
         {isProject && !editing
           ? <button tabIndex={-1} className="task-title as-button" onClick={() => onToggleOpen(task.id)} aria-expanded={open}>{task.title}</button>
-          : <Title value={task.title} editing={editing} setEditing={edit} onSave={(title) => patch('task renamed', { title })} />}
+          : <Title value={task.title} editing={editing} setEditing={edit} onSave={(title) => { patch('task renamed', { title }); sass('renamed', [], { chance: 0.3 }); }} />}
         {late > 0 && <span className="jab">{lateJab(late, task.created || 0)}</span>}
         <span className="row-end">
           {isProject && <span className="count">{subs.filter((x) => x.done).length}/{subs.length}</span>}
@@ -249,6 +258,7 @@ function ReminderRow({ reminder, date, today }) {
   const info = dueInfo(date, today);
   const finish = (skipped) => {
     setClosing(true);
+    sass(skipped ? 'reminderSkipped' : 'reminderDone', [], { chance: 0.5 });
     const key = doneKey(reminder.id, date);
     setTimeout(() => smooth(() => commit(skipped ? 'reminder skipped' : 'reminder done', [{ t: 'completions', id: key, set: { id: key, ref: reminder.id, date, kind: 'reminder', skipped } }])), 400);
   };
@@ -285,6 +295,7 @@ function AddRow({ day, today }) {
     const top = Math.min(0, ...all(getState(), 'tasks').filter((t) => !t.parent).map((t) => t.position));
     smooth(() => commit(kind === 'project' ? 'project added' : 'task added', [{ t: 'tasks', id: uid(), patch: { title, due, done: false, kind, position: top - 1, created: Date.now() } }]));
     setText(''); setPicked(null);
+    sass(kind === 'project' ? 'projectAdded' : 'taskAdded', [], { chance: 0.4 });
   };
 
   return (
@@ -313,6 +324,7 @@ const collide = (args) => { const hits = pointerWithin(args); return hits.length
 function reorder(list, from, to) {
   const moved = arrayMove(list, from, to);
   commit('reordered', [{ t: 'tasks', id: list[from].id, patch: { position: between(moved[to - 1]?.position, moved[to + 1]?.position) } }]);
+  sass('reordered', [], { chance: 0.2 });
 }
 
 export function TaskDnd({ day, children }) {
@@ -328,7 +340,7 @@ export function TaskDnd({ day, children }) {
     const date = over.data.current?.date;
     if (date) {
       commit('task moved', [{ t: 'tasks', id: active.id, patch: { due: date } }]);
-      toast('Moved to ' + shortDate(date) + '.', { undoable: true });
+      toast(quip('movedToDay', shortDate(date)), { undoable: true });
       return;
     }
     const open = openTasks(getState(), day, todayStr());

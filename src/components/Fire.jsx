@@ -29,6 +29,11 @@ export function toast(text, { undoable = false } = {}) {
   setTimeout(() => { toasts = toasts.filter((t) => t.id !== id); push(); }, undoable ? 6000 : 4200);
 }
 
+/** A reaction to an action, spoken only some of the time so it never becomes noise. */
+export function sass(name, args = [], { chance = 1, undoable = false } = {}) {
+  if (Math.random() < chance) toast(quip(name, ...args), { undoable });
+}
+
 export function doUndo() {
   const label = undo();
   toast(label ? `${quip('undo')} (${label})` : quip('nothingToUndo'));

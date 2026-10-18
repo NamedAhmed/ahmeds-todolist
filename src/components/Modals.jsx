@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { all, commit, exportJson, uid, useStore } from '../store.js';
 import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { DOW, MON, empties, quip, ruleText } from '../lib.js';
-import { toast } from './Fire.jsx';
+import { sass, toast } from './Fire.jsx';
 
 const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -53,6 +53,7 @@ export function RemindersModal({ today, onClose }) {
     const rule = type === 'weekly' ? { type, days: [...days].sort() } : type === 'monthly' ? { type, day } : { type, month, day };
     commit('reminder added', [{ t: 'reminders', id: uid(), patch: { title: title.trim(), rule, created: today } }]);
     setTitle('');
+    sass('reminderAdded', [], { chance: 0.6 });
   };
 
   return (
@@ -65,7 +66,7 @@ export function RemindersModal({ today, onClose }) {
             <span className="grow">{r.title}</span>
             <span className="mono">{ruleText(r.rule)}</span>
             <button className="del show" aria-label={`Delete ${r.title}`}
-              onClick={() => { commit('reminder deleted', [{ t: 'reminders', id: r.id, set: null }]); toast('Reminder deleted. Good luck remembering anything.', { undoable: true }); }}>×</button>
+              onClick={() => { commit('reminder deleted', [{ t: 'reminders', id: r.id, set: null }]); toast(quip('reminderDeleted'), { undoable: true }); }}>×</button>
           </li>
         ))}
       </ul>
