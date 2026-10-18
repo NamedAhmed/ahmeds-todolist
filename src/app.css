@@ -120,7 +120,7 @@ select, input[type='number'] { color-scheme: dark; }
 .task-list { flex: 1; min-height: 0; margin: 0 -8px; padding: 0 8px; scrollbar-width: thin; scrollbar-color: #221f1b transparent; }
 .task { display: block; padding: 0; position: relative; background: var(--bg); }
 .task-main { display: flex; align-items: center; gap: 14px; padding: 15px 4px; min-height: 54px; }
-.task.dragging { z-index: 5; border-bottom-color: transparent; border-radius: 12px; background: var(--surface); outline: 1px solid #2a2622; }
+.task.dragging { opacity: .35; transition: none; z-index: 5; border-bottom-color: transparent; border-radius: 12px; background: var(--surface); outline: 1px solid #2a2622; }
 .grip { color: var(--faint); font-size: 13px; letter-spacing: -3px; width: 12px; margin: 0 -4px 0 -8px; cursor: grab; opacity: 0; touch-action: none; transition: opacity .2s ease; }
 .task:hover .grip, .grip:focus-visible { opacity: 1; }
 .grip:active { cursor: grabbing; }
@@ -254,8 +254,12 @@ button:not(:disabled):active { transform: scale(.95); }
 .col:nth-child(3) { animation-delay: .12s; }
 .task, .empty-row, .done-head { animation: row-in .35s var(--ease) backwards; }
 .task:hover { background-color: color-mix(in srgb, var(--text) 3%, transparent); }
-.task, .day, .strip-pill { transition-property: opacity, transform, background-color, border-color, color; transition-duration: .3s; }
+.day, .strip-pill { transition-property: opacity, transform, background-color, border-color, color; transition-duration: .3s; }
 .day:hover { transform: scale(1.08); }
 .day-toggle { transition: opacity .2s ease, color .2s ease; }
 .day-clear { animation: row-in .25s var(--ease) backwards; }
 .voice { animation: row-in .5s var(--ease) backwards; }
+
+/* dragging a task: the chip follows the pointer, days light up when it is over them */
+.drag-chip { padding: 12px 18px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 15px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.5); cursor: grabbing; }
+.day.is-over { transform: scale(1.2); box-shadow: 0 0 0 2px var(--text); }
