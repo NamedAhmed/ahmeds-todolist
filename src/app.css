@@ -286,3 +286,11 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .keys dt { white-space: nowrap; }
 .keys dd { margin: 0; color: var(--muted); text-align: right; }
 kbd { font-family: var(--mono); font-size: 12px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }
+
+/* hold Shift: Rename and Delete appear over the right end of every task */
+.quick { position: absolute; right: 4px; top: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding-left: 28px; background: linear-gradient(to right, transparent, var(--bg) 22px); opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+.task.sub .quick, .task.reminder .quick { display: none; }
+[data-shift] .quick { opacity: 1; pointer-events: auto; }
+.quick button { height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13px; }
+.quick button:hover { border-color: #3a352f; }
+.quick .danger { color: var(--accent); }

@@ -24,6 +24,17 @@ export default function App() {
     if (dead) setTimeout(() => toast(quips.broken(dead.name, dead.was)), 900);
   }, [today]);
 
+  // While Shift is held, rows show Rename and Delete (the page carries data-shift for the CSS).
+  useEffect(() => {
+    const root = document.documentElement;
+    const set = (e) => { if (e.key === 'Shift') root.toggleAttribute('data-shift', e.type === 'keydown'); };
+    const clear = () => root.removeAttribute('data-shift');
+    window.addEventListener('keydown', set);
+    window.addEventListener('keyup', set);
+    window.addEventListener('blur', clear);
+    return () => { window.removeEventListener('keydown', set); window.removeEventListener('keyup', set); window.removeEventListener('blur', clear); clear(); };
+  }, []);
+
   // Keyboard, anywhere except inside a text box (where typing and the browser's own undo win).
   useEffect(() => {
     // On a phone the three columns are tabs, so show the right one before moving focus into it.
