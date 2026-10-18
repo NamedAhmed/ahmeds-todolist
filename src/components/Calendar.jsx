@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
-import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, quips, streakOf, toDate } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, quips, streakOf, toDate, ymd } from '../lib.js';
 import { Flame, toast } from './Fire.jsx';
 
 const MILESTONES = [3, 7, 14, 21, 30, 50, 100, 200, 365];
@@ -115,22 +115,23 @@ function DayCell({ s, date, today, selected, marks, onPick }) {
         </g>
       </svg>
       <span className="day-num">{toDate(date).getDate()}</span>
-      {mark && <i className={'day-dot' + (mark.task ? '' : ' reminder')} />}
+      {mark && <i className={'day-dot' + (mark.task ? '' : mark.done ? ' done' : ' reminder')} />}
     </button>
   );
 }
 
-/** Which days have something due, so the calendar can dot them. */
+/** Which days have something due (or something finished), so the calendar can dot them. */
 function useMarks(s, weeks, today) {
   return useMemo(() => {
     const marks = {};
     for (const t of all(s, 'tasks')) {
-      if (!t.due || t.done) continue;
-      marks[t.due] = { task: true, overdue: t.due < today };
+      if (t.parent) continue;
+      if (t.done) { if (t.done_at) { const d = ymd(new Date(t.done_at)); marks[d] ||= { done: true }; } continue; }
+      if (t.due) marks[t.due] = { task: true, overdue: t.due < today };
     }
     const reminders = all(s, 'reminders');
     for (const date of weeks.flat()) {
-      if (date < today || marks[date]) continue;
+      if (date < today || marks[date]?.task) continue;
       if (reminders.some((r) => occursOn(r.rule, date) && !isDone(s, r.id, date))) marks[date] = { task: false };
     }
     return marks;
