@@ -22,7 +22,20 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_KEY;
 
 // `supabase` is our connection. It is null when the keys are missing, which switches syncing off.
-export const supabase = url && key ? createClient(url, key) : null;
+// Staying signed in: the session is saved in this browser (persistSession) and quietly renewed
+// before it runs out (autoRefreshToken), so you stay signed in until you press Sign out.
+// How long a session may last at most is set in the Supabase dashboard (Authentication > Sessions).
+export const supabase = url && key
+  ? createClient(url, key, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    })
+  : null;
+
+// Ask the browser not to clear this app's saved data (and with it the sign-in) when space runs low
+// or after a long time away. Browsers may say no; then nothing changes.
+function keepStorage() {
+  navigator.storage?.persist?.().catch(() => {});
+}
 
 
 // ======================================================================
@@ -156,6 +169,7 @@ function onUser(user) {
   }
 
   localStorage.setItem(OWNER, user.id);
+  keepStorage();
   setStatus({ user: { id: user.id, email: user.email } });
   syncNow();
 }
