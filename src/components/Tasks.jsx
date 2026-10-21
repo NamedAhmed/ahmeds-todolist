@@ -31,6 +31,7 @@ import { sass, toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
+import DatePicker from './DatePicker.jsx';
 
 
 // ======================================================================
@@ -252,16 +253,25 @@ function rowKeys(event, act) {
 }
 
 // The due date label on a row. Clicking it opens the date picker.
-function DueButton({ due, today, done, inputRef }) {
+// A task with no date is "ongoing": it shows an infinity sign and never goes overdue.
+// Clicking either opens the date picker window (onClick).
+function DueButton({ due, today, done, onClick }) {
   const info = dueInfo(due, today);
-  if (!due) return null;
+
+  if (!due) {
+    return (
+      <button type="button" tabIndex={-1} className="due" title="No date: tap to set one" onClick={onClick}>
+        <Icon name="infinity" size={15} />
+      </button>
+    );
+  }
 
   return (
     <button
       type="button"
       tabIndex={-1}
       className={'due ' + (done ? '' : info.cls)}
-      onClick={() => inputRef.current.showPicker?.()}
+      onClick={onClick}
     >
       {info.text}
     </button>
@@ -472,7 +482,7 @@ const TaskRow = memo(
     const [editing, setEditing] = useState(false);   // true while renaming
     const [menuOpen, setMenuOpen] = useState(false); // is the ⋯ menu open?
     const liRef = useRef(null);   // points at this row's HTML element
-    const dateRef = useRef(null); // points at the hidden date input
+    const [picking, setPicking] = useState(false);   // is the date picker window open?
 
     const isProject = task.kind === 'project';
     const done = task.done || closing;
@@ -537,7 +547,7 @@ const TaskRow = memo(
         toggle,
         enter: isProject ? () => onToggleOpen(task.id) : () => edit(true),
         rename: () => edit(true),
-        date: () => dateRef.current.showPicker?.(),
+        date: () => setPicking(true),
         menu: () => setMenuOpen(true),
         earlier: () => shiftDue(-1),
         later: () => shiftDue(1),
@@ -555,8 +565,8 @@ const TaskRow = memo(
 
     const menu = [
       { label: 'Rename', icon: 'pencil', run: () => edit(true) },
-      { label: task.due ? 'Change date' : 'Set a date', icon: 'calendar', run: () => dateRef.current.showPicker?.() },
-      task.due && { label: 'Remove date', icon: 'x', run: () => patch('date removed', { due: null }) },
+      { label: task.due ? 'Change date' : 'Set a date', icon: 'calendar', run: () => setPicking(true) },
+      task.due && { label: 'Make ongoing', icon: 'infinity', run: () => patch('made ongoing', { due: null }) },
       { label: isProject ? 'Turn into a task' : 'Turn into a project', icon: isProject ? 'task' : 'folder', run: turnIntoOtherKind },
       '-',
       { label: 'Delete', icon: 'trash', danger: true, run: () => removeTask(task) },
@@ -622,16 +632,17 @@ const TaskRow = memo(
                 {steps.filter((step) => step.done).length}/{steps.length}
               </span>
             )}
-            <DueButton due={task.due} today={today} done={done} inputRef={dateRef} />
-            <input
-              ref={dateRef}
-              className="hidden-date"
-              type="date"
-              value={task.due || ''}
-              onChange={(event) => patch('due date changed', { due: event.target.value || null })}
-              tabIndex={-1}
-              aria-hidden="true"
-            />
+            <DueButton due={task.due} today={today} done={done} onClick={() => setPicking(true)} />
+            <AnimatePresence>
+              {picking && (
+                <DatePicker
+                  value={task.due || null}
+                  today={today}
+                  onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', { due: date })}
+                  onClose={() => setPicking(false)}
+                />
+              )}
+            </AnimatePresence>
             <RowMenu items={menu} open={menuOpen} onOpenChange={setMenuOpen} />
           </span>
         </div>
@@ -745,25 +756,27 @@ function ReminderRow({ reminder, date, today }) {
 // ======================================================================
 // THE "ADD A TASK" FORM
 // ======================================================================
-// A text box, a Task/Project switch, a date and an Add button.
+// A text box, a Project switch, a date button (opens the date picker window) and an Add button.
 // If you type a date at the end ("buy milk friday", "call mum oct 12"), the date box fills in by itself.
 // Props: day (the day picked on the calendar, or null), today.
 function AddRow({ day, today }) {
   const [text, setText] = useState('');
   const [kind, setKind] = useState('task');   // 'task' or 'project'
   const [picked, setPicked] = useState(null); // a date chosen by hand (beats a typed one)
+  const [ongoing, setOngoing] = useState(false); // no due date: it just stays in the list
+  const [picking, setPicking] = useState(false); // is the date picker window open?
 
   // Look for a date at the end of what is typed. (useMemo = only redo this when the text changes.)
   const parsed = useMemo(() => parseTyped(text), [text]);
 
   // Which due date to use: picked by hand, else typed, else the selected calendar day, else today.
-  const due = picked ?? parsed?.due ?? day ?? today;
+  const due = ongoing ? null : (picked ?? parsed?.due ?? day ?? today);
 
   function submit(event) {
     event.preventDefault();
 
     // Use the text without the date part, unless the date was picked by hand.
-    const title = (parsed && !picked ? parsed.title : text).trim();
+    const title = (parsed && !picked && !ongoing ? parsed.title : text).trim();
     if (!title) return;
 
     // New tasks go to the TOP of the list: give them a position smaller than all the others.
@@ -781,8 +794,15 @@ function AddRow({ day, today }) {
 
     setText('');
     setPicked(null);
+    setOngoing(false);
     sass(kind === 'project' ? 'projectAdded' : 'taskAdded', [], { chance: 0.4 });
   }
+
+  // The label on the date button: what the new task will get.
+  let dueLabel = shortDate(due ?? today);
+  if (ongoing) dueLabel = 'No date';
+  else if (due === today) dueLabel = 'Today';
+  else if (due === addDays(today, 1)) dueLabel = 'Tomorrow';
 
   return (
     <form className="task-form" onSubmit={submit} autoComplete="off">
@@ -796,23 +816,35 @@ function AddRow({ day, today }) {
       />
       <button
         type="button"
-        className="kind-switch"
+        className={'kind-switch' + (kind === 'project' ? ' on' : '')}
         onClick={() => setKind(kind === 'task' ? 'project' : 'task')}
-        title="Switch between task and project"
-        aria-label={kind === 'task' ? 'Task: switch to project' : 'Project: switch to task'}
+        aria-pressed={kind === 'project'}
+        title="Project: a task that holds smaller steps"
+        aria-label="Make it a project"
       >
-        <Icon name={kind === 'task' ? 'task' : 'folder'} size={16} />
+        <Icon name="folder" size={16} />
       </button>
-      <input
-        id="task-due"
-        type="date"
-        value={due}
-        onChange={(event) => setPicked(event.target.value || null)}
-        aria-label="Due date"
-      />
+      <button type="button" className="date-pill" onClick={() => setPicking(true)} aria-label={'Due date: ' + dueLabel}>
+        <Icon name={ongoing ? 'infinity' : 'calendar'} size={15} />
+        {dueLabel}
+      </button>
       <button type="submit" className="btn-add" aria-label="Add" title="Add">
         <Icon name="plus" size={18} />
       </button>
+
+      <AnimatePresence>
+        {picking && (
+          <DatePicker
+            value={ongoing ? null : due}
+            today={today}
+            onPick={(date) => {
+              setOngoing(date === null);
+              setPicked(date);
+            }}
+            onClose={() => setPicking(false)}
+          />
+        )}
+      </AnimatePresence>
     </form>
   );
 }
@@ -831,9 +863,9 @@ function isLate(task, day, today) {
 
 // The unfinished tasks in the order they appear in the list:
 // overdue ones first, then the rest, each group in the user's own order.
-// When a day is selected, only that day's tasks are included.
+// When a day is selected, only that day's tasks (and ongoing ones, which have no date) are included.
 function openTasks(s, day, today) {
-  const tasks = all(s, 'tasks').filter((t) => !t.parent && !t.done && (!day || t.due === day));
+  const tasks = all(s, 'tasks').filter((t) => !t.parent && !t.done && (!day || !t.due || t.due === day));
 
   tasks.sort((a, b) => {
     const lateDifference = Number(isLate(b, day, today)) - Number(isLate(a, day, today));
@@ -1056,6 +1088,7 @@ export default function Tasks({ today, day, setDay }) {
           onClick={() => setDay(day === today ? null : today)}
         >
           <Icon name="sun" size={16} />
+          Today only
         </button>
         {day && day !== today && (
           <button className="day-clear" onClick={() => setDay(null)} aria-label="Show all days" title="Show all days">

@@ -1,7 +1,7 @@
 // Modals.jsx = the pop-up windows (a "modal" is a window that appears over the page).
 //
 //   (Settings is not here: it is a sheet that slides up from the bottom, see Settings.jsx.)
-//   Modal           the empty window frame the others use (dark backdrop, Close button, Esc to close)
+//   Modal           the empty window frame the others use (exported: DatePicker.jsx uses it too) (dark backdrop, Close button, Esc to close)
 //   RemindersModal  list and add repeating reminders
 //   DailyEditModal  rename a daily and change its colour
 //   KeysModal       the keyboard shortcut cheat sheet
@@ -22,7 +22,7 @@ const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea
 // THE WINDOW FRAME
 // ======================================================================
 // Props: title (shown at the top), onClose (function to close it), wide (a bigger window), children (what goes inside).
-function Modal({ title, onClose, wide, children }) {
+export function Modal({ title, onClose, wide, children }) {
   const box = useRef(null); // points at the window's HTML element
 
   // Keyboard behaviour for accessibility:

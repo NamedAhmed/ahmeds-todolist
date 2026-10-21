@@ -1211,15 +1211,31 @@ html[data-theme="terminal"] .task-form::before {
 .look section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  padding: 18px 20px 20px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
+/* Each section gets a proper title: the app's serif, not small grey capitals. */
 .look h3 {
   margin: 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  text-transform: none;
+  color: var(--text);
+}
+/* In a side-by-side pair (Theme + Font) the cards sit in the grid, so they don't need a second box. */
+.look-top section {
+  height: 100%;
 }
 /* Theme and Font sit side by side when there is room. */
 .look-top {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr));
   gap: 30px 44px;
 }
 /* A heading inside the gallery grid ("Photos", "Yours"): a whole row of its own. */
@@ -1251,8 +1267,8 @@ html[data-theme="terminal"] .task-form::before {
 }
 .readability {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 12px 44px;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 14px 44px;
 }
 /* A file is being dragged over the gallery. */
 .background.dropping {
@@ -1289,6 +1305,15 @@ html[data-sheet-dragging] .app {
 }
 /* On a phone the page scrolls instead: it keeps its size and leaves room for the sheet. */
 @media (max-width: 900px) {
+  .sheet-body {
+    padding: 14px 14px 28px;
+  }
+  .look {
+    gap: 16px;
+  }
+  .look section {
+    padding: 16px 16px 18px;
+  }
   html[data-sheet] .app {
     height: auto;
     margin: 0 0 var(--sheet-offset, 0px);

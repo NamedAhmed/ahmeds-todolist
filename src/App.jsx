@@ -8,7 +8,7 @@
 //   Modals (pop-up windows)       -> components/Modals.jsx
 //   Toasts (little messages)      -> components/Fire.jsx
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { getState, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
@@ -29,13 +29,42 @@ const TABS = [
   ['notes', 'Notes', 'note'],
 ];
 
+// Was "Today only" left on last time? (Storage can be blocked, e.g. in a private window.)
+function readPinned() {
+  try {
+    return localStorage.getItem('todolist:today-only') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const today = useToday(); // today's date, e.g. "2026-10-18"
   const grid = useRef(null); // the page's grid, for the column widths
   const columns = useColumns(grid);
 
   // ---- things the screen remembers (React "state") ----
-  const [day, setDay] = useState(null);     // a day picked on the calendar, or null for "everything"
+  // The day being looked at: today, another day picked on the calendar, or null for "everything".
+  // "Today" is remembered as a mode (pinned), not a date, so it stays "today" when midnight passes
+  // and when the app is reopened. `date` only holds a day other than today.
+  const [selection, setSelection] = useState(() => ({ pinned: readPinned(), date: null }));
+  const day = selection.pinned ? today : selection.date;
+  const setDay = useCallback(
+    (value) =>
+      setSelection((previous) => {
+        const current = previous.pinned ? today : previous.date;
+        const next = typeof value === 'function' ? value(current) : value;
+        return next === today ? { pinned: true, date: null } : { pinned: false, date: next };
+      }),
+    [today]
+  );
+  useEffect(() => {
+    try {
+      localStorage.setItem('todolist:today-only', selection.pinned ? '1' : '0');
+    } catch {
+      // storage unavailable: the choice just isn't remembered
+    }
+  }, [selection.pinned]);
   const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
@@ -135,7 +164,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [today]);
+  }, [today, setDay]);
 
 
   // ---- What gets drawn on the screen ----
