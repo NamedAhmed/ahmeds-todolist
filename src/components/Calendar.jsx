@@ -13,7 +13,7 @@
 //   Calendar      the whole column (this is what App.jsx uses)
 
 import Icon from './Icons.jsx';
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
@@ -122,9 +122,9 @@ function BigRing({ s, date, today }) {
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
 
-  // Ring sizes: they share the space, but never get thicker than 14.
+  // Ring sizes: they share the space, but never get thicker than 10.
   const band = 57 / Math.max(count, 3);
-  const width = Math.min(14, band * 0.72);
+  const width = Math.min(10, band * 0.7);
 
   const dateObject = toDate(date);
 
@@ -149,10 +149,10 @@ function BigRing({ s, date, today }) {
       </AnimatePresence>
 
       <svg viewBox="0 0 200 200">
-        {/* No dailies yet: show three empty grey rings */}
+        {/* No dailies yet: three thin empty rings, with a hint in the middle */}
         {count === 0 &&
-          [88, 68, 48].map((radius) => (
-            <circle key={radius} className="track" cx="100" cy="100" r={radius} strokeWidth="14" />
+          [88, 72, 56].map((radius) => (
+            <circle key={radius} className="track" cx="100" cy="100" r={radius} strokeWidth="5" />
           ))}
 
         {/* One ring per daily */}
@@ -165,6 +165,7 @@ function BigRing({ s, date, today }) {
               {/* The grey track. It is also the clickable area. */}
               <circle
                 className="track hit"
+                style={{ stroke: daily.color }}
                 cx="100"
                 cy="100"
                 r={radius}
@@ -191,6 +192,7 @@ function BigRing({ s, date, today }) {
                   opacity: { duration: 0.2 },
                 }}
               />
+
             </g>
           );
         })}
@@ -201,12 +203,38 @@ function BigRing({ s, date, today }) {
         <motion.span key={date} className="ring-day" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
           {dateObject.getDate()}
         </motion.span>
-        {count > 0 && (
-          <span className="mono">
-            {doneCount}/{count}
-          </span>
-        )}
+        {count === 0 && <span className="ring-hint">Add a daily below to fill these rings</span>}
       </div>
+    </div>
+  );
+}
+
+
+// ======================================================================
+// THE DATE AND TIME IN THE TOP CORNER
+// ======================================================================
+// The time on top, the weekday in a handwritten script, the date underneath (styled like the clock
+// in the "The Hill" wallpaper). The time only shows when you are looking at today, and ticks along by itself.
+function DateStamp({ date, live }) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!live) return;
+    setNow(new Date()); // looking at today again: show the real time right away
+    const timer = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, [live]);
+
+  const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const weekday = date.toLocaleDateString([], { weekday: 'long' });
+
+  return (
+    <div className="stamp" aria-label={`${weekday}, ${MON[date.getMonth()]} ${date.getDate()}`}>
+      {live && <span className="stamp-time">{time}</span>}
+      <span className="stamp-day">{weekday}</span>
+      <span className="stamp-date">
+        {MON[date.getMonth()]} {date.getDate()}
+      </span>
     </div>
   );
 }
@@ -215,7 +243,7 @@ function BigRing({ s, date, today }) {
 // ======================================================================
 // ONE SMALL DAY IN THE CALENDAR GRID
 // ======================================================================
-// A small ring cut into one piece (segment) per daily, with the day number inside.
+// A small ring with one coloured arc per finished daily (unfinished ones stay empty), with the day number inside.
 // `memo` means "don't re-draw this day unless something relevant changed"
 // (the check is at the bottom of this function).
 const DayCell = memo(
@@ -223,7 +251,8 @@ const DayCell = memo(
     const dailies = dailiesOn(s, date);
     const count = dailies.length;
 
-    // The small gap between segments.
+
+    // The small gap between arcs.
     let gap = 0;
     if (count > 1) gap = count > 8 ? 0.12 : 0.2;
 
@@ -233,6 +262,9 @@ const DayCell = memo(
     // Makes this day a place you can drop a dragged task. isOver = a task is hovering over it now.
     const { setNodeRef, isOver } = useDroppable({ id: 'day:' + date, data: { date } });
 
+    // What is on this day (see useMarks): a task due, a reminder, or only something finished.
+    const hasReminder = mark && !mark.task && !mark.done;
+
     // Build the CSS class list (see .day in app.css). `false` entries are removed by filter(Boolean).
     const className = [
       'day',
@@ -241,13 +273,11 @@ const DayCell = memo(
       selected && 'is-selected',
       date > today && 'is-future',
       mark?.overdue && 'is-overdue',
+      mark?.task && 'has-task',
+      hasReminder && 'has-reminder',
     ]
       .filter(Boolean)
       .join(' ');
-
-    // Which kind of dot: a task is due (plain), something was finished ("done"), or a reminder ("reminder").
-    let dotClass = 'day-dot';
-    if (mark && !mark.task) dotClass += mark.done ? ' done' : ' reminder';
 
     return (
       <button
@@ -260,12 +290,11 @@ const DayCell = memo(
       >
         <svg viewBox="0 0 40 40">
           <g transform="rotate(-90 20 20)">
-            {count === 0 && <circle className="track" cx="20" cy="20" r="17" strokeWidth="3" />}
+            <circle className="track" cx="20" cy="20" r="17" strokeWidth="3" />
 
-            {/* One segment of the ring per daily. strokeDasharray cuts the circle into pieces. */}
-            {dailies.map((daily, i) => {
-              const isOn = isDone(s, daily.id, date);
-              return (
+            {/* Only finished dailies are drawn: a coloured arc each, so the colours match the big ring. */}
+            {dailies.map((daily, i) =>
+              isDone(s, daily.id, date) ? (
                 <circle
                   key={daily.id}
                   cx="20"
@@ -274,18 +303,17 @@ const DayCell = memo(
                   fill="none"
                   strokeWidth="3.5"
                   pathLength={count}
-                  className={isOn ? 'seg on' : 'seg'}
-                  style={isOn ? { stroke: daily.color, color: daily.color } : undefined}
+                  className="seg"
+                  style={{ stroke: daily.color }}
                   strokeDasharray={`${1 - gap} ${count - 1 + gap}`}
                   strokeDashoffset={-(i + gap / 2)}
                 />
-              );
-            })}
+              ) : null
+            )}
           </g>
         </svg>
 
         <span className="day-num">{dateObject.getDate()}</span>
-        {mark && <i className={dotClass} />}
       </button>
     );
   },
@@ -314,7 +342,7 @@ const DayCell = memo(
 // ======================================================================
 // WHICH DAYS GET A DOT
 // ======================================================================
-// Works out which days have something due (or something finished) so the calendar can dot them.
+// Works out which days have something due (or something finished) so the calendar can mark them (an underline under the day number).
 // Returns an object like { "2026-10-20": { task: true, overdue: false } }.
 // useMemo = only recalculate when the listed things change (an optimisation).
 function useMarks(s, weeks, today) {
@@ -441,7 +469,7 @@ function AddDaily({ s, today }) {
       <input
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder="Add a daily…"
+        placeholder="Add a daily habit, e.g. Read 20 min…"
         aria-label="New daily"
       />
     </form>
@@ -520,12 +548,9 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
     dayButtons[clamped].focus();
   }
 
-  // Clicking a day selects it. Clicking the selected day (or today when nothing is selected) clears it.
+  // Clicking a day selects it. Clicking the selected day clears it. Clicking today selects it (the same as the sun button on Tasks).
   function pickDay(picked) {
-    setDay((current) => {
-      const clearing = picked === current || (picked === today && !current);
-      return clearing ? null : picked;
-    });
+    setDay((current) => (picked === current ? null : picked));
   }
 
   // The little text next to "Dailies", e.g. "· Oct 18" when looking at another day.
@@ -535,9 +560,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
     <section className="col col-calendar" aria-label="Calendar">
       <header className="col-head">
         <h2>Calendar</h2>
-        <span className="mono">
-          {DOW[shownDate.getDay()]} · {MON[shownDate.getMonth()]} {shownDate.getDate()}
-        </span>
+        <DateStamp date={shownDate} live={shown === today} />
       </header>
 
       <BigRing s={s} date={shown} today={today} />
@@ -600,13 +623,15 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
       <footer className="col-foot">
         <button className="btn-ghost" onClick={() => open('reminders')} aria-label="Reminders" title="Reminders">
           <Icon name="repeat" size={16} />
+          Reminders
         </button>
-        <button className="btn-ghost" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onClick={() => open('keys')}>
+        <button className="btn-ghost shortcuts" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onClick={() => open('keys')}>
           <Icon name="help" size={16} />
         </button>
         <button className="btn-ghost account" onClick={() => open('settings')} aria-label="Settings" title="Settings">
           <i className={'sync-dot ' + sync.sync} />
           <Icon name="sliders" size={16} />
+          Settings
         </button>
       </footer>
     </section>
