@@ -187,15 +187,82 @@ export const LIGHT_THEMES = ['light', 'paper'];
 export const LIGHT_THEME_MIN_GLASS = 0.72;
 
 
-// How bright is the picture or video behind the page? 0 (black) to 1 (white), or null if there is none or it can't be
-// measured. The picture is shrunk to a tiny 24 x 24 copy and its pixels are averaged. A bright background makes the
-// light text of a dark theme hard to read (and a dark one does the same to a light theme), so Wallpaper.jsx uses this
-// to add backing behind the text on its own. (Animated wallpapers can't be measured, so use the Glass slider for those.)
-export function useBrightness(imageUrl, videoUrl) {
-  const [brightness, setBrightness] = useState(null);
+// ======================================================================
+// AUTO READABILITY
+// ======================================================================
+// Text is readable when it stands out enough from what is right behind it. That is measured as a "contrast ratio":
+// 1 means no difference at all, 21 is black on white. Auto works out, for the background you chose, how much of the
+// theme's colour (the Dim film and the Glass panels) has to go between the picture and the text so that:
+//   - normal text reaches 7 : 1 (very easy to read)
+//   - grey (muted) text reaches 3 : 1 (still clearly readable)
+// It checks the picture's brightest AND darkest parts, so a busy picture with bright and dark patches is covered too.
+const TEXT_TARGET = 7;
+const MUTED_TARGET = 3;
+
+// Brightness below is "how light it looks", 0 (black) to 1 (white). That is the scale the browser mixes colours on,
+// but contrast has to be worked out from the real amount of light, so these two convert between them.
+const toLight = (looks) => (looks <= 0.04045 ? looks / 12.92 : ((looks + 0.055) / 1.055) ** 2.4);
+const lightOf = (r, g, b) => 0.2126 * toLight(r) + 0.7152 * toLight(g) + 0.0722 * toLight(b);
+const toLooks = (light) => (light <= 0.0031308 ? light * 12.92 : 1.055 * light ** (1 / 2.4) - 0.055);
+
+function contrast(a, b) {
+  const [lighter, darker] = [toLight(a), toLight(b)].sort((x, y) => y - x);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// What a CSS colour on the page (like "var(--muted)") really is right now: { looks, alpha }.
+// Some themes make grey text by fading the normal text colour, so the alpha (how see-through it is) matters.
+export function colourOf(cssColour) {
+  const probe = document.createElement('i');
+  probe.style.cssText = `display:none;color:${cssColour}`;
+  document.body.append(probe);
+  const written = getComputedStyle(probe).color; // "rgb(1, 2, 3)", "rgba(1, 2, 3, 0.5)" or "color(srgb 0.1 0.2 0.3 / 0.5)"
+  probe.remove();
+  const numbers = (written.match(/[\d.]+/g) || []).map(Number);
+  const scale = written.startsWith('color(') ? 1 : 255;
+  const [r = 0, g = 0, b = 0] = numbers.map((n) => n / scale);
+  return { looks: toLooks(lightOf(r, g, b)), alpha: numbers[3] ?? 1 };
+}
+
+// A background we can't measure (an animated wallpaper) is treated as one with near-white highlights and deep
+// shadows, so the text stays readable whatever it shows.
+export const UNKNOWN_TONES = { dark: 0.02, light: 0.95 };
+
+// How much of the theme colour (0 = none, 1 = solid) must sit between the background and the text.
+//   tones  the background's darkest and brightest parts, { dark, light }, each 0 to 1
+//   text, muted, bg  the page's colours, from colourOf()
+export function backingNeeded(tones, text, muted, bg) {
+  function readable(cover) {
+    return [tones.dark, tones.light].every((tone) => {
+      const behind = tone * (1 - cover) + bg.looks * cover;
+      const textOn = text.looks * text.alpha + behind * (1 - text.alpha);
+      const mutedOn = muted.looks * muted.alpha + behind * (1 - muted.alpha);
+      return contrast(textOn, behind) >= TEXT_TARGET && contrast(mutedOn, behind) >= MUTED_TARGET;
+    });
+  }
+  if (readable(0)) return 0;
+  if (!readable(1)) return 1; // not even a solid backing is enough (for example dark text on a dark theme)
+
+  // Halve the gap 20 times to find the smallest backing that works.
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 20; i++) {
+    const middle = (low + high) / 2;
+    if (readable(middle)) high = middle;
+    else low = middle;
+  }
+  return high;
+}
+
+// The darkest and brightest parts of the picture or video behind the page, as { dark, light } (0 = black, 1 = white),
+// or null if there is none or it can't be measured. The picture is shrunk to a tiny 24 x 24 copy (which also blurs it,
+// like the frosted panels do, so a tiny glint doesn't count), and its darkest and brightest pixels are what count:
+// text can land anywhere, so it has to be readable over both.
+export function useBackdropTones(imageUrl, videoUrl) {
+  const [tones, setTones] = useState(null);
 
   useEffect(() => {
-    setBrightness(null);
+    setTones(null);
     if (!imageUrl && !videoUrl) return;
     let current = true;
     const source = imageUrl ? new Image() : document.createElement('video');
@@ -209,9 +276,9 @@ export function useBrightness(imageUrl, videoUrl) {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(source, 0, 0, 24, 24);
         const { data } = ctx.getImageData(0, 0, 24, 24);
-        let total = 0;
-        for (let i = 0; i < data.length; i += 4) total += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-        setBrightness(total / (24 * 24) / 255);
+        const pixels = [];
+        for (let i = 0; i < data.length; i += 4) pixels.push(toLooks(lightOf(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255)));
+        setTones({ dark: Math.min(...pixels), light: Math.max(...pixels) });
       } catch {
         // the pixels can't be read: leave it unmeasured
       }
@@ -231,7 +298,7 @@ export function useBrightness(imageUrl, videoUrl) {
     };
   }, [imageUrl, videoUrl]);
 
-  return brightness;
+  return tones;
 }
 
 
