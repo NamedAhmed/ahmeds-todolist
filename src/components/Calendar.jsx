@@ -165,7 +165,6 @@ function BigRing({ s, date, today }) {
               {/* The grey track. It is also the clickable area. */}
               <circle
                 className="track hit"
-                style={{ stroke: daily.color }}
                 cx="100"
                 cy="100"
                 r={radius}
