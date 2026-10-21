@@ -165,7 +165,7 @@ export default function Look() {
           <label className="range-row auto-row">
             <span className="mono">Auto</span>
             <Switch checked={autoFix} onChange={(on) => setAppearance({ autoFix: on })} />
-            <span className="auto-note">adds backing when a picture or video makes the text hard to read</span>
+            <span className="auto-note">adds just enough backing to keep text readable over any background</span>
           </label>
           {/* The Liquid theme lays nothing over the page, so there is no Dim there. */}
           {theme !== 'liquid' && (

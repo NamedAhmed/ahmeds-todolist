@@ -24,7 +24,11 @@ import {
   takesPicture,
   useApplyGlass,
   useApplyTextColor,
-  useBrightness,
+  useBackdropTones,
+  UNKNOWN_TONES,
+  backingNeeded,
+  colourOf,
+  MAX_GLASS,
   useMediaUrl,
   usePictureId,
   valueOf,
@@ -185,25 +189,39 @@ export default function Wallpaper() {
   const isLiquid = wallpaper === LIQUID;
   const showsSomething = pictureUrl || lively || videoUrl || isLiquid;
 
-  // Auto readability: if the picture or video is hard to read text over (bright for a dark theme, dark for a light
-  // one), add dimming and backing on top of what is set in Settings, just enough to make the text clear.
-  const measured = useBrightness(videoUrl ? null : pictureUrl, videoUrl);
+  // What is behind the text: the picture or video is measured. A moving wallpaper that draws its own picture can't
+  // be measured, so it is treated as an unknown (bright) one; one that shows your picture is judged by that picture.
+  const measured = useBackdropTones(videoUrl ? null : pictureUrl, videoUrl);
+  const drawsOwnPicture = isLiquid || (lively && !lively.properties.some(takesPicture));
+  const tones = !measured || drawsOwnPicture ? UNKNOWN_TONES : measured;
   const isLightTheme = LIGHT_THEMES.includes(theme);
-  const difficulty = measured === null ? 0 : isLightTheme ? 1 - measured : measured; // 0 = easy to read over, 1 = hard
-  const auto = autoFix ? Math.min(1, Math.max(0, (difficulty - 0.4) / 0.4)) : 0;
-  const dimNow = Math.max(dim, auto * 0.4);
 
-  // Tell the page's CSS whether something is behind the columns, and how frosted to make them
-  // (see "html[data-backdrop] .col" in appearance.css).
+  // Tell the page's CSS whether something is behind the columns, how strong the Dim film is, and how frosted to
+  // make the columns (see ".wallpaper-dim" and "html[data-backdrop] .col" in appearance.css).
   useEffect(() => {
     const root = document.documentElement;
     root.toggleAttribute('data-backdrop', !!showsSomething);
     root.toggleAttribute('data-animated', !!(lively || videoUrl || isLiquid)); // moving: the glass blur is capped (appearance.css)
-    let strength = Math.max(glass, auto * 0.6);
+
+    const canDim = theme !== 'liquid'; // the Liquid theme has no Dim film
+    let dimNow = canDim ? dim : 0;
+    let strength = glass;
     if (isLightTheme) strength = Math.max(strength, LIGHT_THEME_MIN_GLASS); // dark text needs a pale panel behind it
-    root.style.setProperty('--glass', Math.round(strength * 100) + '%');
+
+    // Auto readability: add just enough Glass (and then Dim) on top of your settings for the text to be clear.
+    // The film and the panel stack up: together they cover 1 - (1 - dim) x (1 - glass) of the picture.
+    if (autoFix && showsSomething) {
+      const needed = backingNeeded(tones, colourOf('var(--text)'), colourOf('var(--muted)'), colourOf('var(--bg)'));
+      const glassNeeded = 1 - (1 - needed) / (1 - dimNow);
+      // (Liquid has no Dim to make up the rest, so there the panel may go past the slider's limit.)
+      strength = Math.max(strength, Math.min(canDim ? MAX_GLASS : 1, glassNeeded));
+      if (canDim) dimNow = Math.max(dimNow, 1 - (1 - needed) / (1 - strength)); // the panel alone wasn't enough
+    }
+
+    frameBox.current.style.setProperty('--dim', dimNow);
+    root.style.setProperty('--glass', Math.ceil(strength * 100) + '%'); // rounded up, so Auto never falls just short
     root.style.setProperty('--glass-blur', Math.round(strength * 20) + 'px'); // more glass = a stronger blur too
-  }, [showsSomething, lively, videoUrl, isLiquid, glass, auto, theme, isLightTheme]);
+  }, [showsSomething, lively, videoUrl, isLiquid, glass, dim, autoFix, tones, theme, isLightTheme, textColor]);
 
   // Follow the mouse. It is used two ways:
   //   - the liquid wallpaper has a blob that chases the mouse
@@ -248,7 +266,7 @@ export default function Wallpaper() {
 
   return (
     <>
-      <div className="wallpaper" aria-hidden="true" style={{ '--dim': dimNow }} ref={frameBox}>
+      <div className="wallpaper" aria-hidden="true" ref={frameBox}>
         {pictureUrl && <div className="wallpaper-image" style={{ backgroundImage: `url(${pictureUrl})` }} />}
         {videoUrl && <video className="wallpaper-video" src={videoUrl} autoPlay loop muted playsInline />}
         {isLiquid && <LiquidCanvas theme={theme} pointer={pointer} />}
