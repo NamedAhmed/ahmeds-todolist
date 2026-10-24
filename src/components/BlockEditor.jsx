@@ -41,6 +41,7 @@ const SHORTCUTS = { '# ': 'h1', '## ': 'h2', '### ': 'h3', '- ': 'bullet', '* ':
 
 // Pressing Enter in one of these makes another block of the same kind (on an empty one it ends the list).
 const REPEATS = ['bullet', 'number', 'todo', 'quote'];
+const LIST_TYPES = ['bullet', 'number', 'todo'];
 
 
 // ======================================================================
@@ -99,9 +100,10 @@ export function blocksToText(blocks) {
     .map((block) => {
       count = block.type === 'number' ? count + 1 : 0;
       const text = htmlToText(block.html);
+      const indent = LIST_TYPES.includes(block.type) ? '  '.repeat(Math.max(0, Number(block.indent) || 0)) : '';
       const marker = { h1: '# ', h2: '## ', h3: '### ', bullet: '- ', number: `${count}. `, quote: '> ' }[block.type] ?? '';
-      if (block.type === 'todo') return `[${block.checked ? 'x' : ' '}] ${text}`;
-      return marker + text;
+      if (block.type === 'todo') return `${indent}[${block.checked ? 'x' : ' '}] ${text}`;
+      return indent + marker + text;
     })
     .join('\n');
 }
@@ -185,6 +187,7 @@ const PLACEHOLDERS = { h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', bullet
 function BlockRow({ block, number, menu, actions }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const text = useRef(null);
+  const indent = LIST_TYPES.includes(block.type) ? Math.max(0, Number(block.indent) || 0) : 0;
 
   // Keep the text on screen in step with the data, but only when they differ, so typing never moves the cursor.
   useLayoutEffect(() => {
@@ -196,7 +199,7 @@ function BlockRow({ block, number, menu, actions }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition, marginLeft: `${indent * 24}px` }}
       className={`block block-${block.type}${block.checked ? ' checked' : ''}${isDragging ? ' dragging' : ''}`}
       data-block={block.id}
     >
@@ -298,7 +301,7 @@ export default function BlockEditor({ blocks, onChange }) {
   function choose(id, type) {
     const fromMenu = menu?.id === id;
     setMenu(null);
-    onChange(blocks.map((b) => (b.id === id ? { ...b, type, html: fromMenu ? '' : b.html, checked: false } : b)));
+    onChange(blocks.map((b) => (b.id === id ? { ...b, type, html: fromMenu ? '' : b.html, checked: false, indent: LIST_TYPES.includes(type) ? (b.indent ?? 0) : 0 } : b)));
     focusAfterChange(id, 'end');
   }
 
@@ -350,6 +353,14 @@ export default function BlockEditor({ blocks, onChange }) {
       }
     }
 
+    // Tab indents list items; Shift+Tab outdents them.
+    if (event.key === 'Tab' && LIST_TYPES.includes(block.type)) {
+      event.preventDefault();
+      if (menu?.id === block.id) setMenu(null);
+      update(block.id, { indent: Math.max(0, (Number(block.indent) || 0) + (event.shiftKey ? -1 : 1)) });
+      return;
+    }
+
     // Enter: a new block.
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -360,11 +371,12 @@ export default function BlockEditor({ blocks, onChange }) {
       const [before, after] = splitAtCaret(element);
       const isEmpty = htmlToText(block.html).trim() === '';
       if (REPEATS.includes(block.type) && isEmpty) {
-        update(block.id, { type: 'p' }); // an empty list item ends the list
+        update(block.id, { type: 'p', indent: 0 }); // an empty list item ends the list
         focusAfterChange(block.id, 'start');
         return;
       }
-      const created = newBlock(REPEATS.includes(block.type) ? block.type : 'p', after);
+      const repeats = REPEATS.includes(block.type);
+      const created = { ...newBlock(repeats ? block.type : 'p', after), ...(repeats ? { indent: block.indent ?? 0 } : {}) };
       onChange([...blocks.slice(0, index), { ...block, html: before }, created, ...blocks.slice(index + 1)]);
       focusAfterChange(created.id, 'start');
       return;
@@ -383,7 +395,7 @@ export default function BlockEditor({ blocks, onChange }) {
     if (event.key === 'Backspace' && caret.collapsed && caret.atStart) {
       if (block.type !== 'p') {
         event.preventDefault();
-        update(block.id, { type: 'p' });
+        update(block.id, { type: 'p', indent: 0 });
         focusAfterChange(block.id, 'start');
       } else if (index > 0) {
         event.preventDefault();
