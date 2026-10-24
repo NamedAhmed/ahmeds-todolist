@@ -1070,6 +1070,23 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
 
+  // A task picked in the search (see App.jsx): show it (finished tasks too), scroll to it, focus it and flash it.
+  useEffect(() => {
+    function reveal(event) {
+      if (getState().tasks[event.detail]?.done) setShowDone(true);
+      setTimeout(() => {
+        const row = document.querySelector(`[data-task="${event.detail}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: 'center' });
+        row.focus({ preventScroll: true });
+        row.classList.add('found');
+        setTimeout(() => row.classList.remove('found'), 1500);
+      }, 60);
+    }
+    window.addEventListener('todolist:reveal-task', reveal);
+    return () => window.removeEventListener('todolist:reveal-task', reveal);
+  }, []);
+
   // ---- Work out what to show ----
 
   // Every top-level task (steps excluded), in the user's order.

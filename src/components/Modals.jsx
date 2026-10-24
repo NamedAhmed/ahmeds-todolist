@@ -338,6 +338,7 @@ const KEYS = [
       ['l', 'Task list'],
       ['o', 'Notes'],
       ['r', 'Reminders'],
+      ['Ctrl K', 'Search everything'],
       ['Ctrl Z', 'Undo (Shift: redo)'],
       ['?', 'This list'],
     ],
