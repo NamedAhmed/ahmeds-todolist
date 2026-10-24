@@ -118,24 +118,37 @@ export default function App() {
   useEffect(() => {
     const root = document.documentElement;
 
+    let shiftIsDown = false;
+
+    function isTyping() {
+      return !!document.activeElement?.closest('input, textarea, select, [contenteditable]');
+    }
+
+    function updateShiftVisibility() {
+      root.toggleAttribute('data-shift', shiftIsDown && !isTyping());
+    }
+
     function onShiftKey(event) {
       if (event.key !== 'Shift') return;
-      const shiftIsDown = event.type === 'keydown';
-      root.toggleAttribute('data-shift', shiftIsDown); // add the attribute if down, remove if up
+      shiftIsDown = event.type === 'keydown';
+      updateShiftVisibility();
     }
 
     function clearShift() {
-      root.removeAttribute('data-shift');
+      shiftIsDown = false;
+      updateShiftVisibility();
     }
 
     window.addEventListener('keydown', onShiftKey);
     window.addEventListener('keyup', onShiftKey);
+    window.addEventListener('focusin', updateShiftVisibility);
     window.addEventListener('blur', clearShift); // clicking away from the window counts as letting go
 
     // Cleanup when the app closes.
     return () => {
       window.removeEventListener('keydown', onShiftKey);
       window.removeEventListener('keyup', onShiftKey);
+      window.removeEventListener('focusin', updateShiftVisibility);
       window.removeEventListener('blur', clearShift);
       clearShift();
     };
