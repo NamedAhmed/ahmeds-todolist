@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { getState, redo } from './store.js';
+import { ensureTaskCreatedDates, getState, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
 import Tasks, { TaskDnd } from './components/Tasks.jsx';
@@ -30,6 +30,7 @@ const TABS = [
 ];
 
 const TASK_FILTERS = ['today', 'week', 'month', 'undated', 'all'];
+const TASK_SORTS = ['custom', 'due', 'added'];
 
 // Which task filter was left on last time? (Storage can be blocked, e.g. in a private window.)
 function readTaskFilter() {
@@ -39,6 +40,15 @@ function readTaskFilter() {
     return localStorage.getItem('todolist:today-only') === '1' ? 'today' : 'all';
   } catch {
     return 'all';
+  }
+}
+
+function readTaskSort() {
+  try {
+    const saved = localStorage.getItem('todolist:task-sort');
+    return TASK_SORTS.includes(saved) ? saved : 'due';
+  } catch {
+    return 'due';
   }
 }
 
@@ -64,6 +74,7 @@ export default function App() {
     [today]
   );
   const setFilter = useCallback((mode) => setSelection({ mode, date: null }), []);
+  const [sort, setSort] = useState(readTaskSort);
   useEffect(() => {
     try {
       const savedFilter = filter === 'date' ? 'all' : filter;
@@ -73,6 +84,16 @@ export default function App() {
       // storage unavailable: the choice just isn't remembered
     }
   }, [filter]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('todolist:task-sort', sort);
+    } catch {
+      // storage unavailable: the choice just isn't remembered
+    }
+  }, [sort]);
+  useEffect(() => {
+    ensureTaskCreatedDates();
+  }, []);
   const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
@@ -183,10 +204,10 @@ export default function App() {
 
       <div className="app" data-tab={tab} ref={grid} style={{ gridTemplateColumns: columns.template }} onClick={columns.onClick}>
         {/* TaskDnd wraps Calendar and Tasks so you can drag a task onto a calendar day. */}
-        <TaskDnd day={day} filter={filter}>
+        <TaskDnd day={day} filter={filter} sort={sort}>
           <Calendar today={today} day={day} setDay={setDay} open={setModal} editDaily={setEditingDaily} />
           <Resizer index={0} grid={grid} {...columns} />
-          <Tasks today={today} day={day} filter={filter} setDay={setDay} setFilter={setFilter} />
+          <Tasks today={today} day={day} filter={filter} setDay={setDay} setFilter={setFilter} sort={sort} setSort={setSort} />
         </TaskDnd>
 
         <Resizer index={1} grid={grid} {...columns} />

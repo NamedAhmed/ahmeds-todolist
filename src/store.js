@@ -115,6 +115,52 @@ export function all(currentState, table) {
   return Object.values(currentState[table]).filter((item) => !item._deleted);
 }
 
+const MINUTE_MS = 60000;
+
+function timestamp(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function missingTaskDates(currentState) {
+  const tasks = all(currentState, 'tasks');
+  const used = new Set(
+    tasks.map((task) => timestamp(task.created) ?? timestamp(task.created_at)).filter((value) => value !== null)
+  );
+  const mainTasks = tasks.filter((task) => !task.parent).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const patches = [];
+  const missing = [];
+
+  for (const task of mainTasks) {
+    if (timestamp(task.created) !== null) continue;
+    const legacyCreated = timestamp(task.created_at);
+    if (legacyCreated !== null) patches.push({ id: task.id, created: legacyCreated });
+    else missing.push(task);
+  }
+
+  let created = new Date(2000, 0, 1).getTime();
+  for (let index = missing.length - 1; index >= 0; index--) {
+    while (used.has(created)) created += MINUTE_MS;
+    patches.push({ id: missing[index].id, created });
+    used.add(created);
+    created += MINUTE_MS;
+  }
+
+  return patches;
+}
+
+// Fill legacy tasks' missing dates without putting this one-time migration on the undo stack.
+export function ensureTaskCreatedDates() {
+  const patches = missingTaskDates(state);
+  if (!patches.length) return;
+  apply(patches.map(({ id, created }) => ({ t: 'tasks', id, patch: { created } })));
+  emit();
+}
+
 
 // ======================================================================
 // CHANGING THE DATA
@@ -261,6 +307,9 @@ export function applyRemote(rows) {
   }
 
   if (changed) {
+    for (const { id, created } of missingTaskDates(next)) {
+      next.tasks[id] = { ...next.tasks[id], created, _dirty: true };
+    }
     state = next;
     emit();
   }
@@ -296,6 +345,17 @@ export function exportJson() {
       return clean;
     });
   }
+
+  try {
+    const savedFilter = localStorage.getItem('todolist:task-filter');
+    out.preferences = {
+      taskFilter: savedFilter || (localStorage.getItem('todolist:today-only') === '1' ? 'today' : 'all'),
+      taskSort: localStorage.getItem('todolist:task-sort') || 'due',
+    };
+  } catch {
+    out.preferences = { taskFilter: 'all', taskSort: 'due' };
+  }
+
   return JSON.stringify(out, null, 2);
 }
 

@@ -407,7 +407,7 @@ function ProjectBody({ s, task }) {
           done: false,
           kind: 'task',
           position,
-          created: Date.now(),
+          created: minuteTimestamp(),
         },
       },
     ]);
@@ -788,7 +788,7 @@ function AddRow({ day, today }) {
     const label = kind === 'project' ? 'project added' : 'task added';
     smooth(() =>
       commit(label, [
-        { t: 'tasks', id: uid(), patch: { title, due, done: false, kind, position: top - 1, created: Date.now() } },
+        { t: 'tasks', id: uid(), patch: { title, due, done: false, kind, position: top - 1, created: minuteTimestamp() } },
       ])
     );
 
@@ -875,23 +875,58 @@ function matchesTaskFilter(task, filter, day, today) {
   return true;
 }
 
+// Use the existing `created` task field as the single source for Date Added sorting.
+function createdTimestamp(task) {
+  if (typeof task.created === 'number' && Number.isFinite(task.created)) return task.created;
+  const parsed = Date.parse(task.created ?? '');
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function compareTitles(a, b) {
+  return String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' });
+}
+
+function compareTasks(a, b, sort) {
+  if (sort === 'custom') return (a.position ?? 0) - (b.position ?? 0);
+
+  if (sort === 'due') {
+    if (a.due !== b.due) {
+      if (!a.due) return 1;
+      if (!b.due) return -1;
+      const dueOrder = a.due.localeCompare(b.due);
+      if (dueOrder) return dueOrder;
+    }
+  } else if (sort === 'added') {
+    const addedOrder = createdTimestamp(b) - createdTimestamp(a);
+    if (addedOrder) return addedOrder;
+  }
+
+  return compareTitles(a, b) || (a.position ?? 0) - (b.position ?? 0);
+}
+
+function minuteTimestamp() {
+  return Math.round(Date.now() / 60000) * 60000;
+}
+
 // Is this task overdue? (Not counted while you're looking at one specific day.)
 function isLate(task, day, today) {
   return !day && !!task.due && task.due < today;
 }
 
-// The unfinished tasks in the order they appear in the list:
-// overdue ones first, then the rest, each group in the user's own order.
-function openTasks(s, day, today, filter = 'all') {
+// The unfinished tasks in the order they appear in the list.
+function openTasks(s, day, today, filter = 'all', sort = 'due') {
   const tasks = all(s, 'tasks').filter(
     (t) => !t.parent && !t.done && matchesTaskFilter(t, filter, day, today)
   );
 
-  tasks.sort((a, b) => {
-    const lateDifference = Number(isLate(b, day, today)) - Number(isLate(a, day, today));
-    if (lateDifference !== 0) return lateDifference;
-    return a.position - b.position;
-  });
+  if (sort === 'custom') {
+    tasks.sort((a, b) => {
+      const lateDifference = Number(isLate(b, day, today)) - Number(isLate(a, day, today));
+      return lateDifference || compareTasks(a, b, sort);
+    });
+  } else {
+    tasks.sort((a, b) => compareTasks(a, b, sort));
+  }
   return tasks;
 }
 
@@ -944,18 +979,19 @@ function TaskCard({ task }) {
 }
 
 // Wraps the calendar and the list (App.jsx puts them inside this).
-export function TaskDnd({ day, filter = 'all', children }) {
+export function TaskDnd({ day, filter = 'all', sort = 'due', children }) {
   const [active, setActive] = useState(null); // the id of the task being dragged, or null
 
-  const sensors = useSensors(
+  const customSensors = useSensors(
     useSensor(RowPointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(RowTouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } })
   );
+  const sensors = sort === 'custom' ? customSensors : [];
 
   // Runs when you let go of a dragged task.
   function onDragEnd({ active, over }) {
     setActive(null);
-    if (!over || active.id === over.id) return; // dropped nowhere, or on itself
+    if (sort !== 'custom' || !over || active.id === over.id) return;
 
     // Dropped on a calendar day: change the due date to that day.
     const date = over.data.current?.date;
@@ -966,7 +1002,7 @@ export function TaskDnd({ day, filter = 'all', children }) {
     }
 
     // Dropped on another row: reorder the list.
-    const open = openTasks(getState(), day, todayStr(), filter);
+    const open = openTasks(getState(), day, todayStr(), filter, sort);
     const from = open.findIndex((t) => t.id === active.id);
     const to = open.findIndex((t) => t.id === over.id);
     if (from < 0 || to < 0) return;
@@ -1005,8 +1041,14 @@ const FILTER_LABELS = {
   undated: 'No Due Date',
   all: 'All Tasks',
 };
+const SORT_ORDER = ['custom', 'due', 'added'];
+const SORT_LABELS = {
+  custom: 'Custom',
+  due: 'Date Due',
+  added: 'Date Added',
+};
 
-export default function Tasks({ today, day, filter, setDay, setFilter }) {
+export default function Tasks({ today, day, filter, setDay, setFilter, sort, setSort }) {
   const s = useStore();
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
@@ -1020,7 +1062,7 @@ export default function Tasks({ today, day, filter, setDay, setFilter }) {
   );
 
   // Unfinished tasks.
-  const open = useMemo(() => openTasks(s, day, today, filter), [s.tasks, day, today, filter]);
+  const open = useMemo(() => openTasks(s, day, today, filter, sort), [s.tasks, day, today, filter, sort]);
 
   function completedWithinFilter(task) {
     if (!task.done_at || filter === 'all' || filter === 'undated') return false;
@@ -1035,7 +1077,7 @@ export default function Tasks({ today, day, filter, setDay, setFilter }) {
   // Finished tasks (newest first): those matching the filter, or completed in its date range.
   const done = top
     .filter((t) => t.done && (matchesTaskFilter(t, filter, day, today) || completedWithinFilter(t)))
-    .sort((a, b) => (b.done_at || 0) - (a.done_at || 0));
+    .sort((a, b) => compareTasks(a, b, sort));
 
   function reminderInRange(reminder, end) {
     let date = today;
@@ -1101,17 +1143,17 @@ export default function Tasks({ today, day, filter, setDay, setFilter }) {
   // ---- Move a row with Alt+arrows ----
   // The function must stay the same between re-draws, so it reads the current day/today from a ref.
   const view = useRef({});
-  view.current = { day, today, filter };
+  view.current = { day, today, filter, sort };
 
   const moveRow = useCallback((id, direction) => {
-    const list = openTasks(getState(), view.current.day, view.current.today, view.current.filter);
+    const list = openTasks(getState(), view.current.day, view.current.today, view.current.filter, view.current.sort);
     const from = list.findIndex((t) => t.id === id);
     const to = from + direction;
     if (from >= 0 && to >= 0 && to < list.length) reorder(list, from, to);
   }, []);
 
   // ---- Split the list into groups: "Overdue" and "Coming up" ----
-  const lateCount = open.filter((t) => isLate(t, day, today)).length;
+  const lateCount = sort === 'added' ? 0 : open.filter((t) => isLate(t, day, today)).length;
   const lateReminders = reminders.filter((item) => !day && item.date < today);
   const dueReminders = reminders.filter((item) => !lateReminders.includes(item));
   const lateTotal = lateCount + lateReminders.length;
@@ -1127,19 +1169,32 @@ export default function Tasks({ today, day, filter, setDay, setFilter }) {
     <section className="col col-tasks" aria-label="Tasks">
       <header className="col-head">
         <h1>Tasks</h1>
-        <button
-          className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
-          aria-pressed={filter !== 'all'}
-          aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}. Click to change.`}
-          title={`${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]} · Click to change`}
-          onClick={() => {
-            const next = FILTER_ORDER.indexOf(filter) + 1;
-            setFilter(FILTER_ORDER[next % FILTER_ORDER.length]);
-          }}
-        >
-          <Icon name="sliders" size={16} />
-          {filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}
-        </button>
+        <div className="task-controls">
+          <button
+            className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
+            aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}
+            title={`${SORT_LABELS[sort]} · Click to change sort`}
+            onClick={() => {
+              const next = SORT_ORDER.indexOf(sort) + 1;
+              setSort(SORT_ORDER[next % SORT_ORDER.length]);
+            }}
+          >
+            {SORT_LABELS[sort]}
+          </button>
+          <span className="task-controls-separator" aria-hidden="true">•</span>
+          <button
+            className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
+            aria-pressed={filter !== 'all'}
+            aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}. Click to change.`}
+            title={`${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]} · Click to change filter`}
+            onClick={() => {
+              const next = FILTER_ORDER.indexOf(filter) + 1;
+              setFilter(FILTER_ORDER[next % FILTER_ORDER.length]);
+            }}
+          >
+            {filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}
+          </button>
+        </div>
         {day && day !== today && (
           <button className="day-clear" onClick={() => setDay(null)} aria-label="Show all days" title="Show all days">
             {shortDate(day)} <Icon name="x" size={12} />
@@ -1176,7 +1231,7 @@ export default function Tasks({ today, day, filter, setDay, setFilter }) {
                 s={s}
                 task={t}
                 today={today}
-                sortable
+                sortable={sort === 'custom'}
                 open={openIds.has(t.id)}
                 onToggleOpen={toggleOpen}
                 onMove={moveRow}
