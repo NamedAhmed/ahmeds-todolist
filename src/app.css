@@ -1531,6 +1531,35 @@ kbd {
   color: var(--text);
   background: var(--panel-b);
 }
+.block-collapse {
+  position: absolute;
+  top: 4px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+.block-collapse:hover {
+  color: var(--text);
+  background: var(--panel-b);
+}
+.block-collapse .icon {
+  transition: transform 0.15s ease;
+}
+.block-collapse[aria-expanded="false"] .icon {
+  transform: rotate(-90deg);
+}
 .block-text {
   flex: 1;
   min-width: 0;
