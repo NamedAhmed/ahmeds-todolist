@@ -1399,3 +1399,47 @@ html[data-animated] {
 .matrix-preview {
   background: #000;
 }
+
+
+/* ======================================================================
+   THE DEFAULT THEME OVER A BACKGROUND
+   On its own the default theme is flat and near-black: full-height columns split by thin lines, with opaque black
+   boxes inside. Over a picture those dark boxes look like holes and the faint text disappears. So while a
+   background is showing, the default theme becomes three floating panes of frosted glass: rounded, with a small gap
+   between them, and every box, ring track and divider inside is a see-through light shade instead of solid black.
+   (Wallpaper.jsx sets data-backdrop; the panes' blur and tint are under READABILITY above. A text colour chosen in
+   Settings is set on the page itself, so it still wins over the shades below.)
+   ====================================================================== */
+html[data-theme="ember"][data-backdrop] {
+  --app-pad: 14px;
+  --app-gap: 14px;
+  --col-radius: 26px;
+  --divider: 0px;
+
+  --line: rgba(255, 255, 255, 0.1);
+  --line-mid: rgba(255, 255, 255, 0.18);
+  --line-hi: rgba(255, 255, 255, 0.3);
+  --track: rgba(255, 255, 255, 0.13);
+  --panel-a: rgba(255, 255, 255, 0.06);
+  --panel-b: rgba(255, 255, 255, 0.13);
+  --panel-c: rgba(255, 255, 255, 0.08);
+  --field-bg: rgba(255, 255, 255, 0.09);
+  --surface: rgba(26, 24, 22, 0.82);
+  --panel-bg: rgba(26, 24, 22, 0.78);
+  --panel-blur: 22px;
+
+  /* text that is meant to be quiet still has to be readable over a picture */
+  --muted: rgba(239, 233, 223, 0.72);
+  --faint: rgba(239, 233, 223, 0.46);
+}
+html[data-theme="ember"][data-backdrop] .col {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 22px 54px rgba(0, 0, 0, 0.32);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); /* a soft edge so letters hold their shape over bright and busy spots */
+}
+html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-list) {
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  backdrop-filter: blur(22px) saturate(1.2);
+}
