@@ -255,9 +255,41 @@ function ordinal(n) {
   return 'th';
 }
 
-// The ONE occurrence of a reminder worth showing: the oldest one up to today
-// that you haven't ticked. So missed reminders never pile up.
-// Returns a date text, or null if there is nothing pending.
+function nextReminderDate(reminder, after) {
+  let day = addDays(after, 1);
+  const limit = addDays(after, 370);
+  while (day <= limit) {
+    if ((!reminder.created || day >= reminder.created) && occursOn(reminder.rule, day)) return day;
+    day = addDays(day, 1);
+  }
+  return null;
+}
+
+// A completed repeat doesn't roll forward until its active occurrence has ended.
+// If an old occurrence was checked late, hold the next repeat through the next scheduled day.
+export function reminderBlockedUntil(state, reminder) {
+  let blockedUntil = null;
+
+  for (const completion of all(state, 'completions')) {
+    if (completion.kind !== 'reminder' || completion.ref !== reminder.id || !completion.date) continue;
+
+    const completedOn = completion.completed_at
+      ? ymd(new Date(completion.completed_at))
+      : completion.date;
+    const nextAfterLateCompletion = completedOn > completion.date ? nextReminderDate(reminder, completedOn) : null;
+    const until = nextAfterLateCompletion
+      ? addDays(nextAfterLateCompletion, 1)
+      : addDays(completion.date, 1);
+
+    if (!blockedUntil || until > blockedUntil) blockedUntil = until;
+  }
+
+  return blockedUntil;
+}
+
+// The ONE occurrence of a reminder worth showing: the oldest uncompleted one up to today,
+// or the next upcoming one when nothing is overdue. Missed reminders never pile up.
+// Returns a date text, or null if the next repeat is still blocked by the current occurrence.
 export function pendingOccurrence(state, reminder, today) {
   // Only look back 60 days at most (or back to when the reminder was made).
   const sixtyDaysAgo = addDays(today, -60);
@@ -266,6 +298,19 @@ export function pendingOccurrence(state, reminder, today) {
   while (day <= today) {
     if (occursOn(reminder.rule, day) && !isDone(state, reminder.id, day)) {
       return day;
+    }
+    day = addDays(day, 1);
+  }
+
+  const blockedUntil = reminderBlockedUntil(state, reminder);
+  if (blockedUntil && today < blockedUntil) return null;
+
+  const limit = addDays(today, 370);
+  day = today;
+  while (day <= limit) {
+    if ((!reminder.created || day >= reminder.created) && occursOn(reminder.rule, day)) {
+      if (!isDone(state, reminder.id, day)) return day;
+      return null;
     }
     day = addDays(day, 1);
   }
