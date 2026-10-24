@@ -260,7 +260,7 @@ function DueButton({ due, today, done, onClick }) {
 
   if (!due) {
     return (
-      <button type="button" tabIndex={-1} className="due" title="No date: tap to set one" onClick={onClick}>
+      <button type="button" tabIndex={-1} className="due" title="No date: tap to set one" aria-label="No date: set one" onClick={onClick}>
         <Icon name="infinity" size={15} />
       </button>
     );

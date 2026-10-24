@@ -30,10 +30,12 @@ export const THEMES = [
 // A wallpaper is chosen by an id:
 //   'off'              no wallpaper
 //   'liquid'           the built-in liquid wallpaper
+//   'matrix'           the built-in falling-code wallpaper
 //   'lively:rain'      a Lively wallpaper from the catalog (here, the one with id "rain")
 //   'video:<id>'       a video you added
 export const OFF = 'off';
 export const LIQUID = 'liquid'; // the built-in liquid wallpaper (src/wallpapers/liquid.js)
+export const MATRIX = 'matrix'; // the built-in falling-code wallpaper (src/wallpapers/matrix.js)
 export const LIVELY = catalog; // [{ id, title, desc, author, entry, thumbnail, preview, properties, ... }]
 
 // Find a catalog entry from a wallpaper id like 'lively:rain'. Returns undefined if there isn't one.
@@ -61,6 +63,32 @@ export const LIQUID_INFO = {
 // The settings of the Liquid wallpaper as { speed, blobs, ... }, from what you changed (see valueOf below).
 export function liquidSettings(values) {
   return Object.fromEntries(LIQUID_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
+}
+
+// The built-in Matrix wallpaper, described the same way (it draws its own black background, so no picture goes under it).
+export const MATRIX_INFO = {
+  id: 'matrix',
+  title: 'Matrix',
+  author: 'Built in',
+  desc: 'Falling green code with depth, glow and a mouse light.',
+  properties: [
+    { name: 'matrixColor', type: 'color', text: 'Colour', value: '#00ff46' },
+    { name: 'speed', type: 'slider', text: 'Speed', min: 0.3, max: 3, step: 0.1, value: 1 },
+    { name: 'density', type: 'slider', text: 'Density', min: 0.2, max: 1, step: 0.05, value: 0.8 },
+    { name: 'trail', type: 'slider', text: 'Trail length', min: 6, max: 40, step: 1, value: 20 },
+    { name: 'size', type: 'slider', text: 'Glyph size', min: 10, max: 32, step: 1, value: 16 },
+    { name: 'glyphs', type: 'dropdown', text: 'Glyphs', items: ['Katakana', 'Binary', 'Digits', 'Hex', 'Symbols'], value: 0 },
+    { name: 'depth', type: 'slider', text: 'Depth layers', min: 1, max: 3, step: 1, value: 3 },
+    { name: 'glow', type: 'checkbox', text: 'Glow', value: true },
+    { name: 'mouse', type: 'checkbox', text: 'Mouse lights the code', value: true },
+    { name: 'rainbow', type: 'checkbox', text: 'Rainbow', value: false },
+    { name: 'rainbowSpeed', type: 'slider', text: 'Rainbow speed', min: 0, max: 100, step: 5, value: 40 },
+  ],
+};
+
+// The settings of the Matrix wallpaper as { matrixColor, speed, ... }.
+export function matrixSettings(values) {
+  return Object.fromEntries(MATRIX_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
 }
 
 // A "pick a picture" setting of a wallpaper (Rain's background). It is not shown in the wallpaper's own
@@ -96,7 +124,7 @@ export function useAppearance() {
   const autoFix = choices.autoFix !== false;
 
   let wallpaper = OFF;
-  if (choices.wallpaper === LIQUID || (typeof choices.wallpaper === 'string' && (findLively(choices.wallpaper) || choices.wallpaper.startsWith('video:')))) {
+  if (choices.wallpaper === LIQUID || choices.wallpaper === MATRIX || (typeof choices.wallpaper === 'string' && (findLively(choices.wallpaper) || choices.wallpaper.startsWith('video:')))) {
     wallpaper = choices.wallpaper;
   }
 

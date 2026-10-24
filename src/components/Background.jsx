@@ -14,6 +14,8 @@ import { useEffect, useRef, useState } from 'react';
 import {
   LIQUID,
   LIVELY,
+  MATRIX,
+  matrixSettings,
   NO_PICTURE,
   OFF,
   addMedia,
@@ -28,6 +30,7 @@ import {
 } from '../appearance.js';
 import { PICTURES } from '../wallpapers/pictures.js';
 import { startLiquid } from '../wallpapers/liquid.js';
+import { startMatrix } from '../wallpapers/matrix.js';
 
 const LIVELY_SITE = 'https://livelywallpaper.app/live-wallpapers/';
 
@@ -114,6 +117,47 @@ function LiquidTile({ picked, theme }) {
   );
 }
 
+// The built-in Matrix wallpaper. Like the Liquid tile: a still frame, and it falls only while the tile is pointed at.
+function MatrixTile({ picked }) {
+  const canvas = useRef(null);
+  const stop = useRef(() => {});
+  // The same code, drawn small: bigger glyphs relative to the tile would look like blobs, so use a fine size.
+  const preview = { ...matrixSettings({}), size: 8, depth: 2, trail: 12 };
+
+  useEffect(() => {
+    startMatrix(canvas.current, { width: 160, height: 90, still: true, settings: preview });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function play() {
+    stop.current();
+    stop.current = startMatrix(canvas.current, { width: 160, height: 90, settings: preview });
+  }
+  function pause() {
+    stop.current();
+    stop.current = () => {};
+  }
+  useEffect(() => () => stop.current(), []);
+
+  return (
+    <button
+      type="button"
+      className={'tile' + (picked ? ' picked' : '')}
+      onClick={() => pickWallpaper(MATRIX)}
+      onMouseEnter={play}
+      onMouseLeave={pause}
+      onFocus={play}
+      onBlur={pause}
+      aria-pressed={picked}
+    >
+      <span className="tile-preview matrix-preview">
+        <canvas ref={canvas} className="matrix-canvas" />
+      </span>
+      <span className="tile-label">Matrix</span>
+      <span className="tile-author">Built in</span>
+    </button>
+  );
+}
+
 // A picture (built in, or one you added) or a video you added. `id` is 'photo:...', 'upload:...' or 'video:...'.
 // Things you added get a small × to delete them.
 function MediaTile({ id, label, picked, onDelete }) {
@@ -164,10 +208,11 @@ export default function Background() {
   const matches = (text) => !search || text.toLowerCase().includes(search);
   const showNone = matches('none');
   const showLiquid = matches('liquid glowing blobs built in');
+  const showMatrix = matches('matrix falling code green rain built in');
   const wallpapers = LIVELY.filter((item) => matches(`${item.title} ${item.author} ${item.desc}`));
   const photos = PICTURES.filter((picture) => matches(picture.title));
   const yours = uploads.filter((upload) => matches(upload.name));
-  const nothing = !showNone && !showLiquid && wallpapers.length + photos.length + yours.length === 0;
+  const nothing = !showNone && !showLiquid && !showMatrix && wallpapers.length + photos.length + yours.length === 0;
 
   async function addFiles(files) {
     setMessage('');
@@ -206,6 +251,7 @@ export default function Background() {
       <div className="tile-grid">
         {showNone && <NoneTile picked={wallpaper === OFF && pictureId === NO_PICTURE} />}
         {showLiquid && <LiquidTile picked={wallpaper === LIQUID} theme={theme} />}
+        {showMatrix && <MatrixTile picked={wallpaper === MATRIX} />}
         {wallpapers.map((item) => (
           <WallpaperTile key={item.id} wallpaper={item} picked={wallpaper === 'lively:' + item.id} />
         ))}

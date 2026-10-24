@@ -1386,3 +1386,16 @@ html[data-sheet-dragging] .app {
 html[data-animated] {
   --lg-blur-cap: 8px;
 }
+
+
+/* The built-in Matrix wallpaper draws its own black background, one pixel per screen pixel. */
+.matrix-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+.matrix-preview {
+  background: #000;
+}
