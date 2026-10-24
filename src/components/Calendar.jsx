@@ -3,7 +3,6 @@
 //
 // Pieces in this file, top to bottom:
 //   toggleDaily   tick / untick a daily
-//   flamePath     draws the fire around a finished ring (maths, you can ignore it)
 //   BigRing       the large ring at the top
 //   DayCell       one small day in the calendar grid
 //   useMarks      works out which days get a dot
@@ -13,6 +12,9 @@
 //   Calendar      the whole column (this is what App.jsx uses)
 
 import Icon from './Icons.jsx';
+import FireArt from './FireArt.jsx';
+import { fireColorStyle } from '../fire.js';
+import { useAppearance } from '../appearance.js';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
@@ -64,54 +66,6 @@ export function toggleDaily(daily, date, today) {
 
 
 // ======================================================================
-// THE FIRE AROUND A FINISHED RING (just drawing, safe to ignore)
-// ======================================================================
-// When every daily is done, flames appear around the top half of the ring.
-// This function builds the outline of those flames as an SVG "path" (a list of curve instructions).
-//   tongues = how many flame tips
-//   height  = how tall the tallest flame is
-//   curl    = which way the tips lean
-//   base    = the radius of the ring the flames sit on
-// It uses circle maths (sin/cos) to place points around the ring.
-function flamePath(tongues, height, curl, base = 96) {
-  // Turn an angle (in degrees) and a distance from the centre into the text "x y".
-  function point(degrees, radius) {
-    const x = 100 + radius * Math.cos((degrees * Math.PI) / 180);
-    const y = 100 + radius * Math.sin((degrees * Math.PI) / 180);
-    return `${x.toFixed(1)} ${y.toFixed(1)}`;
-  }
-
-  const sizes = [1, 0.5, 0.82, 0.58, 1, 0.52, 0.86, 0.6]; // so the flames aren't all the same height
-  const from = -172;                // start angle
-  const span = 164;                 // how many degrees of the ring the flames cover
-  const step = span / tongues;      // degrees per flame
-
-  let path = `M${point(from, base)}`; // "M" = move to the starting point
-
-  for (let i = 0; i < tongues; i++) {
-    const angle = from + i * step;
-
-    // Flames are tallest in the middle of the arc and shorter at the ends.
-    const middleBoost = 0.35 + 0.65 * Math.sin(Math.PI * ((i + 0.5) / tongues));
-    const h = height * middleBoost * sizes[i % sizes.length];
-
-    // "C" = draw a curve. First up the side of the flame to its tip...
-    path += ` C${point(angle - step * 0.05, base + h * 0.55)} ${point(angle + step * (0.3 + curl), base + h * 0.7)} ${point(angle + step * (0.5 + curl * 2), base + h)}`;
-    // ...then back down to the ring.
-    path += ` C${point(angle + step * 0.62, base + h * 0.5)} ${point(angle + step * 1.02, base + h * 0.4)} ${point(angle + step, base)}`;
-  }
-
-  // Close the shape by drawing back along the ring to the start ("A" = arc, "Z" = close).
-  const bigArc = span > 180 ? 1 : 0;
-  return `${path} A${base} ${base} 0 ${bigArc} 0 ${point(from, base)} Z`;
-}
-
-// Two layers of flame (back = tall, front = short) built once, when the app loads.
-const FIRE_BACK = flamePath(6, 42, 0.1);
-const FIRE_FRONT = flamePath(7, 22, -0.08);
-
-
-// ======================================================================
 // THE BIG RING
 // ======================================================================
 // One circle ring per daily, nested inside each other. More dailies = thinner rings.
@@ -121,6 +75,7 @@ function BigRing({ s, date, today }) {
   const count = dailies.length;
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
+  const { fireStyle, fireColor, fireCoverage } = useAppearance(); // the look of the flames (Settings > Look > Fire)
 
   // Ring sizes: they share the space, but never get thicker than 10.
   const band = 57 / Math.max(count, 3);
@@ -129,7 +84,7 @@ function BigRing({ s, date, today }) {
   const dateObject = toDate(date);
 
   return (
-    <div className={'big-ring' + (everythingDone ? ' ablaze' : '')}>
+    <div className={'big-ring' + (everythingDone ? ' ablaze' : '') + (fireColor === 'rainbow' ? ' fire-rainbow' : '') + (fireCoverage === 'around' ? ' fire-around' : '')} style={fireColorStyle(fireColor)}>
       {/* The flames, animated in and out */}
       <AnimatePresence>
         {everythingDone && (
@@ -142,8 +97,7 @@ function BigRing({ s, date, today }) {
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <path className="fire-back" d={FIRE_BACK} />
-            <path className="fire-front" d={FIRE_FRONT} />
+            <FireArt style={fireStyle} coverage={fireCoverage} />
           </motion.svg>
         )}
       </AnimatePresence>
