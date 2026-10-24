@@ -235,6 +235,24 @@ export function occursOn(rule, date) {
   return dayMatches && d.getMonth() === rule.month; // yearly also needs the right month
 }
 
+function reminderCreatedDate(reminder) {
+  const created = reminder.created;
+  if (typeof created === 'number' && Number.isFinite(created)) return ymd(new Date(created));
+  if (typeof created !== 'string' || !created.trim()) return null;
+
+  const text = created.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? ymd(new Date(parsed)) : null;
+}
+
+// A reminder cannot have occurrences before it was created. For legacy records without
+// a creation date, the caller can use today as the earliest date we can safely assume.
+export function reminderOccursOn(reminder, date, fallbackCreated = null) {
+  const created = reminderCreatedDate(reminder) ?? fallbackCreated;
+  return !!created && date >= created && occursOn(reminder.rule, date);
+}
+
 // Turn a rule into readable text, e.g. "Mon Thu" or "Monthly on the 5th".
 export function ruleText(rule) {
   if (rule.type === 'weekly') {
@@ -259,7 +277,7 @@ function nextReminderDate(reminder, after) {
   let day = addDays(after, 1);
   const limit = addDays(after, 370);
   while (day <= limit) {
-    if ((!reminder.created || day >= reminder.created) && occursOn(reminder.rule, day)) return day;
+    if (reminderOccursOn(reminder, day, addDays(after, 1))) return day;
     day = addDays(day, 1);
   }
   return null;
@@ -293,10 +311,11 @@ export function reminderBlockedUntil(state, reminder) {
 export function pendingOccurrence(state, reminder, today) {
   // Only look back 60 days at most (or back to when the reminder was made).
   const sixtyDaysAgo = addDays(today, -60);
-  let day = reminder.created > sixtyDaysAgo ? reminder.created : sixtyDaysAgo;
+  const created = reminderCreatedDate(reminder) ?? today;
+  let day = created > sixtyDaysAgo ? created : sixtyDaysAgo;
 
   while (day <= today) {
-    if (occursOn(reminder.rule, day) && !isDone(state, reminder.id, day)) {
+    if (reminderOccursOn(reminder, day, created) && !isDone(state, reminder.id, day)) {
       return day;
     }
     day = addDays(day, 1);
@@ -308,7 +327,7 @@ export function pendingOccurrence(state, reminder, today) {
   const limit = addDays(today, 370);
   day = today;
   while (day <= limit) {
-    if ((!reminder.created || day >= reminder.created) && occursOn(reminder.rule, day)) {
+    if (reminderOccursOn(reminder, day, today)) {
       if (!isDone(state, reminder.id, day)) return day;
       return null;
     }

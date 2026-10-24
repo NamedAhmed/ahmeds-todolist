@@ -18,7 +18,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
-import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, occursOn, quip, streakOf, toDate, ymd } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, quip, reminderOccursOn, streakOf, toDate, ymd } from '../lib.js';
 import { Flame, sass, toast } from './Fire.jsx';
 
 // Streak lengths that get a congratulation message.
@@ -372,7 +372,7 @@ function useMarks(s, weeks, today) {
       if (marks[date]?.task) continue;
 
       const hasReminder = reminders.some(
-        (reminder) => occursOn(reminder.rule, date) && !isDone(s, reminder.id, date)
+        (reminder) => reminderOccursOn(reminder, date, today) && !isDone(s, reminder.id, date)
       );
       if (hasReminder) marks[date] = { task: false };
     }
