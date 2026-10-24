@@ -194,10 +194,13 @@ function SettingsCanvas({ id, start, settingsOf, pointer }) {
     let timer;
     function run() {
       stop();
-      const scale = Math.min(window.devicePixelRatio || 1, 1.5); // sharp, but not so many pixels that it gets slow
+      // Sharp, but not so many pixels that it gets slow: at most 1.5 canvas pixels per screen pixel, and at most
+      // about 2.1 million pixels in all (1920 x 1080). A bigger screen just shows the canvas a little enlarged.
+      const scale = Math.min(window.devicePixelRatio || 1, 1.5, Math.sqrt(2.1e6 / (window.innerWidth * window.innerHeight)));
       stop = start(canvas.current, {
         width: Math.ceil(window.innerWidth * scale),
         height: Math.ceil(window.innerHeight * scale),
+        scale,
         pointer: pointer.current,
         settings: settings.current,
         still: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
