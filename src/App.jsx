@@ -29,12 +29,16 @@ const TABS = [
   ['notes', 'Notes', 'note'],
 ];
 
-// Was "Today only" left on last time? (Storage can be blocked, e.g. in a private window.)
-function readPinned() {
+const TASK_FILTERS = ['today', 'week', 'month', 'undated', 'all'];
+
+// Which task filter was left on last time? (Storage can be blocked, e.g. in a private window.)
+function readTaskFilter() {
   try {
-    return localStorage.getItem('todolist:today-only') === '1';
+    const saved = localStorage.getItem('todolist:task-filter');
+    if (TASK_FILTERS.includes(saved)) return saved;
+    return localStorage.getItem('todolist:today-only') === '1' ? 'today' : 'all';
   } catch {
-    return false;
+    return 'all';
   }
 }
 
@@ -44,27 +48,31 @@ export default function App() {
   const columns = useColumns(grid);
 
   // ---- things the screen remembers (React "state") ----
-  // The day being looked at: today, another day picked on the calendar, or null for "everything".
-  // "Today" is remembered as a mode (pinned), not a date, so it stays "today" when midnight passes
-  // and when the app is reopened. `date` only holds a day other than today.
-  const [selection, setSelection] = useState(() => ({ pinned: readPinned(), date: null }));
-  const day = selection.pinned ? today : selection.date;
+  // Calendar dates are transient; the task filter is remembered across sessions.
+  const [selection, setSelection] = useState(() => ({ mode: readTaskFilter(), date: null }));
+  const filter = selection.mode;
+  const day = filter === 'today' ? today : filter === 'date' ? selection.date : null;
   const setDay = useCallback(
     (value) =>
       setSelection((previous) => {
-        const current = previous.pinned ? today : previous.date;
+        const current = previous.mode === 'today' ? today : previous.mode === 'date' ? previous.date : null;
         const next = typeof value === 'function' ? value(current) : value;
-        return next === today ? { pinned: true, date: null } : { pinned: false, date: next };
+        if (next === today) return { mode: 'today', date: null };
+        if (next) return { mode: 'date', date: next };
+        return { mode: 'all', date: null };
       }),
     [today]
   );
+  const setFilter = useCallback((mode) => setSelection({ mode, date: null }), []);
   useEffect(() => {
     try {
-      localStorage.setItem('todolist:today-only', selection.pinned ? '1' : '0');
+      const savedFilter = filter === 'date' ? 'all' : filter;
+      localStorage.setItem('todolist:task-filter', savedFilter);
+      localStorage.setItem('todolist:today-only', savedFilter === 'today' ? '1' : '0');
     } catch {
       // storage unavailable: the choice just isn't remembered
     }
-  }, [selection.pinned]);
+  }, [filter]);
   const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
@@ -175,10 +183,10 @@ export default function App() {
 
       <div className="app" data-tab={tab} ref={grid} style={{ gridTemplateColumns: columns.template }} onClick={columns.onClick}>
         {/* TaskDnd wraps Calendar and Tasks so you can drag a task onto a calendar day. */}
-        <TaskDnd day={day}>
+        <TaskDnd day={day} filter={filter}>
           <Calendar today={today} day={day} setDay={setDay} open={setModal} editDaily={setEditingDaily} />
           <Resizer index={0} grid={grid} {...columns} />
-          <Tasks today={today} day={day} setDay={setDay} />
+          <Tasks today={today} day={day} filter={filter} setDay={setDay} setFilter={setFilter} />
         </TaskDnd>
 
         <Resizer index={1} grid={grid} {...columns} />

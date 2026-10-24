@@ -455,6 +455,11 @@ export function quip(name, ...args) {
 
 export const empties = {
   tasks: "Empty list! Just like you on the inside.",
+  today: "Nothing due today. You're free until tomorrow's panic.",
+  week: "Nothing due in the next 7 days. Enjoy this suspiciously brief calm.",
+  month: "Nothing due next month. Your future self says, don't get comfortable.",
+  undated: "No tasks without due dates. Even your procrastination has a schedule.",
+  all: "No tasks at all. Your procrastination must be taking the day off.",
   dailies: "No dailies. Discipline is for other people, apparently.",
   notes: "No notes. Not one thought worth keeping.",
   day: "Nothing due this day. You don't deserve it, but fine.",
