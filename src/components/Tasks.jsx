@@ -1031,7 +1031,7 @@ export function TaskDnd({ day, filter = 'all', sort = 'due', children }) {
 // ======================================================================
 // One plain list: reminders that are due, then open tasks in your order,
 // then finished tasks tucked away behind "Show finished".
-// Props: today, day (the selected calendar day or null), filter, setDay, setFilter.
+// Props: today, day (the selected calendar day or null), filter, setFilter.
 const FILTER_ORDER = ['today', 'week', 'month', 'undated', 'all'];
 const FILTER_LABELS = {
   today: 'Today Only',
@@ -1047,7 +1047,7 @@ const SORT_LABELS = {
   added: 'Date Added',
 };
 
-export default function Tasks({ today, day, filter, setDay, setFilter, sort, setSort }) {
+export default function Tasks({ today, day, filter, setFilter, sort, setSort }) {
   const s = useStore();
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
@@ -1187,21 +1187,21 @@ export default function Tasks({ today, day, filter, setDay, setFilter, sort, set
           <button
             className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
             aria-pressed={filter !== 'all'}
-            aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}. Click to change.`}
-            title={`${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]} · Click to change filter`}
+            aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}. Click to change.`}
+            title={`${filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]} · Click to change filter`}
             onClick={() => {
+              if (filter === 'date') {
+                setFilter('all');
+                return;
+              }
               const next = FILTER_ORDER.indexOf(filter) + 1;
               setFilter(FILTER_ORDER[next % FILTER_ORDER.length]);
             }}
           >
-            {filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}
+            {filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}
           </button>
         </div>
-        {day && day !== today && (
-          <button className="day-clear" onClick={() => setDay(null)} aria-label="Show all days" title="Show all days">
-            {shortDate(day)} <Icon name="x" size={12} />
-          </button>
-        )}
+
       </header>
 
       {/* The rude headline */}
