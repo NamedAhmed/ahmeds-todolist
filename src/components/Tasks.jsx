@@ -26,7 +26,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, u
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
-import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
 import DragLayer from './DragLayer.jsx';
@@ -704,20 +704,20 @@ function ReminderRow({ reminder, date, today }) {
 
     const key = doneKey(reminder.id, date);
     const label = skipped ? 'reminder skipped' : 'reminder done';
-    const completion = { id: key, ref: reminder.id, date, kind: 'reminder', skipped };
+    const completion = { id: key, ref: reminder.id, date, kind: 'reminder', skipped, completed_at: Date.now() };
 
     setTimeout(() => smooth(() => commit(label, [{ t: 'completions', id: key, set: completion }])), 140);
   }
 
-  // A future reminder can't be ticked yet (only today or earlier).
-  function tickIfDue() {
-    if (date <= today) finish(false);
+  // A reminder occurrence can be completed ahead of its scheduled date.
+  function tick() {
+    finish(false);
   }
 
   function onKeyDown(event) {
     rowKeys(event, {
-      toggle: tickIfDue,
-      enter: tickIfDue,
+      toggle: tick,
+      enter: tick,
       skip: () => finish(true),
       menu: () => setMenuOpen(true),
     });
@@ -734,8 +734,7 @@ function ReminderRow({ reminder, date, today }) {
           tabIndex={-1}
           className="check"
           aria-label={'Mark done: ' + reminder.title}
-          onClick={() => finish(false)}
-          disabled={date > today}
+          onClick={tick}
         >
           <CheckIcon />
         </button>
@@ -1080,6 +1079,9 @@ export default function Tasks({ today, day, filter, setDay, setFilter, sort, set
     .sort((a, b) => compareTasks(a, b, sort));
 
   function reminderInRange(reminder, end) {
+    const blockedUntil = reminderBlockedUntil(s, reminder);
+    if (blockedUntil && today < blockedUntil) return null;
+
     let date = today;
     while (date <= end) {
       if (date >= reminder.created && occursOn(reminder.rule, date) && !isDone(s, reminder.id, date)) return date;
