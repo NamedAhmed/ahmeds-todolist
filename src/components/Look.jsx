@@ -16,7 +16,7 @@ import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import WallpaperSettings from './WallpaperSettings.jsx';
 import FireArt from './FireArt.jsx';
-import { FIRE_COLORS, FIRE_STYLES, fireColorStyle } from '../fire.js';
+import { FIRE_COLORS, FIRE_COVERAGES, FIRE_STYLES, fireColorStyle } from '../fire.js';
 import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
 
 
@@ -64,7 +64,7 @@ function FontChoice({ preset, picked }) {
 
 
 // One fire style, drawn small, in the colours chosen now (or the theme's own).
-function FireStyleCard({ style, color, picked }) {
+function FireStyleCard({ style, color, coverage, picked }) {
   return (
     <button
       type="button"
@@ -73,9 +73,9 @@ function FireStyleCard({ style, color, picked }) {
       aria-pressed={picked}
       onClick={() => setAppearance({ fireStyle: style.id })}
     >
-      <svg viewBox="0 -48 200 148" aria-hidden="true">
-        <FireArt style={style.id} still />
-        <path className="fire-sample-ring" d="M5 100A95 95 0 0 1 195 100" />
+      <svg viewBox={coverage === 'around' ? '-46 -46 292 292' : '0 -48 200 148'} aria-hidden="true">
+        <FireArt style={style.id} coverage={coverage} still />
+        {coverage === 'around' ? <circle className="fire-sample-ring" cx="100" cy="100" r="95" /> : <path className="fire-sample-ring" d="M5 100A95 95 0 0 1 195 100" />}
       </svg>
       <span className="tile-label">{style.label}</span>
     </button>
@@ -99,7 +99,7 @@ const TEXT_COLORS = ['#ffffff', '#f3ead9', '#ffd9a0', '#bfe3ff', '#b8ffc8', '#11
 // THE TAB
 // ======================================================================
 export default function Look() {
-  const { theme, font, dim, glass, autoFix, textColor, look, fireStyle, fireColor } = useAppearance();
+  const { theme, font, dim, glass, autoFix, textColor, look, fireStyle, fireColor, fireCoverage } = useAppearance();
 
   // Fonts are downloaded when needed, so download them all now and every preview shows its own font.
   useEffect(() => {
@@ -153,7 +153,20 @@ export default function Look() {
         <h3 className="mono">Fire</h3>
         <div className="fire-row">
           {FIRE_STYLES.map((style) => (
-            <FireStyleCard key={style.id} style={style} color={fireColor} picked={fireStyle === style.id} />
+            <FireStyleCard key={style.id} style={style} color={fireColor} coverage={fireCoverage} picked={fireStyle === style.id} />
+          ))}
+        </div>
+        <div className="fire-coverage" role="group" aria-label="Where the fire is">
+          {FIRE_COVERAGES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={'fire-where' + (fireCoverage === item.id ? ' picked' : '')}
+              aria-pressed={fireCoverage === item.id}
+              onClick={() => setAppearance({ fireCoverage: item.id })}
+            >
+              {item.label}
+            </button>
           ))}
         </div>
         <div className="fire-colors" role="group" aria-label="Fire colour">

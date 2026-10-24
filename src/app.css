@@ -2038,3 +2038,30 @@ html[data-theme="liquid"] .slash-menu {
     animation: none;
   }
 }
+
+
+/* ---- Fire all the way around the ring: leave room above, below and at the sides for the flames ---- */
+.big-ring.ablaze.fire-around {
+  margin: 38px auto 40px;
+}
+.fire-coverage {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.fire-where {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  border: var(--bw) solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+.fire-where:hover {
+  color: var(--text);
+  border-color: var(--line-hi);
+}
+.fire-where.picked {
+  color: var(--text);
+  border-color: var(--accent);
+}

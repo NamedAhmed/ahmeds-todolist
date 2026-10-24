@@ -75,7 +75,7 @@ function BigRing({ s, date, today }) {
   const count = dailies.length;
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
-  const { fireStyle, fireColor } = useAppearance(); // the look of the flames (Settings > Look > Fire)
+  const { fireStyle, fireColor, fireCoverage } = useAppearance(); // the look of the flames (Settings > Look > Fire)
 
   // Ring sizes: they share the space, but never get thicker than 10.
   const band = 57 / Math.max(count, 3);
@@ -84,7 +84,7 @@ function BigRing({ s, date, today }) {
   const dateObject = toDate(date);
 
   return (
-    <div className={'big-ring' + (everythingDone ? ' ablaze' : '') + (fireColor === 'rainbow' ? ' fire-rainbow' : '')} style={fireColorStyle(fireColor)}>
+    <div className={'big-ring' + (everythingDone ? ' ablaze' : '') + (fireColor === 'rainbow' ? ' fire-rainbow' : '') + (fireCoverage === 'around' ? ' fire-around' : '')} style={fireColorStyle(fireColor)}>
       {/* The flames, animated in and out */}
       <AnimatePresence>
         {everythingDone && (
@@ -97,7 +97,7 @@ function BigRing({ s, date, today }) {
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <FireArt style={fireStyle} />
+            <FireArt style={fireStyle} coverage={fireCoverage} />
           </motion.svg>
         )}
       </AnimatePresence>
