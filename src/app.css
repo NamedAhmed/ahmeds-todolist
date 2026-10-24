@@ -615,10 +615,21 @@ input[type="number"] {
   gap: 7px;
   font-size: 13px;
 }
+.task-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.task-controls-separator {
+  color: var(--muted);
+  pointer-events: none;
+  user-select: none;
+}
 .day-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 4px;
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.1em;
