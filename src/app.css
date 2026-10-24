@@ -622,7 +622,6 @@ input[type="number"] {
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--dim, var(--text));
   opacity: 0.6;
 }
