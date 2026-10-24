@@ -404,7 +404,7 @@ export function brokenStreaks(s, today) {
 // Each entry is a list of lines; a line is a string or a function of the arguments quip() was given.
 export const quips = {
   // adding
-  taskAdded: ["Wow, look at you being productive! Everything has a start.", "Added. Writing it down was the easy part.", "A new task. Bold of you to assume you'll do it.", "Noted. Whether it gets done is a different story.", "Another one! Your list is basically a hobby now.", "Added. I'd say good luck, but we both know."],
+  taskAdded: ["Wow, look at you being productive! Everything has a start.", "Added. Writing it down was the easy part.", "A new task. Bold of you to assume you'll do it.", "Noted. Whether it gets done is a different story.", "Another one! Your list is basically a hobby now.", "Added. I'd say good luck, but we both know.", "BOO! — Ahmed"],
   projectAdded: ["A project! How ambitious. How temporary.", "New project. Odds it dies in this list: very high.", "Look at you, planning big. Finishing is the hard part.", "A whole project. Remember when you said you'd stop starting things?"],
   stepAdded: ["Another step! Splitting it up is easier than starting it.", "Step added. Planning: the most comfortable way to avoid working."],
   noteAdded: ["A blank note. Truly the hardest page to start.", "New note. Fill it or it will judge you.", "Writing things down. Look at you, a person with thoughts."],
@@ -412,7 +412,7 @@ export const quips = {
   reminderAdded: ["Added. The nagging is now automated.", "A reminder. Your memory sends its regards. It quit."],
   // finishing
   taskDone: ["Took you long enough.", "Done! Frame it.", "You impress even me with your diligence, and I'm not even real.", "Finished. The bar was on the floor and you cleared it.", "Done. Don't let it go to your head. It's one task.", "One down. Imagine doing this on purpose.", "Done. I'd clap, but I'm text."],
-  taskDoneLate: [(n) => `Finished. Only ${n} days after it mattered.`, (n) => `Done, ${n} days late. The task has been through things.`, (n) => `Finally. ${n} days. We were about to send a search party.`, (n) => `${n} days late. Great pacing. Truly.`],
+  taskDoneLate: [(n) => `Finished. Only ${n} days after it mattered.`, (n) => `Done, ${n} days late. The task has been through things.`, (n) => `Finally. ${n} days. We were about to send a search party.`, (n) => `${n} days late. Great pacing. Truly.`, (n) => `Done ${n} days late. The deadline missed you too.`],
   stepDone: ["Step done. Tiny, but it counts. Barely.", "A step! Keep going, or don't, I'm not your mum."],
   projectDone: ["A whole project, finished. By you. Somebody check the logs.", "Project done. Took you long enough.", "Project complete. Don't start three new ones to celebrate.", "Done. A whole project. Who are you and what did you do with the real you?"],
   dailyDone: ["Ticked. That's the easy bit. You do it again tomorrow.", "Daily done. The streak lives. For now.", "One ring closer to a personality.", "Done for today. See you tomorrow, ideally."],
@@ -420,7 +420,7 @@ export const quips = {
   allDailies: ["Every daily done. Don't get cocky, you'll be back to nothing by Thursday.", "All rings closed. A personal best: the bare minimum.", "Full set. Enjoy it. Tomorrow you start from zero like everyone else.", "All dailies. Fine. You're allowed one smug moment."],
   // undoing and changing your mind
   reopened: ["Reopened. It wasn't done, was it.", "You ticked it too early. Classic.", "Back on the list. It missed you. Nobody else did.", "Un-done. A rare sight: honesty."],
-  dailyUnticked: ["Unticked. Lying to an app: a new low.", "Taking it back. At least you're honest with yourself. Sometimes."],
+  dailyUnticked: ["Unticked. Lying to an app: a new low.", "Taking it back. At least you're honest with yourself. Sometimes.", "Unticked, you sure are a sad little man?", "Unticked, your parents proud?"],
   reminderSkipped: ["Skipped. Consequences are a future problem.", "Skipped. Adults do this too. Badly."],
   // moving things around
   later: ["Pushed back again. Great plan.", "Later. Always later. That's your whole brand.", "Moved to later. Bold strategy, let's see if it pays off.", "Rescheduled. The task is getting fed up of this too."],
@@ -429,7 +429,7 @@ export const quips = {
   renamed: ["Renamed. Calling it something nicer won't make it less boring.", "New name, same dread.", "Renamed. Procrastination with extra steps."],
   reordered: ["Reordered. The most productive thing you've done all day.", "Shuffled. Feels like progress. Isn't.", "New order. Same you."],
   // deleting and quitting
-  taskDeleted: ["Gave up? Good idea, you ain't cut out for it.", "Gone. Can't fail what you never do.", "Deleted. The easiest way to finish anything.", "Deleted. Not done, just erased. Creative accounting.", "Gone. The task, and any trace of your good intentions."],
+  taskDeleted: ["Gave up? Good idea, you ain't cut out for it.", "Gone. Can't fail what you never do.", "Deleted. The easiest way to finish anything.", "Deleted. Not done, just erased. Creative accounting.", "Gone. The task, and any trace of your good intentions.", "Deleted. fine. just delete me too while you're at it."],
   noteDeleted: ["Note deleted. The world will cope.", "Gone. Some thoughts deserve it.", "Deleted. Your best ideas were never going to be in here anyway."],
   reminderDeleted: ["Reminder deleted. Good luck remembering anything.", "Gone. You'll definitely remember that on your own. Definitely."],
   dailyArchived: ["Archived. Quitting: the one habit you keep.", "Not like it was going to last anyway.", "Gone. Another habit for the graveyard."],
