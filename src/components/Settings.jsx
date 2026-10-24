@@ -5,8 +5,8 @@
 //
 // It slides up from the bottom without covering the page (Sheet.jsx), so changes show up live.
 
-import { useState } from 'react';
-import { exportJson } from '../store.js';
+import { useRef, useState } from 'react';
+import { exportJson, importJson } from '../store.js';
 import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
@@ -162,6 +162,49 @@ function downloadBackup() {
   URL.revokeObjectURL(link.href);
 }
 
+// "Restore a backup": reads the .json file you pick and puts its tasks, notes and dailies back (see importJson in store.js).
+// Nothing is deleted: an item with the same id is replaced, the rest is added. Ctrl+Z (or the toast's Undo) undoes it all.
+function RestoreBackup() {
+  const input = useRef(null);
+  const [error, setError] = useState('');
+
+  async function restore(file) {
+    setError('');
+    if (file.size > 20 * 1024 * 1024) {
+      setError('That file is too big to be a backup.');
+      return;
+    }
+    try {
+      const { added, replaced } = importJson(await file.text());
+      const parts = [added && `${added} added`, replaced && `${replaced} replaced`].filter(Boolean);
+      toast(`Backup restored: ${parts.join(', ')}.`, { undoable: true });
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  }
+
+  return (
+    <>
+      <button className="btn-ghost" onClick={() => input.current.click()} aria-label="Restore a backup" title="Restore a backup">
+        <Icon name="upload" size={16} /> Restore
+      </button>
+      <input
+        ref={input}
+        className="file-hidden"
+        type="file"
+        accept=".json,application/json"
+        aria-label="Backup file"
+        onChange={(event) => {
+          const file = event.target.files[0];
+          event.target.value = ''; // so choosing the same file again still works
+          if (file) restore(file);
+        }}
+      />
+      {error && <p className="error">{error}</p>}
+    </>
+  );
+}
+
 function AccountTab() {
   return (
     <div className="look">
@@ -173,9 +216,10 @@ function AccountTab() {
       <section>
         <h3 className="mono">Backup</h3>
         <div className="seg-row">
-          <button className="btn-ghost" onClick={downloadBackup}>
-            Download a backup
+          <button className="btn-ghost" onClick={downloadBackup} aria-label="Download a backup" title="Download a backup">
+            <Icon name="download" size={16} /> Download
           </button>
+          <RestoreBackup />
         </div>
         <p className="hint">Ctrl+Z undoes anything. Ctrl+Shift+Z brings it back, in case you regret your regret.</p>
       </section>

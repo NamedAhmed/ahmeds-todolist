@@ -359,6 +359,49 @@ export function exportJson() {
   return JSON.stringify(out, null, 2);
 }
 
+// Put a backup (the text from exportJson) back into the app. Everything in the file is added, and an item that
+// already exists (same id) is replaced by the file's copy; nothing else is touched, so importing never deletes
+// anything. It is ONE undo step, and the items are marked for upload like any other change.
+// Returns { added, replaced } counts, or throws an Error with a message that can be shown to the user.
+export function importJson(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('That file is not a backup: it is not valid JSON.');
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('That file is not a backup.');
+  if (!TABLES.some((table) => Array.isArray(data[table]))) throw new Error('That file has no tasks, notes or dailies in it.');
+
+  const changes = [];
+  let added = 0;
+  let replaced = 0;
+  for (const table of TABLES) {
+    if (!Array.isArray(data[table])) continue;
+    for (const item of data[table]) {
+      // Only real items: an object with a text id, not already deleted.
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id || item._deleted) continue;
+      const { _dirty, ...clean } = item;
+      const existing = state[table][item.id];
+      if (existing && !existing._deleted) replaced++;
+      else added++;
+      changes.push({ t: table, id: item.id, set: clean });
+    }
+  }
+  if (changes.length === 0) throw new Error('That backup is empty.');
+  commit('backup imported', changes);
+
+  // The task view (filter and sort) is not data in the tables: it lives in the browser, and applies on the next load.
+  try {
+    const { taskFilter, taskSort } = data.preferences ?? {};
+    if (typeof taskFilter === 'string') localStorage.setItem('todolist:task-filter', taskFilter);
+    if (typeof taskSort === 'string') localStorage.setItem('todolist:task-sort', taskSort);
+  } catch {
+    // storage unavailable: the view just stays as it is
+  }
+  return { added, replaced };
+}
+
 
 // ======================================================================
 // MULTIPLE TABS
