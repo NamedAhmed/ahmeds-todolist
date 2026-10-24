@@ -152,12 +152,40 @@ function Account() {
 }
 
 
-// "Download a backup": makes a temporary link to a .json file and clicks it for you.
-function downloadBackup() {
-  const file = new Blob([exportJson()], { type: 'application/json' });
+// Backups get their own folder. Browsers that can (Chrome, Edge) ask where to save the first time and then
+// remember that folder (that is what the picker `id` does), and Restore opens in the same folder.
+// Safari, Firefox and phones can't choose a folder, so there it is an ordinary download and file chooser.
+const BACKUP_PICKER = { id: 'todolist-backups', types: [{ description: 'Todolist backup', accept: { 'application/json': ['.json'] } }] };
+
+// "ahmeds-todolist-backup-14-05-24-10-26.json": hour-minute-day-month-year.
+function backupName(now = new Date()) {
+  const two = (n) => String(n).padStart(2, '0');
+  const stamp = [now.getHours(), now.getMinutes(), now.getDate(), now.getMonth() + 1, now.getFullYear() % 100].map(two).join('-');
+  return `ahmeds-todolist-backup-${stamp}.json`;
+}
+
+// "Download a backup": saves into the backup folder, or (where the browser can't) makes a temporary link and clicks it.
+async function downloadBackup() {
+  const name = backupName();
+  const text = exportJson();
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ ...BACKUP_PICKER, suggestedName: name });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return;
+    } catch (error) {
+      if (error.name === 'AbortError') return; // you closed the save window: nothing to do
+      // Any other failure (for example a page where the picker is blocked): save as a normal download instead.
+    }
+  }
+
+  const file = new Blob([text], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(file);
-  link.download = 'todolist-backup.json';
+  link.download = name;
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -183,9 +211,24 @@ function RestoreBackup() {
     }
   }
 
+  // Open the backup folder to choose from, or (where the browser can't) the ordinary file chooser.
+  async function choose() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker(BACKUP_PICKER);
+        restore(await handle.getFile());
+        return;
+      } catch (error) {
+        if (error.name === 'AbortError') return; // you closed the window: nothing to do
+        // Any other failure: use the ordinary chooser below.
+      }
+    }
+    input.current.click();
+  }
+
   return (
     <>
-      <button className="btn-ghost" onClick={() => input.current.click()} aria-label="Restore a backup" title="Restore a backup">
+      <button className="btn-ghost" onClick={choose} aria-label="Restore a backup" title="Restore a backup">
         <Icon name="upload" size={16} /> Restore
       </button>
       <input
