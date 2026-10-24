@@ -13,7 +13,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
@@ -41,6 +41,41 @@ const SHORTCUTS = { '# ': 'h1', '## ': 'h2', '### ': 'h3', '- ': 'bullet', '* ':
 
 // Pressing Enter in one of these makes another block of the same kind (on an empty one it ends the list).
 const REPEATS = ['bullet', 'number', 'todo', 'quote'];
+const LIST_TYPES = ['bullet', 'number', 'todo'];
+
+function indentOf(block) {
+  return LIST_TYPES.includes(block.type) ? Math.max(0, Number(block.indent) || 0) : 0;
+}
+
+function blockRows(blocks) {
+  const ancestors = [];
+  return blocks.map((block, index) => {
+    if (!LIST_TYPES.includes(block.type)) {
+      ancestors.length = 0;
+      return { block, index, hidden: false, hasChildren: false };
+    }
+
+    const indent = indentOf(block);
+    while (ancestors.length && ancestors[ancestors.length - 1].indent >= indent) ancestors.pop();
+    const hidden = ancestors.some((ancestor) => ancestor.collapsed);
+    const next = blocks[index + 1];
+    const hasChildren = LIST_TYPES.includes(next?.type) && indentOf(next) > indent;
+    if (!hidden) ancestors.push({ indent, collapsed: !!block.collapsed });
+    return { block, index, hidden, hasChildren };
+  });
+}
+
+function subtreeEnd(blocks, index) {
+  const block = blocks[index];
+  if (!LIST_TYPES.includes(block.type)) return index;
+  const indent = indentOf(block);
+  let end = index;
+  for (let i = index + 1; i < blocks.length; i++) {
+    if (!LIST_TYPES.includes(blocks[i].type) || indentOf(blocks[i]) <= indent) break;
+    end = i;
+  }
+  return end;
+}
 
 
 // ======================================================================
@@ -99,9 +134,10 @@ export function blocksToText(blocks) {
     .map((block) => {
       count = block.type === 'number' ? count + 1 : 0;
       const text = htmlToText(block.html);
+      const indent = LIST_TYPES.includes(block.type) ? '  '.repeat(Math.max(0, Number(block.indent) || 0)) : '';
       const marker = { h1: '# ', h2: '## ', h3: '### ', bullet: '- ', number: `${count}. `, quote: '> ' }[block.type] ?? '';
-      if (block.type === 'todo') return `[${block.checked ? 'x' : ' '}] ${text}`;
-      return marker + text;
+      if (block.type === 'todo') return `${indent}[${block.checked ? 'x' : ' '}] ${text}`;
+      return indent + marker + text;
     })
     .join('\n');
 }
@@ -182,9 +218,10 @@ function placeCaret(element, at) {
 // ======================================================================
 const PLACEHOLDERS = { h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', bullet: 'List', number: 'List', todo: 'To-do', quote: 'Quote', code: 'Code' };
 
-function BlockRow({ block, number, menu, actions }) {
+function BlockRow({ block, number, menu, actions, hasChildren }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const text = useRef(null);
+  const indent = LIST_TYPES.includes(block.type) ? Math.max(0, Number(block.indent) || 0) : 0;
 
   // Keep the text on screen in step with the data, but only when they differ, so typing never moves the cursor.
   useLayoutEffect(() => {
@@ -196,13 +233,27 @@ function BlockRow({ block, number, menu, actions }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition, marginLeft: `${indent * 24}px` }}
       className={`block block-${block.type}${block.checked ? ' checked' : ''}${isDragging ? ' dragging' : ''}`}
       data-block={block.id}
     >
       <button type="button" className="block-grip" aria-label="Drag to move this block" tabIndex={-1} {...attributes} {...listeners}>
         <Icon name="grip" size={14} />
       </button>
+
+      {LIST_TYPES.includes(block.type) && hasChildren && (
+        <button
+          type="button"
+          className="block-collapse"
+          aria-label={block.collapsed ? 'Expand sub-list' : 'Collapse sub-list'}
+          aria-expanded={!block.collapsed}
+          title={block.collapsed ? 'Expand sub-list' : 'Collapse sub-list'}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => actions.toggleCollapse(block.id)}
+        >
+          <Icon name="chevronDown" size={10} />
+        </button>
+      )}
 
       {block.type === 'bullet' && <span className="block-marker" aria-hidden="true">•</span>}
       {block.type === 'number' && <span className="block-marker" aria-hidden="true">{number}.</span>}
@@ -287,6 +338,10 @@ export default function BlockEditor({ blocks, onChange }) {
   }
 
   const update = (id, patch) => onChange(blocks.map((block) => (block.id === id ? { ...block, ...patch } : block)));
+  const toggleCollapse = (id) => {
+    const block = blocks.find((item) => item.id === id);
+    if (block) update(id, { collapsed: !block.collapsed });
+  };
 
   // Which kinds of block match what is typed after the "/".
   const menuItems = (query) => {
@@ -298,7 +353,7 @@ export default function BlockEditor({ blocks, onChange }) {
   function choose(id, type) {
     const fromMenu = menu?.id === id;
     setMenu(null);
-    onChange(blocks.map((b) => (b.id === id ? { ...b, type, html: fromMenu ? '' : b.html, checked: false } : b)));
+    onChange(blocks.map((b) => (b.id === id ? { ...b, type, html: fromMenu ? '' : b.html, checked: false, indent: LIST_TYPES.includes(type) ? (b.indent ?? 0) : 0 } : b)));
     focusAfterChange(id, 'end');
   }
 
@@ -350,6 +405,14 @@ export default function BlockEditor({ blocks, onChange }) {
       }
     }
 
+    // Tab indents list items; Shift+Tab outdents them.
+    if (event.key === 'Tab' && LIST_TYPES.includes(block.type)) {
+      event.preventDefault();
+      if (menu?.id === block.id) setMenu(null);
+      update(block.id, { indent: Math.max(0, (Number(block.indent) || 0) + (event.shiftKey ? -1 : 1)) });
+      return;
+    }
+
     // Enter: a new block.
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -360,11 +423,12 @@ export default function BlockEditor({ blocks, onChange }) {
       const [before, after] = splitAtCaret(element);
       const isEmpty = htmlToText(block.html).trim() === '';
       if (REPEATS.includes(block.type) && isEmpty) {
-        update(block.id, { type: 'p' }); // an empty list item ends the list
+        update(block.id, { type: 'p', indent: 0 }); // an empty list item ends the list
         focusAfterChange(block.id, 'start');
         return;
       }
-      const created = newBlock(REPEATS.includes(block.type) ? block.type : 'p', after);
+      const repeats = REPEATS.includes(block.type);
+      const created = { ...newBlock(repeats ? block.type : 'p', after), ...(repeats ? { indent: block.indent ?? 0 } : {}) };
       onChange([...blocks.slice(0, index), { ...block, html: before }, created, ...blocks.slice(index + 1)]);
       focusAfterChange(created.id, 'start');
       return;
@@ -383,7 +447,7 @@ export default function BlockEditor({ blocks, onChange }) {
     if (event.key === 'Backspace' && caret.collapsed && caret.atStart) {
       if (block.type !== 'p') {
         event.preventDefault();
-        update(block.id, { type: 'p' });
+        update(block.id, { type: 'p', indent: 0 });
         focusAfterChange(block.id, 'start');
       } else if (index > 0) {
         event.preventDefault();
@@ -432,16 +496,24 @@ export default function BlockEditor({ blocks, onChange }) {
     if (!over || active.id === over.id) return;
     const from = blocks.findIndex((b) => b.id === active.id);
     const to = blocks.findIndex((b) => b.id === over.id);
-    onChange(arrayMove(blocks, from, to));
+    const fromEnd = subtreeEnd(blocks, from);
+    const toEnd = subtreeEnd(blocks, to);
+    if ((to >= from && to <= fromEnd) || (to < from && toEnd >= from)) return;
+
+    const moving = blocks.slice(from, fromEnd + 1);
+    const remaining = [...blocks.slice(0, from), ...blocks.slice(fromEnd + 1)];
+    const insertion = to < from ? to : toEnd - moving.length + 1;
+    onChange([...remaining.slice(0, insertion), ...moving, ...remaining.slice(insertion)]);
   }
 
   // The numbers of a numbered list: 1, 2, 3 for a run of numbered blocks, starting again after anything else.
   let run = 0;
   const numbers = blocks.map((block) => (block.type === 'number' ? ++run : (run = 0)));
+  const visibleRows = blockRows(blocks).filter((row) => !row.hidden);
 
   const dragged = blocks.find((block) => block.id === dragId);
 
-  const actions = { update, input, key, paste, choose, menuItems, register: (id, node) => (elements.current[id] = node) };
+  const actions = { update, input, key, paste, choose, menuItems, toggleCollapse, register: (id, node) => (elements.current[id] = node) };
 
   return (
     <div className="blocks">
@@ -452,9 +524,9 @@ export default function BlockEditor({ blocks, onChange }) {
         onDragCancel={() => setDragId(null)}
         onDragEnd={onDragEnd}
       >
-        <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-          {blocks.map((block, i) => (
-            <BlockRow key={block.id} block={block} number={numbers[i]} menu={menu} actions={actions} />
+        <SortableContext items={visibleRows.map(({ block }) => block.id)} strategy={verticalListSortingStrategy}>
+          {visibleRows.map(({ block, index, hasChildren }) => (
+            <BlockRow key={block.id} block={block} number={numbers[index]} menu={menu} actions={actions} hasChildren={hasChildren} />
           ))}
         </SortableContext>
         <DragLayer>

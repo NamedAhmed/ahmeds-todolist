@@ -26,7 +26,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, u
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
-import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, occursOn, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import { DailyStrip } from './Calendar.jsx';
 import DragLayer from './DragLayer.jsx';
@@ -1084,7 +1084,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
 
     let date = today;
     while (date <= end) {
-      if (date >= reminder.created && occursOn(reminder.rule, date) && !isDone(s, reminder.id, date)) return date;
+      if (reminderOccursOn(reminder, date, today) && !isDone(s, reminder.id, date)) return date;
       date = addDays(date, 1);
     }
     return null;
@@ -1095,9 +1095,9 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
     .map((reminder) => {
       let date = null;
       if (filter === 'date' && day) {
-        date = occursOn(reminder.rule, day) && !isDone(s, reminder.id, day) ? day : null;
+        date = reminderOccursOn(reminder, day, today) && !isDone(s, reminder.id, day) ? day : null;
       } else if (filter === 'today') {
-        date = occursOn(reminder.rule, today) && !isDone(s, reminder.id, today) ? today : null;
+        date = reminderOccursOn(reminder, today, today) && !isDone(s, reminder.id, today) ? today : null;
       } else if (filter === 'week') {
         date = reminderInRange(reminder, addDays(today, 7));
       } else if (filter === 'month') {
