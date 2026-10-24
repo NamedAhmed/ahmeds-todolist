@@ -16,6 +16,7 @@ import Calendar from './components/Calendar.jsx';
 import Tasks, { TaskDnd } from './components/Tasks.jsx';
 import { Notes } from './components/Side.jsx';
 import { DailyEditModal, KeysModal, RemindersModal } from './components/Modals.jsx';
+import Search from './components/Search.jsx';
 import { SettingsSheet } from './components/Settings.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
@@ -94,7 +95,7 @@ export default function App() {
   useEffect(() => {
     ensureTaskCreatedDates();
   }, []);
-  const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | null
+  const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | 'search' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
 
@@ -141,6 +142,36 @@ export default function App() {
     };
   }, []);
 
+
+  // ---- Ctrl+K (Cmd+K on a Mac) opens the search, even while typing in a box ----
+  useEffect(() => {
+    function onSearchKey(event) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'k') return;
+      event.preventDefault(); // (the browser would otherwise use it to focus its own search box)
+      setModal((current) => (current === 'search' ? null : 'search'));
+    }
+    window.addEventListener('keydown', onSearchKey);
+    return () => window.removeEventListener('keydown', onSearchKey);
+  }, []);
+
+  // Go to what was picked in the search: show its column (opening it if it is squeezed into a strip), then tell
+  // that column which item to show. (The columns listen for these two events, see Tasks.jsx and Side.jsx.)
+  function pickResult(result) {
+    setModal(null);
+    if (result.kind === 'daily') return setEditingDaily(result.id);
+    if (result.kind === 'reminder') return setModal('reminders');
+
+    const column = result.kind === 'task' ? 1 : 2;
+    if (columns.cols.collapsed[column]) columns.open(column);
+    if (result.kind === 'task') {
+      setFilter('all'); // so the task is in the list, whatever view was on
+      setTab('tasks');
+      setTimeout(() => window.dispatchEvent(new CustomEvent('todolist:reveal-task', { detail: result.id })), 60);
+    } else {
+      setTab('notes');
+      window.dispatchEvent(new CustomEvent('todolist:open-note', { detail: result.id }));
+    }
+  }
 
   // ---- Effect 3: keyboard shortcuts ----
   // These work anywhere EXCEPT inside a text box (where typing and the browser's own undo should win).
@@ -233,6 +264,7 @@ export default function App() {
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
         {modal === 'settings' && <SettingsSheet key="s" onClose={() => setModal(null)} />}
         {modal === 'keys' && <KeysModal key="k" onClose={() => setModal(null)} />}
+        {modal === 'search' && <Search key="f" onClose={() => setModal(null)} onPick={pickResult} />}
         {editingDaily && <DailyEditModal key="d" id={editingDaily} onClose={() => setEditingDaily(null)} />}
       </AnimatePresence>
 
