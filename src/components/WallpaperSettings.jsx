@@ -10,6 +10,8 @@ import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import {
   LIQUID,
+  GRAVITY,
+  GRAVITY_INFO,
   LIQUID_INFO,
   MATRIX,
   MATRIX_INFO,
@@ -162,6 +164,7 @@ export default function WallpaperSettings() {
   const { wallpaper } = useAppearance();
   if (wallpaper === LIQUID) return <Card wallpaper={LIQUID_INFO} />;
   if (wallpaper === MATRIX) return <Card wallpaper={MATRIX_INFO} />;
+  if (wallpaper === GRAVITY) return <Card wallpaper={GRAVITY_INFO} />;
 
   const lively = findLively(wallpaper);
   return lively ? <Card wallpaper={lively} /> : null;

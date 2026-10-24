@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'react';
 import {
   LIGHT_THEMES,
   LIGHT_THEME_MIN_GLASS,
+  GRAVITY,
   LIQUID,
   MATRIX,
   NO_PICTURE,
@@ -21,6 +22,7 @@ import {
   useAppearance,
   useApplyFont,
   useApplyTheme,
+  gravitySettings,
   liquidSettings,
   matrixSettings,
   takesPicture,
@@ -37,6 +39,7 @@ import {
   useWallpaperValues,
 } from './appearance.js';
 import { startLiquid } from './wallpapers/liquid.js';
+import { startGravity } from './wallpapers/gravity.js';
 import { startMatrix } from './wallpapers/matrix.js';
 
 // Work out what to send a wallpaper for one of its settings, then send it.
@@ -175,21 +178,24 @@ function LiquidCanvas({ theme, pointer }) {
   return <canvas ref={canvas} className="liquid-canvas" />;
 }
 
-// The built-in Matrix wallpaper: a canvas that startMatrix() draws on (see wallpapers/matrix.js).
-function MatrixCanvas({ pointer }) {
+// A built-in wallpaper that is drawn on a canvas by a start function and takes live settings (Matrix, Gravity).
+//   id         the wallpaper's id, which is also where its settings are saved
+//   start      startMatrix or startGravity (see src/wallpapers)
+//   settingsOf turns the saved settings into the full { name: value } object the start function reads
+function SettingsCanvas({ id, start, settingsOf, pointer }) {
   const canvas = useRef(null);
-  const values = useWallpaperValues('matrix');
+  const values = useWallpaperValues(id);
   const settings = useRef({}); // read by the animation on every frame, so a changed setting shows without a restart
-  Object.assign(settings.current, matrixSettings(values));
+  Object.assign(settings.current, settingsOf(values));
 
   // Start it, and start again (a moment after you stop) when the window is resized.
   useEffect(() => {
     let stop = () => {};
     let timer;
-    function start() {
+    function run() {
       stop();
       const scale = Math.min(window.devicePixelRatio || 1, 1.5); // sharp, but not so many pixels that it gets slow
-      stop = startMatrix(canvas.current, {
+      stop = start(canvas.current, {
         width: Math.ceil(window.innerWidth * scale),
         height: Math.ceil(window.innerHeight * scale),
         pointer: pointer.current,
@@ -199,16 +205,16 @@ function MatrixCanvas({ pointer }) {
     }
     function onResize() {
       clearTimeout(timer);
-      timer = setTimeout(start, 150);
+      timer = setTimeout(run, 150);
     }
-    start();
+    run();
     window.addEventListener('resize', onResize);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', onResize);
       stop();
     };
-  }, [pointer]);
+  }, [start, pointer]);
 
   return <canvas ref={canvas} className="matrix-canvas" />;
 }
@@ -229,14 +235,16 @@ export default function Wallpaper() {
 
   const isLiquid = wallpaper === LIQUID;
   const isMatrix = wallpaper === MATRIX;
-  const showsSomething = pictureUrl || lively || videoUrl || isLiquid || isMatrix;
+  const isGravity = wallpaper === GRAVITY;
+  const showsSomething = pictureUrl || lively || videoUrl || isLiquid || isMatrix || isGravity;
 
   // What is behind the text: the picture or video is measured. A moving wallpaper that draws its own picture can't
   // be measured, so it is treated as an unknown (bright) one; one that shows your picture is judged by that picture.
   const measured = useBackdropTones(videoUrl ? null : pictureUrl, videoUrl);
   const drawsOwnPicture = isLiquid || (lively && !lively.properties.some(takesPicture));
   // (The Matrix is black with bright glyphs: its darkest part is black, its brightest only a pale green.)
-  const tones = isMatrix ? { dark: 0, light: 0.7 } : !measured || drawsOwnPicture ? UNKNOWN_TONES : measured;
+  // (Gravity is dark teal with tiny white streaks.)
+  const tones = isMatrix ? { dark: 0, light: 0.7 } : isGravity ? { dark: 0.1, light: 0.5 } : !measured || drawsOwnPicture ? UNKNOWN_TONES : measured;
   const isLightTheme = LIGHT_THEMES.includes(theme);
 
   // Tell the page's CSS whether something is behind the columns, how strong the Dim film is, and how frosted to
@@ -244,7 +252,7 @@ export default function Wallpaper() {
   useEffect(() => {
     const root = document.documentElement;
     root.toggleAttribute('data-backdrop', !!showsSomething);
-    root.toggleAttribute('data-animated', !!(lively || videoUrl || isLiquid || isMatrix)); // moving: the glass blur is capped (appearance.css)
+    root.toggleAttribute('data-animated', !!(lively || videoUrl || isLiquid || isMatrix || isGravity)); // moving: the glass blur is capped (appearance.css)
 
     const canDim = theme !== 'liquid'; // the Liquid theme has no Dim film
     let dimNow = canDim ? dim : 0;
@@ -264,7 +272,7 @@ export default function Wallpaper() {
     frameBox.current.style.setProperty('--dim', dimNow);
     root.style.setProperty('--glass', Math.ceil(strength * 100) + '%'); // rounded up, so Auto never falls just short
     root.style.setProperty('--glass-blur', Math.round(strength * 20) + 'px'); // more glass = a stronger blur too
-  }, [showsSomething, lively, videoUrl, isLiquid, isMatrix, glass, dim, autoFix, tones, theme, isLightTheme, textColor]);
+  }, [showsSomething, lively, videoUrl, isLiquid, isMatrix, isGravity, glass, dim, autoFix, tones, theme, isLightTheme, textColor]);
 
   // Follow the mouse. It is used two ways:
   //   - the liquid wallpaper has a blob that chases the mouse
@@ -313,7 +321,8 @@ export default function Wallpaper() {
         {pictureUrl && <div className="wallpaper-image" style={{ backgroundImage: `url(${pictureUrl})` }} />}
         {videoUrl && <video className="wallpaper-video" src={videoUrl} autoPlay loop muted playsInline />}
         {isLiquid && <LiquidCanvas theme={theme} pointer={pointer} />}
-        {isMatrix && <MatrixCanvas pointer={pointer} />}
+        {isMatrix && <SettingsCanvas id="matrix" start={startMatrix} settingsOf={matrixSettings} pointer={pointer} />}
+        {isGravity && <SettingsCanvas id="gravity" start={startGravity} settingsOf={gravitySettings} pointer={pointer} />}
         {lively && <LivelyFrame key={lively.id} wallpaper={lively} />}
         {showsSomething && <div className="wallpaper-dim" />}
       </div>
