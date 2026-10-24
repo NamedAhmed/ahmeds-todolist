@@ -31,11 +31,13 @@ export const THEMES = [
 //   'off'              no wallpaper
 //   'liquid'           the built-in liquid wallpaper
 //   'matrix'           the built-in falling-code wallpaper
+//   'gravity'          the built-in particles-and-gravity-points wallpaper
 //   'lively:rain'      a Lively wallpaper from the catalog (here, the one with id "rain")
 //   'video:<id>'       a video you added
 export const OFF = 'off';
 export const LIQUID = 'liquid'; // the built-in liquid wallpaper (src/wallpapers/liquid.js)
 export const MATRIX = 'matrix'; // the built-in falling-code wallpaper (src/wallpapers/matrix.js)
+export const GRAVITY = 'gravity'; // the built-in gravity wallpaper (src/wallpapers/gravity.js)
 export const LIVELY = catalog; // [{ id, title, desc, author, entry, thumbnail, preview, properties, ... }]
 
 // Find a catalog entry from a wallpaper id like 'lively:rain'. Returns undefined if there isn't one.
@@ -91,6 +93,27 @@ export function matrixSettings(values) {
   return Object.fromEntries(MATRIX_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
 }
 
+// The built-in Gravity wallpaper (a port of "Gravity Points" by Akimitsu Hamamuro, see wallpapers/gravity.js).
+export const GRAVITY_INFO = {
+  id: 'gravity',
+  title: 'Gravity',
+  author: 'Akimitsu Hamamuro (port)',
+  contact: 'https://codepen.io/akm2/full/AGgarW',
+  desc: 'Particles streak through the dark and fall into gravity points that merge and collapse.',
+  properties: [
+    { name: 'particles', type: 'slider', text: 'Particles', min: 20, max: 500, step: 10, value: 150 },
+    { name: 'points', type: 'slider', text: 'Gravity points', min: 0, max: 6, step: 1, value: 3 },
+    { name: 'mouse', type: 'checkbox', text: 'Mouse pulls particles', value: true },
+    { name: 'background', type: 'color', text: 'Background', value: '#0b3338' },
+    { name: 'accent', type: 'color', text: 'Point colour', value: '#67b5bf' },
+  ],
+};
+
+// The settings of the Gravity wallpaper as { particles, points, ... }.
+export function gravitySettings(values) {
+  return Object.fromEntries(GRAVITY_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
+}
+
 // A "pick a picture" setting of a wallpaper (Rain's background). It is not shown in the wallpaper's own
 // settings: the picture is chosen once, in the gallery, and handed to the wallpaper (see Wallpaper.jsx).
 export const takesPicture = (property) => property.type === 'folderDropdown' && /jpe?g|png/i.test(property.filter ?? '');
@@ -124,7 +147,7 @@ export function useAppearance() {
   const autoFix = choices.autoFix !== false;
 
   let wallpaper = OFF;
-  if (choices.wallpaper === LIQUID || choices.wallpaper === MATRIX || (typeof choices.wallpaper === 'string' && (findLively(choices.wallpaper) || choices.wallpaper.startsWith('video:')))) {
+  if (choices.wallpaper === LIQUID || choices.wallpaper === MATRIX || choices.wallpaper === GRAVITY || (typeof choices.wallpaper === 'string' && (findLively(choices.wallpaper) || choices.wallpaper.startsWith('video:')))) {
     wallpaper = choices.wallpaper;
   }
 

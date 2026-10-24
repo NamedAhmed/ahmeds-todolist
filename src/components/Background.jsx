@@ -13,8 +13,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   LIQUID,
+  GRAVITY,
   LIVELY,
   MATRIX,
+  gravitySettings,
   matrixSettings,
   NO_PICTURE,
   OFF,
@@ -30,6 +32,7 @@ import {
 } from '../appearance.js';
 import { PICTURES } from '../wallpapers/pictures.js';
 import { startLiquid } from '../wallpapers/liquid.js';
+import { startGravity } from '../wallpapers/gravity.js';
 import { startMatrix } from '../wallpapers/matrix.js';
 
 const LIVELY_SITE = 'https://livelywallpaper.app/live-wallpapers/';
@@ -117,20 +120,20 @@ function LiquidTile({ picked, theme }) {
   );
 }
 
-// The built-in Matrix wallpaper. Like the Liquid tile: a still frame, and it falls only while the tile is pointed at.
-function MatrixTile({ picked }) {
+// A built-in wallpaper drawn on a canvas (Matrix, Gravity). Like the Liquid tile: a still frame, and it moves only
+// while the tile is pointed at. `preview` holds settings that suit a small picture (finer glyphs and so on).
+function CanvasTile({ id, title, author, start, preview, picked }) {
   const canvas = useRef(null);
   const stop = useRef(() => {});
-  // The same code, drawn small: bigger glyphs relative to the tile would look like blobs, so use a fine size.
-  const preview = { ...matrixSettings({}), size: 8, depth: 2, trail: 12 };
+  const size = { width: 160, height: 90 };
 
   useEffect(() => {
-    startMatrix(canvas.current, { width: 160, height: 90, still: true, settings: preview });
+    start(canvas.current, { ...size, still: true, settings: preview });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function play() {
     stop.current();
-    stop.current = startMatrix(canvas.current, { width: 160, height: 90, settings: preview });
+    stop.current = start(canvas.current, { ...size, settings: preview });
   }
   function pause() {
     stop.current();
@@ -142,7 +145,7 @@ function MatrixTile({ picked }) {
     <button
       type="button"
       className={'tile' + (picked ? ' picked' : '')}
-      onClick={() => pickWallpaper(MATRIX)}
+      onClick={() => pickWallpaper(id)}
       onMouseEnter={play}
       onMouseLeave={pause}
       onFocus={play}
@@ -152,11 +155,15 @@ function MatrixTile({ picked }) {
       <span className="tile-preview matrix-preview">
         <canvas ref={canvas} className="matrix-canvas" />
       </span>
-      <span className="tile-label">Matrix</span>
-      <span className="tile-author">Built in</span>
+      <span className="tile-label">{title}</span>
+      <span className="tile-author">{author}</span>
     </button>
   );
 }
+
+// The settings the Matrix tile uses: bigger glyphs would look like blobs at this size, so they are finer.
+const MATRIX_PREVIEW = { ...matrixSettings({}), size: 8, depth: 2, trail: 12 };
+const GRAVITY_PREVIEW = { ...gravitySettings({}), particles: 70, points: 2 };
 
 // A picture (built in, or one you added) or a video you added. `id` is 'photo:...', 'upload:...' or 'video:...'.
 // Things you added get a small × to delete them.
@@ -209,10 +216,11 @@ export default function Background() {
   const showNone = matches('none');
   const showLiquid = matches('liquid glowing blobs built in');
   const showMatrix = matches('matrix falling code green rain built in');
+  const showGravity = matches('gravity particles points space built in akimitsu hamamuro');
   const wallpapers = LIVELY.filter((item) => matches(`${item.title} ${item.author} ${item.desc}`));
   const photos = PICTURES.filter((picture) => matches(picture.title));
   const yours = uploads.filter((upload) => matches(upload.name));
-  const nothing = !showNone && !showLiquid && !showMatrix && wallpapers.length + photos.length + yours.length === 0;
+  const nothing = !showNone && !showLiquid && !showMatrix && !showGravity && wallpapers.length + photos.length + yours.length === 0;
 
   async function addFiles(files) {
     setMessage('');
@@ -251,7 +259,8 @@ export default function Background() {
       <div className="tile-grid">
         {showNone && <NoneTile picked={wallpaper === OFF && pictureId === NO_PICTURE} />}
         {showLiquid && <LiquidTile picked={wallpaper === LIQUID} theme={theme} />}
-        {showMatrix && <MatrixTile picked={wallpaper === MATRIX} />}
+        {showMatrix && <CanvasTile id={MATRIX} title="Matrix" author="Built in" start={startMatrix} preview={MATRIX_PREVIEW} picked={wallpaper === MATRIX} />}
+        {showGravity && <CanvasTile id={GRAVITY} title="Gravity" author="Akimitsu Hamamuro" start={startGravity} preview={GRAVITY_PREVIEW} picked={wallpaper === GRAVITY} />}
         {wallpapers.map((item) => (
           <WallpaperTile key={item.id} wallpaper={item} picked={wallpaper === 'lively:' + item.id} />
         ))}
