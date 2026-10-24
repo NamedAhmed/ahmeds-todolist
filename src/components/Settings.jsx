@@ -5,8 +5,8 @@
 //
 // It slides up from the bottom without covering the page (Sheet.jsx), so changes show up live.
 
-import { useState } from 'react';
-import { exportJson } from '../store.js';
+import { useRef, useState } from 'react';
+import { exportJson, importJson } from '../store.js';
 import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
@@ -152,14 +152,100 @@ function Account() {
 }
 
 
-// "Download a backup": makes a temporary link to a .json file and clicks it for you.
-function downloadBackup() {
-  const file = new Blob([exportJson()], { type: 'application/json' });
+// Backups get their own folder. Browsers that can (Chrome, Edge) ask where to save the first time and then
+// remember that folder (that is what the picker `id` does), and Restore opens in the same folder.
+// Safari, Firefox and phones can't choose a folder, so there it is an ordinary download and file chooser.
+const BACKUP_PICKER = { id: 'todolist-backups', types: [{ description: 'Todolist backup', accept: { 'application/json': ['.json'] } }] };
+
+// "ahmeds-todolist-backup-14-05-24-10-26.json": hour-minute-day-month-year.
+function backupName(now = new Date()) {
+  const two = (n) => String(n).padStart(2, '0');
+  const stamp = [now.getHours(), now.getMinutes(), now.getDate(), now.getMonth() + 1, now.getFullYear() % 100].map(two).join('-');
+  return `ahmeds-todolist-backup-${stamp}.json`;
+}
+
+// "Download a backup": saves into the backup folder, or (where the browser can't) makes a temporary link and clicks it.
+async function downloadBackup() {
+  const name = backupName();
+  const text = exportJson();
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ ...BACKUP_PICKER, suggestedName: name });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return;
+    } catch (error) {
+      if (error.name === 'AbortError') return; // you closed the save window: nothing to do
+      // Any other failure (for example a page where the picker is blocked): save as a normal download instead.
+    }
+  }
+
+  const file = new Blob([text], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(file);
-  link.download = 'todolist-backup.json';
+  link.download = name;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+// "Restore a backup": reads the .json file you pick and puts its tasks, notes and dailies back (see importJson in store.js).
+// Nothing is deleted: an item with the same id is replaced, the rest is added. Ctrl+Z (or the toast's Undo) undoes it all.
+function RestoreBackup() {
+  const input = useRef(null);
+  const [error, setError] = useState('');
+
+  async function restore(file) {
+    setError('');
+    if (file.size > 20 * 1024 * 1024) {
+      setError('That file is too big to be a backup.');
+      return;
+    }
+    try {
+      const { added, replaced } = importJson(await file.text());
+      const parts = [added && `${added} added`, replaced && `${replaced} replaced`].filter(Boolean);
+      toast(`Backup restored: ${parts.join(', ')}.`, { undoable: true });
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  }
+
+  // Open the backup folder to choose from, or (where the browser can't) the ordinary file chooser.
+  async function choose() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker(BACKUP_PICKER);
+        restore(await handle.getFile());
+        return;
+      } catch (error) {
+        if (error.name === 'AbortError') return; // you closed the window: nothing to do
+        // Any other failure: use the ordinary chooser below.
+      }
+    }
+    input.current.click();
+  }
+
+  return (
+    <>
+      <button className="btn-ghost" onClick={choose} aria-label="Restore a backup" title="Restore a backup">
+        <Icon name="upload" size={16} /> Restore
+      </button>
+      <input
+        ref={input}
+        className="file-hidden"
+        type="file"
+        accept=".json,application/json"
+        aria-label="Backup file"
+        onChange={(event) => {
+          const file = event.target.files[0];
+          event.target.value = ''; // so choosing the same file again still works
+          if (file) restore(file);
+        }}
+      />
+      {error && <p className="error">{error}</p>}
+    </>
+  );
 }
 
 function AccountTab() {
@@ -173,9 +259,10 @@ function AccountTab() {
       <section>
         <h3 className="mono">Backup</h3>
         <div className="seg-row">
-          <button className="btn-ghost" onClick={downloadBackup}>
-            Download a backup
+          <button className="btn-ghost" onClick={downloadBackup} aria-label="Download a backup" title="Download a backup">
+            <Icon name="download" size={16} /> Download
           </button>
+          <RestoreBackup />
         </div>
         <p className="hint">Ctrl+Z undoes anything. Ctrl+Shift+Z brings it back, in case you regret your regret.</p>
       </section>
