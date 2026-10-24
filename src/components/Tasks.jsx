@@ -1185,14 +1185,18 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
           <button
             className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
             aria-pressed={filter !== 'all'}
-            aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}. Click to change.`}
-            title={`${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]} · Click to change filter`}
+            aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}. Click to change.`}
+            title={`${filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]} · Click to change filter`}
             onClick={() => {
+              if (filter === 'date') {
+                setFilter('all');
+                return;
+              }
               const next = FILTER_ORDER.indexOf(filter) + 1;
               setFilter(FILTER_ORDER[next % FILTER_ORDER.length]);
             }}
           >
-            {filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}
+            {filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}
           </button>
         </div>
 
