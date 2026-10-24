@@ -28,12 +28,14 @@ const GLYPH_SETS = [
 ];
 const MIRRORED = [true, false, false, false, false]; // only the katakana is flipped
 
-// How each depth layer differs from the front one: size, fall speed and strength.
+// How each depth layer differs from the front one: size, fall speed, strength, and how many of its columns are
+// raining at once (a small dim layer needs far fewer streams to read as "lots of rain", and each stream costs time).
 const LAYERS = [
-  { size: 1, speed: 1, alpha: 1 },
-  { size: 0.72, speed: 0.78, alpha: 0.62 },
-  { size: 0.52, speed: 0.6, alpha: 0.38 },
+  { size: 1, speed: 1, alpha: 1, share: 1 },
+  { size: 0.72, speed: 0.78, alpha: 0.62, share: 0.7 },
+  { size: 0.55, speed: 0.6, alpha: 0.38, share: 0.5 },
 ];
+const FRAME_MS = 1000 / 40; // drawn at most 40 times a second: the fall is steps of whole rows, so it looks the same
 
 const FONT = '"MS Gothic","Yu Gothic","Noto Sans Mono CJK JP","Noto Sans JP",monospace';
 
@@ -104,10 +106,11 @@ function buildAtlas({ glyphs, size, color, rainbow, glow, mirror }) {
 //   options  width, height: the size of the canvas in pixels
 //            pointer: { x, y, active } with x and y from 0 to 1 (the mouse), optional
 //            still: true to draw one frame and stop (for people who prefer less motion)
+//            scale: canvas pixels per CSS pixel, so the "Glyph size" setting means the same on every screen (default 1)
 //            settings: { matrixColor, rainbow, rainbowSpeed, speed, density, trail, size, glyphs, depth, glow, mouse }
 //              (see MATRIX_INFO in appearance.js). It is read on every frame, so a changed setting shows straight away.
 // Returns a function that stops it.
-export function startMatrix(canvas, { width, height, pointer, still = false, settings = {} }) {
+export function startMatrix(canvas, { width, height, pointer, still = false, scale = 1, settings = {} }) {
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d', { alpha: false });
@@ -119,14 +122,18 @@ export function startMatrix(canvas, { width, height, pointer, still = false, set
   // A new stream for one column: where its head is, how fast it falls and how long its trail is.
   function newStream(layer, spread) {
     const trail = setting('trail', 20);
-    const density = setting('density', 0.8);
+    const density = Math.min(1, Math.max(0.05, setting('density', 0.8) * LAYERS[layer.index].share));
     const length = Math.max(4, Math.round(trail * (0.6 + Math.random() * 0.8)));
+    const speed = (11 + Math.random() * 13) * LAYERS[layer.index].speed;
+    // "Density": after a stream, the column rests so that on average `density` of the time it is raining.
+    const crossing = (layer.rows + length) / speed; // seconds a stream takes to cross the screen
+    const rest = Math.random() * 2 * (1 / density - 1) * crossing;
     return {
       y: spread ? Math.random() * (layer.rows + length) - length : -length - Math.random() * 6,
-      speed: (11 + Math.random() * 13) * LAYERS[layer.index].speed,
+      speed,
       length,
-      // "Density": a column rests for a while before its next stream (a dense rain barely rests)
-      wait: spread ? 0 : (1 - density) * Math.random() * 7,
+      // (at the start, only a `density` share of the columns are already raining, the rest begin after a rest)
+      wait: spread ? (Math.random() < density ? 0 : rest) : rest,
     };
   }
 
@@ -134,7 +141,7 @@ export function startMatrix(canvas, { width, height, pointer, still = false, set
   function build(populate) {
     const glyphIndex = Math.min(GLYPH_SETS.length - 1, Math.max(0, Math.round(setting('glyphs', 0))));
     const glyphs = [...GLYPH_SETS[glyphIndex]];
-    const baseSize = Math.round(setting('size', 16));
+    const baseSize = Math.round(setting('size', 16) * scale);
     const depth = Math.min(3, Math.max(1, Math.round(setting('depth', 3))));
     const color = rgb(setting('matrixColor', '#00ff46'));
     const rainbow = !!setting('rainbow', false);
@@ -219,6 +226,9 @@ export function startMatrix(canvas, { width, height, pointer, still = false, set
             level = Math.max(0, Math.min(LEVELS - 1, Math.round(fade ** 1.4 * (LEVELS - 1))));
           }
 
+          // The very end of a back layer's trail is too faint to see: don't draw it.
+          if (level < (li === 0 ? 0 : 2) && !follow) continue;
+
           // The mouse lights up glyphs near it and makes them flicker.
           if (follow) {
             const dx = x + margin + size / 2 - mouse.x;
@@ -251,9 +261,13 @@ export function startMatrix(canvas, { width, height, pointer, still = false, set
   let last = performance.now();
   function tick(now) {
     handle = requestAnimationFrame(tick);
+    if (document.hidden) {
+      last = now; // paused while the tab is hidden (and no big jump when it comes back)
+      return;
+    }
+    if (now - last < FRAME_MS - 2) return; // too soon: wait for the next screen refresh
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    if (document.hidden) return; // paused while the tab is hidden
     clock += dt;
     frame(dt, clock);
   }
