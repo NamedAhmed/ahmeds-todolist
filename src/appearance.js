@@ -11,6 +11,7 @@
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { getState, saveSetting, useStore } from './store.js';
 import catalog from './wallpapers/catalog.json';
+import { DEFAULT_FIRE_COLOR, DEFAULT_FIRE_STYLE, FIRE_COLORS, FIRE_STYLES } from './fire.js';
 
 // Each theme: [id used in appearance.css, name shown in Settings].
 // ("ember" is the original look; it is shown as "Default".) A theme is more than colours: it also sets
@@ -128,12 +129,12 @@ export function usesPicture(wallpaperId) {
 }
 
 // (glass has no fixed default: see useAppearance. autoFix is "Auto" in Settings > Readability.)
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '' };
+const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR };
 export const MAX_DIM = 0.7;
 export const MAX_GLASS = 0.9;
 const SETTING_ID = 'appearance'; // the one record in the settings table that holds theme, wallpaper and dim
 
-// The current choices, as { theme, wallpaper, dim, glass, font, autoFix, textColor, look }.
+// The current choices, as { theme, wallpaper, dim, glass, font, autoFix, textColor, look, fireStyle, fireColor }.
 // Anything unknown (for example from a newer version of the app) falls back to the default.
 export function useAppearance() {
   const state = useStore();
@@ -163,7 +164,11 @@ export function useAppearance() {
     look[key] = Math.min(1, Math.max(0, Number.isNaN(saved) ? GLASS_LOOK[key] : saved));
   }
 
-  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look };
+  // The fire around a finished ring (see fire.js).
+  const fireStyle = FIRE_STYLES.some((item) => item.id === choices.fireStyle) ? choices.fireStyle : DEFAULTS.fireStyle;
+  const fireColor = FIRE_COLORS.some((item) => item.id === choices.fireColor) ? choices.fireColor : DEFAULTS.fireColor;
+
+  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look, fireStyle, fireColor };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).

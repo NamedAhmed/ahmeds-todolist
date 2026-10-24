@@ -126,15 +126,15 @@ input[type="number"] {
 }
 .fire-back,
 .fire-front {
-  transform-origin: 50% 60%;
+  transform-origin: 50% 50%; /* the middle of the ring, so the sway never lifts the fire off it */
   transform-box: view-box;
 }
 .fire-back {
-  fill: var(--flame);
+  fill: var(--fire-a, var(--flame));
   animation: lick 2.6s ease-in-out infinite;
 }
 .fire-front {
-  fill: var(--flame-core);
+  fill: var(--fire-b, var(--flame-core));
   animation: lick 1.9s ease-in-out infinite reverse;
 }
 @keyframes lick {
@@ -1875,4 +1875,89 @@ html[data-theme="liquid"] .slash-menu {
 }
 .col-notes {
   --strip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5'/%3E%3C/svg%3E");
+}
+
+
+/* ---- The Fire section of Settings, and the "Rainbow" colour ---- */
+.fire-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+.fire-style {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  border-radius: var(--r-md);
+  border: var(--bw) solid var(--line);
+  background: var(--field-bg);
+}
+.fire-style:hover {
+  border-color: var(--line-hi);
+}
+.fire-style.picked {
+  border-color: var(--accent);
+}
+.fire-style svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.fire-sample-back {
+  fill: var(--fire-a, var(--flame));
+}
+.fire-sample-front {
+  fill: var(--fire-b, var(--flame-core));
+}
+.fire-sample-ring {
+  fill: none;
+  stroke: var(--line-hi);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.fire-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.fire-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-hi);
+  background: var(--field-bg);
+  display: grid;
+  place-items: center;
+  transition: transform 0.1s ease;
+}
+.fire-swatch:hover {
+  transform: scale(1.1);
+}
+.fire-swatch.picked {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text);
+}
+.fire-swatch .mono {
+  font-size: 8px;
+  color: var(--muted);
+}
+/* Rainbow: the whole fire (and its samples) slowly turns through every colour. */
+.fire-rainbow .ring-fire,
+.fire-style.fire-rainbow svg,
+.fire-swatch.fire-rainbow {
+  animation: fire-hue 6s linear infinite;
+}
+@keyframes fire-hue {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fire-rainbow .ring-fire,
+  .fire-style.fire-rainbow svg,
+  .fire-swatch.fire-rainbow {
+    animation: none;
+  }
 }

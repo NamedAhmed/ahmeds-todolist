@@ -3,6 +3,7 @@
 //   Theme         colours, corner shapes, panel material and fonts, all at once
 //   Font          replaces the theme's fonts (or keep the theme's own)
 //   Glass look    (Liquid theme only) frost, vibrancy, shine, depth and corners
+//   Fire          the shape and colour of the flames around a finished ring
 //   Text          the text colour, and Auto / Dim / Glass for when text is hard to read over a busy background
 //   Background    one gallery: None, Liquid, Lively wallpapers, photos, and your own pictures and videos
 //   (settings)    the settings of the wallpaper you picked, appear right under the gallery
@@ -14,6 +15,7 @@ import Background from './Background.jsx';
 import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import WallpaperSettings from './WallpaperSettings.jsx';
+import { FIRE_COLORS, FIRE_STYLES, fireColorStyle, firePaths } from '../fire.js';
 import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
 
 
@@ -60,6 +62,27 @@ function FontChoice({ preset, picked }) {
 }
 
 
+// One fire style, drawn small, in the colours chosen now (or the theme's own).
+function FireStyleCard({ style, color, picked }) {
+  const paths = firePaths(style.id);
+  return (
+    <button
+      type="button"
+      className={'fire-style' + (picked ? ' picked' : '') + (color === 'rainbow' ? ' fire-rainbow' : '')}
+      style={fireColorStyle(color)}
+      aria-pressed={picked}
+      onClick={() => setAppearance({ fireStyle: style.id })}
+    >
+      <svg viewBox="0 -48 200 148" aria-hidden="true">
+        <path className="fire-sample-back" d={paths.back} />
+        <path className="fire-sample-front" d={paths.front} />
+        <path className="fire-sample-ring" d="M5 100A95 95 0 0 1 195 100" />
+      </svg>
+      <span className="tile-label">{style.label}</span>
+    </button>
+  );
+}
+
 // The sliders for the Liquid theme's glass: [setting, name].
 const GLASS_CONTROLS = [
   ['frost', 'Frost'],
@@ -77,7 +100,7 @@ const TEXT_COLORS = ['#ffffff', '#f3ead9', '#ffd9a0', '#bfe3ff', '#b8ffc8', '#11
 // THE TAB
 // ======================================================================
 export default function Look() {
-  const { theme, font, dim, glass, autoFix, textColor, look } = useAppearance();
+  const { theme, font, dim, glass, autoFix, textColor, look, fireStyle, fireColor } = useAppearance();
 
   // Fonts are downloaded when needed, so download them all now and every preview shows its own font.
   useEffect(() => {
@@ -126,6 +149,32 @@ export default function Look() {
           </p>
         </section>
       )}
+
+      <section>
+        <h3 className="mono">Fire</h3>
+        <div className="fire-row">
+          {FIRE_STYLES.map((style) => (
+            <FireStyleCard key={style.id} style={style} color={fireColor} picked={fireStyle === style.id} />
+          ))}
+        </div>
+        <div className="fire-colors" role="group" aria-label="Fire colour">
+          {FIRE_COLORS.map((color) => (
+            <button
+              key={color.id}
+              type="button"
+              className={'fire-swatch' + (fireColor === color.id ? ' picked' : '') + (color.id === 'rainbow' ? ' fire-rainbow' : '')}
+              style={color.a ? { background: `linear-gradient(135deg, ${color.a} 50%, ${color.b} 50%)` } : undefined}
+              title={color.label}
+              aria-label={color.label}
+              aria-pressed={fireColor === color.id}
+              onClick={() => setAppearance({ fireColor: color.id })}
+            >
+              {!color.a && <span className="mono">Theme</span>}
+            </button>
+          ))}
+        </div>
+        <p className="hint">The flames that rise around the big ring when every daily is done.</p>
+      </section>
 
       <section>
         <h3 className="mono">Text &amp; readability</h3>
