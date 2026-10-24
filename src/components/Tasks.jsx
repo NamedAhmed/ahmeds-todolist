@@ -856,6 +856,25 @@ function AddRow({ day, today }) {
 // One drag-and-drop area covers the calendar and the list, so a task can be
 // reordered in the list OR dropped on a calendar day (which changes its due date).
 
+function oneMonthFrom(today) {
+  const date = new Date(today + 'T00:00');
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + 1);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+  return ymd(date);
+}
+
+function matchesTaskFilter(task, filter, day, today) {
+  if (filter === 'today') return task.due === today;
+  if (filter === 'week') return !!task.due && task.due >= today && task.due <= addDays(today, 7);
+  if (filter === 'month') return !!task.due && task.due >= today && task.due <= oneMonthFrom(today);
+  if (filter === 'undated') return !task.due;
+  if (filter === 'date') return !task.due || task.due === day;
+  return true;
+}
+
 // Is this task overdue? (Not counted while you're looking at one specific day.)
 function isLate(task, day, today) {
   return !day && !!task.due && task.due < today;
@@ -863,9 +882,10 @@ function isLate(task, day, today) {
 
 // The unfinished tasks in the order they appear in the list:
 // overdue ones first, then the rest, each group in the user's own order.
-// When a day is selected, only that day's tasks (and ongoing ones, which have no date) are included.
-function openTasks(s, day, today) {
-  const tasks = all(s, 'tasks').filter((t) => !t.parent && !t.done && (!day || !t.due || t.due === day));
+function openTasks(s, day, today, filter = 'all') {
+  const tasks = all(s, 'tasks').filter(
+    (t) => !t.parent && !t.done && matchesTaskFilter(t, filter, day, today)
+  );
 
   tasks.sort((a, b) => {
     const lateDifference = Number(isLate(b, day, today)) - Number(isLate(a, day, today));
@@ -924,7 +944,7 @@ function TaskCard({ task }) {
 }
 
 // Wraps the calendar and the list (App.jsx puts them inside this).
-export function TaskDnd({ day, children }) {
+export function TaskDnd({ day, filter = 'all', children }) {
   const [active, setActive] = useState(null); // the id of the task being dragged, or null
 
   const sensors = useSensors(
@@ -946,7 +966,7 @@ export function TaskDnd({ day, children }) {
     }
 
     // Dropped on another row: reorder the list.
-    const open = openTasks(getState(), day, todayStr());
+    const open = openTasks(getState(), day, todayStr(), filter);
     const from = open.findIndex((t) => t.id === active.id);
     const to = open.findIndex((t) => t.id === over.id);
     if (from < 0 || to < 0) return;
@@ -976,8 +996,17 @@ export function TaskDnd({ day, children }) {
 // ======================================================================
 // One plain list: reminders that are due, then open tasks in your order,
 // then finished tasks tucked away behind "Show finished".
-// Props: today, day (the day picked on the calendar or null), setDay.
-export default function Tasks({ today, day, setDay }) {
+// Props: today, day (the selected calendar day or null), filter, setDay, setFilter.
+const FILTER_ORDER = ['today', 'week', 'month', 'undated', 'all'];
+const FILTER_LABELS = {
+  today: 'Today Only',
+  week: 'Next 7 Days',
+  month: 'Next Month',
+  undated: 'No Due Date',
+  all: 'All Tasks',
+};
+
+export default function Tasks({ today, day, filter, setDay, setFilter }) {
   const s = useStore();
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
@@ -990,30 +1019,48 @@ export default function Tasks({ today, day, setDay }) {
     [s.tasks]
   );
 
-  // Does a task belong to the selected day? (Everything does when no day is selected.)
-  function matches(task) {
-    return !day || task.due === day;
+  // Unfinished tasks.
+  const open = useMemo(() => openTasks(s, day, today, filter), [s.tasks, day, today, filter]);
+
+  function completedWithinFilter(task) {
+    if (!task.done_at || filter === 'all' || filter === 'undated') return false;
+    const completed = ymd(new Date(task.done_at));
+    if (filter === 'date') return completed === day;
+    if (filter === 'today') return completed === today;
+    if (filter === 'week') return completed >= today && completed <= addDays(today, 7);
+    if (filter === 'month') return completed >= today && completed <= oneMonthFrom(today);
+    return false;
   }
 
-  // Unfinished tasks.
-  const open = useMemo(() => openTasks(s, day, today), [s.tasks, day, today]);
-
-  // Finished tasks (newest first): the ones due on that day, or finished on that day.
+  // Finished tasks (newest first): those matching the filter, or completed in its date range.
   const done = top
-    .filter((t) => {
-      if (!t.done) return false;
-      if (matches(t)) return true;
-      return !!t.done_at && ymd(new Date(t.done_at)) === day;
-    })
+    .filter((t) => t.done && (matchesTaskFilter(t, filter, day, today) || completedWithinFilter(t)))
     .sort((a, b) => (b.done_at || 0) - (a.done_at || 0));
 
+  function reminderInRange(reminder, end) {
+    let date = today;
+    while (date <= end) {
+      if (date >= reminder.created && occursOn(reminder.rule, date) && !isDone(s, reminder.id, date)) return date;
+      date = addDays(date, 1);
+    }
+    return null;
+  }
+
   // Reminders to show: { reminder, date } pairs.
-  // With a day selected: reminders that happen on that day. Otherwise: each reminder's pending date.
   const reminders = all(s, 'reminders')
     .map((reminder) => {
-      let date;
-      if (day) date = occursOn(reminder.rule, day) && !isDone(s, reminder.id, day) ? day : null;
-      else date = pendingOccurrence(s, reminder, today);
+      let date = null;
+      if (filter === 'date' && day) {
+        date = occursOn(reminder.rule, day) && !isDone(s, reminder.id, day) ? day : null;
+      } else if (filter === 'today') {
+        date = occursOn(reminder.rule, today) && !isDone(s, reminder.id, today) ? today : null;
+      } else if (filter === 'week') {
+        date = reminderInRange(reminder, addDays(today, 7));
+      } else if (filter === 'month') {
+        date = reminderInRange(reminder, oneMonthFrom(today));
+      } else if (filter === 'all') {
+        date = pendingOccurrence(s, reminder, today);
+      }
       return { r: reminder, date };
     })
     .filter((item) => item.date);
@@ -1054,10 +1101,10 @@ export default function Tasks({ today, day, setDay }) {
   // ---- Move a row with Alt+arrows ----
   // The function must stay the same between re-draws, so it reads the current day/today from a ref.
   const view = useRef({});
-  view.current = { day, today };
+  view.current = { day, today, filter };
 
   const moveRow = useCallback((id, direction) => {
-    const list = openTasks(getState(), view.current.day, view.current.today);
+    const list = openTasks(getState(), view.current.day, view.current.today, view.current.filter);
     const from = list.findIndex((t) => t.id === id);
     const to = from + direction;
     if (from >= 0 && to >= 0 && to < list.length) reorder(list, from, to);
@@ -1073,22 +1120,25 @@ export default function Tasks({ today, day, setDay }) {
     return <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />;
   }
 
-  const finishedShown = showDone || !!day; // when a day is selected, finished tasks always show
-  const nothing = open.length === 0 && reminders.length === 0;
+  const finishedShown = showDone || filter !== 'all'; // filtered views show matching finished tasks
+  const nothing = open.length === 0 && reminders.length === 0 && done.length === 0;
 
   return (
     <section className="col col-tasks" aria-label="Tasks">
       <header className="col-head">
         <h1>Tasks</h1>
         <button
-          className={'day-toggle' + (day === today ? ' on' : '')}
-          aria-pressed={day === today}
-          aria-label="Today only"
-          title="Today only"
-          onClick={() => setDay(day === today ? null : today)}
+          className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
+          aria-pressed={filter !== 'all'}
+          aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}. Click to change.`}
+          title={`${filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]} · Click to change`}
+          onClick={() => {
+            const next = FILTER_ORDER.indexOf(filter) + 1;
+            setFilter(FILTER_ORDER[next % FILTER_ORDER.length]);
+          }}
         >
-          <Icon name="sun" size={16} />
-          Today only
+          <Icon name="sliders" size={16} />
+          {filter === 'date' && day ? `${shortDate(day)} only` : FILTER_LABELS[filter]}
         </button>
         {day && day !== today && (
           <button className="day-clear" onClick={() => setDay(null)} aria-label="Show all days" title="Show all days">
@@ -1146,14 +1196,14 @@ export default function Tasks({ today, day, setDay }) {
         {/* Nothing at all to show */}
         {nothing && (
           <li className="empty-row">
-            <p className="empty">{day ? empties.day : empties.tasks}</p>
+            <p className="empty">{filter === 'date' ? empties.day : empties[filter]}</p>
           </li>
         )}
 
         {/* 4. Finished tasks, tucked away behind a button */}
         {done.length > 0 && (
           <li className="done-head">
-            {day ? (
+            {filter !== 'all' ? (
               <span className="mono done-count">
                 <Icon name="task" size={14} /> {done.length}
               </span>
