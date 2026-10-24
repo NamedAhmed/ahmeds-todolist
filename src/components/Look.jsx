@@ -15,7 +15,8 @@ import Background from './Background.jsx';
 import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import WallpaperSettings from './WallpaperSettings.jsx';
-import { FIRE_COLORS, FIRE_STYLES, fireColorStyle, firePaths } from '../fire.js';
+import FireArt from './FireArt.jsx';
+import { FIRE_COLORS, FIRE_STYLES, fireColorStyle } from '../fire.js';
 import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
 
 
@@ -64,7 +65,6 @@ function FontChoice({ preset, picked }) {
 
 // One fire style, drawn small, in the colours chosen now (or the theme's own).
 function FireStyleCard({ style, color, picked }) {
-  const paths = firePaths(style.id);
   return (
     <button
       type="button"
@@ -74,8 +74,7 @@ function FireStyleCard({ style, color, picked }) {
       onClick={() => setAppearance({ fireStyle: style.id })}
     >
       <svg viewBox="0 -48 200 148" aria-hidden="true">
-        <path className="fire-sample-back" d={paths.back} />
-        <path className="fire-sample-front" d={paths.front} />
+        <FireArt style={style.id} still />
         <path className="fire-sample-ring" d="M5 100A95 95 0 0 1 195 100" />
       </svg>
       <span className="tile-label">{style.label}</span>

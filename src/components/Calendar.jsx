@@ -12,7 +12,8 @@
 //   Calendar      the whole column (this is what App.jsx uses)
 
 import Icon from './Icons.jsx';
-import { fireColorStyle, firePaths } from '../fire.js';
+import FireArt from './FireArt.jsx';
+import { fireColorStyle } from '../fire.js';
 import { useAppearance } from '../appearance.js';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -75,7 +76,6 @@ function BigRing({ s, date, today }) {
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
   const { fireStyle, fireColor } = useAppearance(); // the look of the flames (Settings > Look > Fire)
-  const fire = firePaths(fireStyle);
 
   // Ring sizes: they share the space, but never get thicker than 10.
   const band = 57 / Math.max(count, 3);
@@ -97,8 +97,7 @@ function BigRing({ s, date, today }) {
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <path className="fire-back" d={fire.back} />
-            <path className="fire-front" d={fire.front} />
+            <FireArt style={fireStyle} />
           </motion.svg>
         )}
       </AnimatePresence>
