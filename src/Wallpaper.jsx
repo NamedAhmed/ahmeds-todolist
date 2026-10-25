@@ -273,6 +273,7 @@ export default function Wallpaper() {
     }
 
     frameBox.current.style.setProperty('--dim', dimNow);
+    root.style.setProperty('--dim-soft', dimNow * 0.5); // the same Dim, at half strength, for selections, the add box and the daily circles
     root.style.setProperty('--glass', Math.ceil(strength * 100) + '%'); // rounded up, so Auto never falls just short
     root.style.setProperty('--glass-blur', Math.round(strength * 20) + 'px'); // more glass = a stronger blur too
   }, [showsSomething, lively, videoUrl, isLiquid, isMatrix, isGravity, glass, dim, autoFix, tones, theme, isLightTheme, textColor]);

@@ -186,19 +186,26 @@ export function useApplyTheme(theme) {
 }
 
 
-// Puts your text colour on the page. It replaces the theme's four text shades (normal, soft, muted, faint) with
-// the one colour at different strengths. '' removes it, so the theme's own colours show.
+// Puts your text colour on the page. It replaces the theme's text shades (normal, soft, muted, faint) with the one
+// colour at different strengths, and tints the lines, boxes and accents with it too, so the whole page follows it.
+// '' removes it, so the theme's own colours show.
+const TEXT_COLOR_MIXES = {
+  '--text-soft': 88, '--muted': 62, '--faint': 36,
+  '--line': 14, '--line-mid': 22, '--line-hi': 34, '--track': 10,
+};
 export function useApplyTextColor(color) {
   useLayoutEffect(() => {
     const style = document.documentElement.style;
+    const names = ['--text', '--accent', ...Object.keys(TEXT_COLOR_MIXES)];
     if (!color) {
-      for (const name of ['--text', '--text-soft', '--muted', '--faint']) style.removeProperty(name);
+      for (const name of names) style.removeProperty(name);
       return;
     }
     style.setProperty('--text', color);
-    style.setProperty('--text-soft', `color-mix(in srgb, ${color} 88%, transparent)`);
-    style.setProperty('--muted', `color-mix(in srgb, ${color} 62%, transparent)`);
-    style.setProperty('--faint', `color-mix(in srgb, ${color} 36%, transparent)`);
+    style.setProperty('--accent', color);
+    for (const [name, percent] of Object.entries(TEXT_COLOR_MIXES)) {
+      style.setProperty(name, `color-mix(in srgb, ${color} ${percent}%, transparent)`);
+    }
   }, [color]);
 }
 
