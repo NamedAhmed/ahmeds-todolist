@@ -21,9 +21,10 @@ import { SettingsSheet } from './components/Settings.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
 import { Resizer, useColumns } from './components/Columns.jsx';
+import { useSync } from './sync.js';
 import Wallpaper from './Wallpaper.jsx';
 
-// The three buttons in the bottom bar on a phone: [internal name, label shown].
+// The three views in the bottom bar on a phone: [internal name, label shown, icon]. (Settings is the fourth button there.)
 const TABS = [
   ['calendar', 'Calendar', 'calendar'],
   ['tasks', 'Tasks', 'list'],
@@ -95,6 +96,7 @@ export default function App() {
   useEffect(() => {
     ensureTaskCreatedDates();
   }, []);
+  const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
   const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | 'search' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
@@ -267,8 +269,9 @@ export default function App() {
             <Icon name={icon} size={22} />
           </button>
         ))}
-        <button onClick={doUndo} aria-label="Undo" title="Undo">
-          <Icon name="undo" size={22} />
+        <button className={'settings-tab' + (modal === 'settings' ? ' active' : '')} onClick={() => setModal('settings')} aria-label="Settings" title="Settings">
+          <Icon name="sliders" size={22} />
+          <i className={'sync-dot ' + sync.sync} />
         </button>
       </nav>
 
