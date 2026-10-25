@@ -5,6 +5,7 @@
 //     Each row is one item: (user_id, tbl, id, data, deleted, updated_at).
 //   - PUSH (upload): every item marked _dirty in store.js is sent to the table.
 //   - PULL (download): fetch rows that changed on the server since the last pull.
+//   - REALTIME: Supabase tells us when a row changes on another device, and we pull right away.
 //   - The server stamps `updated_at` itself, so your phone's clock and your laptop's clock
 //     never have to agree.
 //   - Signing in uses a one-time code or link emailed to you (no password).
@@ -150,9 +151,36 @@ export async function syncNow() {
 // SIGNING IN AND OUT
 // ======================================================================
 
+// ======================================================================
+// REALTIME: HEARING ABOUT CHANGES FROM OTHER DEVICES
+// ======================================================================
+// Supabase tells us when one of our rows changes. We don't use the row it sends: we just sync (a second or so
+// later, so a burst of changes becomes one sync). Our own uploads cause a message too; that sync finds nothing new.
+let channel = null;
+let realtimeTimer;
+
+function listen(userId) {
+  stopListening();
+  channel = supabase
+    .channel('records:' + userId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'records', filter: `user_id=eq.${userId}` }, () => {
+      clearTimeout(realtimeTimer);
+      realtimeTimer = setTimeout(syncNow, 300);
+    })
+    .subscribe();
+}
+
+function stopListening() {
+  clearTimeout(realtimeTimer);
+  if (channel) supabase.removeChannel(channel);
+  channel = null;
+}
+
+
 // Called when Supabase tells us who is signed in (or that nobody is).
 function onUser(user) {
   if (!user) {
+    stopListening();
     setStatus({ user: null, sync: 'signed-out' });
     return;
   }
@@ -171,6 +199,7 @@ function onUser(user) {
   localStorage.setItem(OWNER, user.id);
   keepStorage();
   setStatus({ user: { id: user.id, email: user.email } });
+  listen(user.id);
   syncNow();
 }
 
@@ -220,7 +249,8 @@ if (supabase) {
     timer = setTimeout(syncNow, 1500);
   });
 
-  // Also sync when you come back to the tab, when the internet returns, and once a minute.
+  // Also sync when you come back to the tab, when the internet returns, and once a minute (a safety net
+  // for the moments the realtime connection was down).
   window.addEventListener('focus', syncNow);
   window.addEventListener('online', syncNow);
   document.addEventListener('visibilitychange', () => {
