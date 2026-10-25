@@ -446,7 +446,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
   const s = useStore();
   const sync = useSync(); // are we signed in / syncing?
 
-  const [month, setMonth] = useState(false); // false = two weeks, true = whole month
+  const [month, setMonth] = useState(false); // false = two weeks, true = five weeks around today
 
   const shown = day ?? today;                              // the day the big ring shows
   const weeks = useMemo(() => calendarWeeks(today, month), [today, month]);
@@ -524,7 +524,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
           ))}
         </motion.div>
 
-        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show the whole month'} title={month ? 'Show two weeks' : 'Show the whole month'}>
+        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show five weeks'} title={month ? 'Show two weeks' : 'Show five weeks'}>
           <Icon name={month ? 'chevronUp' : 'chevronDown'} size={16} />
         </button>
       </div>

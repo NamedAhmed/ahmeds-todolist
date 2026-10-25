@@ -106,22 +106,12 @@ export function useToday() {
 }
 
 // The dates shown in the calendar, as a list of weeks. Each week is a list of 7 dates.
-// month = true  -> the whole current month
+// month = true  -> five weeks, this week in the middle (two weeks of past, two of future)
 // month = false -> just this week and next week
 export function calendarWeeks(today, month) {
-  const todayDate = toDate(today);
-  let start;      // the first date shown (always a Sunday)
-  let weekCount;  // how many rows of 7
-
-  if (month) {
-    const firstOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
-    const lastOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0);
-    start = addDays(ymd(firstOfMonth), -firstOfMonth.getDay()); // go back to the Sunday before
-    weekCount = Math.ceil((firstOfMonth.getDay() + lastOfMonth.getDate()) / 7);
-  } else {
-    start = addDays(today, -todayDate.getDay()); // this week's Sunday
-    weekCount = 2;
-  }
+  const thisSunday = addDays(today, -toDate(today).getDay());
+  const start = month ? addDays(thisSunday, -14) : thisSunday; // the first date shown (always a Sunday)
+  const weekCount = month ? 5 : 2;                             // how many rows of 7
 
   const weeks = [];
   for (let w = 0; w < weekCount; w++) {
