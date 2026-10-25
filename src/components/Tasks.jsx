@@ -25,10 +25,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { all, commit, getState, uid, useStore } from '../store.js';
+import { all, commit, getState, saveSetting, uid, useStore } from '../store.js';
 import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
-import { DailyStrip } from './Calendar.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
 import DatePicker from './DatePicker.jsx';
@@ -283,6 +282,17 @@ function DueButton({ due, today, done, onClick }) {
 // FINISHING, REOPENING AND DELETING TASKS
 // ======================================================================
 
+// How many tasks have ever been finished, kept in the synced `settings` table as { tasksCompleted }.
+// A finished task can be deleted later, so this is a running total rather than a count of what's in the list.
+const STATS_ID = 'stats';
+const TASK_MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+
+function bumpTasksCompleted(by) {
+  const total = Math.max(0, (getState().settings[STATS_ID]?.tasksCompleted || 0) + by);
+  saveSetting(STATS_ID, { tasksCompleted: total });
+  return total;
+}
+
 // Mark a task as done. The tiny delay (140ms) lets the tick animation start first.
 function finishTask(task) {
   const changes = [{ t: 'tasks', id: task.id, patch: { done: true, done_at: Date.now() } }];
@@ -297,6 +307,13 @@ function finishTask(task) {
   }
 
   setTimeout(() => smooth(() => commit('task finished', changes)), 140);
+
+  // Milestones beat the usual comment.
+  const total = bumpTasksCompleted(1);
+  if (TASK_MILESTONES.includes(total)) {
+    toast(quip('taskMilestone', total));
+    return;
+  }
 
   // A rude comment. Better ones for projects and for tasks that were very late.
   if (task.kind === 'project') {
@@ -313,6 +330,7 @@ function finishTask(task) {
 // Un-finish a task.
 function reopenTask(task) {
   smooth(() => commit('task reopened', [{ t: 'tasks', id: task.id, patch: { done: false, done_at: null } }]));
+  bumpTasksCompleted(-1); // it will be counted again when it is finished again
   sass('reopened', [], { chance: 0.5 });
 }
 
@@ -1052,6 +1070,23 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
 
+  // A task picked in the search (see App.jsx): show it (finished tasks too), scroll to it, focus it and flash it.
+  useEffect(() => {
+    function reveal(event) {
+      if (getState().tasks[event.detail]?.done) setShowDone(true);
+      setTimeout(() => {
+        const row = document.querySelector(`[data-task="${event.detail}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: 'center' });
+        row.focus({ preventScroll: true });
+        row.classList.add('found');
+        setTimeout(() => row.classList.remove('found'), 1500);
+      }, 60);
+    }
+    window.addEventListener('todolist:reveal-task', reveal);
+    return () => window.removeEventListener('todolist:reveal-task', reveal);
+  }, []);
+
   // ---- Work out what to show ----
 
   // Every top-level task (steps excluded), in the user's order.
@@ -1206,8 +1241,6 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
 
       {/* The rude headline */}
       <p className="voice">{line}</p>
-
-      <DailyStrip today={today} />
 
       <AddRow day={day} today={today} />
 

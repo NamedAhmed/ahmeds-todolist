@@ -1443,3 +1443,14 @@ html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-lis
   -webkit-backdrop-filter: blur(22px) saturate(1.2);
   backdrop-filter: blur(22px) saturate(1.2);
 }
+
+
+/* ---- The Dim slider also softens the accents, at half strength (--dim-soft is set in Wallpaper.jsx) ---- */
+::selection {
+  background: color-mix(in srgb, var(--accent) calc(40% * (1 - var(--dim-soft, 0))), transparent);
+}
+.task-form,
+.daily-check,
+.big-ring > svg:not(.ring-fire) {
+  opacity: calc(1 - var(--dim-soft, 0));
+}

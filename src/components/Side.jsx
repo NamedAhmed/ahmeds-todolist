@@ -8,7 +8,7 @@
 //   body      the same content as plain text, kept so older copies of the app can still show it
 //   position  where the note is in the list (you drag notes to change it)
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -146,6 +146,15 @@ export function Notes() {
   const [activeId, setActiveId] = useState(null);
   const active = notes.find((note) => note.id === activeId) ?? notes[0];
   const [dragId, setDragId] = useState(null); // the note being dragged, or null
+
+  // A note picked in the search (see App.jsx).
+  useEffect(() => {
+    function open(event) {
+      setActiveId(event.detail);
+    }
+    window.addEventListener('todolist:open-note', open);
+    return () => window.removeEventListener('todolist:open-note', open);
+  }, []);
   const dragged = notes.find((note) => note.id === dragId);
 
   // Drag to reorder: press and move a little (4px) and the note lifts; a plain click still selects it.

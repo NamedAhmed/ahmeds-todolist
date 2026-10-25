@@ -8,7 +8,6 @@
 //   useMarks      works out which days get a dot
 //   DailyRow      one row in the dailies list
 //   AddDaily      the "Add a daily…" box
-//   DailyStrip    the phone-only strip of dailies above the task list
 //   Calendar      the whole column (this is what App.jsx uses)
 
 import Icon from './Icons.jsx';
@@ -31,7 +30,10 @@ const MILESTONES = [3, 7, 14, 21, 30, 50, 100, 200, 365];
 // TICKING A DAILY
 // ======================================================================
 // Tick or untick a daily for a date. Only the big moments get a comment.
+// Past days are locked: no rewriting history.
 export function toggleDaily(daily, date, today) {
+  if (date < today) return;
+
   // Each tick is saved as a "completion" with a key like "dailyId:2026-10-18".
   const key = doneKey(daily.id, date);
 
@@ -47,7 +49,7 @@ export function toggleDaily(daily, date, today) {
     { t: 'completions', id: key, set: { id: key, ref: daily.id, date, kind: 'daily' } },
   ]);
 
-  // Only comment when ticking TODAY (not when fixing up a past day).
+  // Only comment when ticking TODAY (future days get no fanfare).
   if (date !== today) return;
 
   const state = getState();
@@ -118,7 +120,7 @@ function BigRing({ s, date, today }) {
             <g key={daily.id} transform="rotate(-90 100 100)">
               {/* The grey track. It is also the clickable area. */}
               <circle
-                className="track hit"
+                className={'track hit' + (date < today ? ' locked' : '')}
                 cx="100"
                 cy="100"
                 r={radius}
@@ -367,6 +369,7 @@ function DailyRow({ s, daily, date, today, onEdit }) {
         style={{ '--c': daily.color }}
         aria-pressed={isOn}
         aria-label={daily.name}
+        disabled={date < today}
         onClick={() => toggleDaily(daily, date, today)}
       />
       {/* Clicking the name opens the editor (rename and change colour). */}
@@ -431,34 +434,6 @@ function AddDaily({ s, today }) {
 
 
 // ======================================================================
-// PHONE-ONLY STRIP OF DAILIES
-// ======================================================================
-// On phones: a slim row of dailies above the task list, so the whole daily routine fits one screen.
-export function DailyStrip({ today }) {
-  const s = useStore();
-  const dailies = dailiesOn(s, today);
-  if (dailies.length === 0) return null; // nothing to show
-
-  return (
-    <div className="daily-strip">
-      {dailies.map((daily) => (
-        <button
-          key={daily.id}
-          className={'strip-pill' + (isDone(s, daily.id, today) ? ' on' : '')}
-          style={{ '--c': daily.color }}
-          onClick={() => toggleDaily(daily, today, today)}
-        >
-          <i />
-          {daily.name}
-          <Flame streak={streakOf(s, daily.id, today)} size={11} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-
-// ======================================================================
 // THE WHOLE CALENDAR COLUMN
 // ======================================================================
 // Props (the inputs App.jsx gives it):
@@ -471,7 +446,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
   const s = useStore();
   const sync = useSync(); // are we signed in / syncing?
 
-  const [month, setMonth] = useState(false); // false = two weeks, true = whole month
+  const [month, setMonth] = useState(false); // false = two weeks, true = five weeks around today
 
   const shown = day ?? today;                              // the day the big ring shows
   const weeks = useMemo(() => calendarWeeks(today, month), [today, month]);
@@ -549,7 +524,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
           ))}
         </motion.div>
 
-        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show the whole month'} title={month ? 'Show two weeks' : 'Show the whole month'}>
+        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show five weeks'} title={month ? 'Show two weeks' : 'Show five weeks'}>
           <Icon name={month ? 'chevronUp' : 'chevronDown'} size={16} />
         </button>
       </div>
@@ -577,6 +552,9 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
         <button className="btn-ghost" onClick={() => open('reminders')} aria-label="Reminders" title="Reminders">
           <Icon name="repeat" size={16} />
           Reminders
+        </button>
+        <button className="btn-ghost" onClick={() => open('search')} aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">
+          <Icon name="search" size={16} />
         </button>
         <button className="btn-ghost shortcuts" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onClick={() => open('keys')}>
           <Icon name="help" size={16} />

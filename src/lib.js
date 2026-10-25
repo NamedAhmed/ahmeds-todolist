@@ -106,22 +106,12 @@ export function useToday() {
 }
 
 // The dates shown in the calendar, as a list of weeks. Each week is a list of 7 dates.
-// month = true  -> the whole current month
+// month = true  -> five weeks, this week in the middle (two weeks of past, two of future)
 // month = false -> just this week and next week
 export function calendarWeeks(today, month) {
-  const todayDate = toDate(today);
-  let start;      // the first date shown (always a Sunday)
-  let weekCount;  // how many rows of 7
-
-  if (month) {
-    const firstOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
-    const lastOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0);
-    start = addDays(ymd(firstOfMonth), -firstOfMonth.getDay()); // go back to the Sunday before
-    weekCount = Math.ceil((firstOfMonth.getDay() + lastOfMonth.getDate()) / 7);
-  } else {
-    start = addDays(today, -todayDate.getDay()); // this week's Sunday
-    weekCount = 2;
-  }
+  const thisSunday = addDays(today, -toDate(today).getDay());
+  const start = month ? addDays(thisSunday, -14) : thisSunday; // the first date shown (always a Sunday)
+  const weekCount = month ? 5 : 2;                             // how many rows of 7
 
   const weeks = [];
   for (let w = 0; w < weekCount; w++) {
@@ -476,6 +466,7 @@ export const quips = {
   reminderAdded: ["Added. The nagging is now automated.", "A reminder. Your memory sends its regards. It quit."],
   // finishing
   taskDone: ["Took you long enough.", "Done! Frame it.", "You impress even me with your diligence, and I'm not even real.", "Finished. The bar was on the floor and you cleared it.", "Done. Don't let it go to your head. It's one task.", "One down. Imagine doing this on purpose.", "Done. I'd clap, but I'm text."],
+  taskMilestone: [(n) => `${n} tasks finished. Statistically, that's a personality.`, (n) => `${n} tasks done. I'd call it a habit, but let's not get ahead of ourselves.`, (n) => `That's ${n} finished tasks. Somebody call a historian.`, (n) => `${n} tasks. Proof you can do things when cornered.`],
   taskDoneLate: [(n) => `Finished. Only ${n} days after it mattered.`, (n) => `Done, ${n} days late. The task has been through things.`, (n) => `Finally. ${n} days. We were about to send a search party.`, (n) => `${n} days late. Great pacing. Truly.`, (n) => `Done ${n} days late. The deadline missed you too.`],
   stepDone: ["Step done. Tiny, but it counts. Barely.", "A step! Keep going, or don't, I'm not your mum."],
   projectDone: ["A whole project, finished. By you. Somebody check the logs.", "Project done. Took you long enough.", "Project complete. Don't start three new ones to celebrate.", "Done. A whole project. Who are you and what did you do with the real you?"],
