@@ -1,15 +1,16 @@
 // appearance.js = the look of the app: the theme, the animated wallpaper, and the background picture.
 //
-//   - theme, wallpaper, dim and each wallpaper's settings are saved with saveSetting() (store.js),
+//   - theme, wallpaper, picture, dim and each wallpaper's settings are saved with saveSetting() (store.js),
 //     so they sync between your devices.
 //   - the pictures and videos you add are too big to sync. They live in this browser only, in
-//     IndexedDB (a small database inside the browser). Which picture is chosen is kept in localStorage.
+//     IndexedDB (a small database inside the browser). Which picture is chosen syncs like the other choices.
 //
 // The wallpapers are Lively Wallpaper web pages, copied into public/lively/ by scripts/import-lively.mjs.
 // Their list is src/wallpapers/catalog.json. The colours of each theme live in appearance.css.
 
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import { getState, saveSetting, useStore } from './store.js';
+import { getState, saveSetting, subscribe, useStore } from './store.js';
+import { onSynced } from './sync.js';
 import catalog from './wallpapers/catalog.json';
 import { DEFAULT_FIRE_COLOR, DEFAULT_FIRE_COVERAGE, DEFAULT_FIRE_STYLE, FIRE_COLORS, FIRE_COVERAGES, FIRE_STYLES } from './fire.js';
 
@@ -548,16 +549,13 @@ export function pickWallpaper(id) {
 //   'none'            no picture
 //   'photo:misty-mountain'   one of the built-in photos (see wallpapers/pictures.js)
 //   'upload:<id>'     a picture you added
-const PICTURE_KEY = 'todolist:picture';
+const PICTURE_KEY = 'todolist:picture'; // where the choice was kept before it synced (still read, until a choice is saved)
 export const NO_PICTURE = 'none';
 
-const pictureListeners = new Set();
-function subscribeToPicture(listener) {
-  pictureListeners.add(listener);
-  return () => pictureListeners.delete(listener);
-}
-
+// The choice is part of the synced `appearance` setting, so every device shows the same picture.
 function getPictureId() {
+  const saved = getState().settings[SETTING_ID];
+  if (saved && !saved._deleted && typeof saved.picture === 'string') return saved.picture;
   try {
     return localStorage.getItem(PICTURE_KEY) || NO_PICTURE;
   } catch {
@@ -567,16 +565,11 @@ function getPictureId() {
 
 // The id of the chosen picture. Re-draws the component when it changes.
 export function usePictureId() {
-  return useSyncExternalStore(subscribeToPicture, getPictureId);
+  return useSyncExternalStore(subscribe, getPictureId);
 }
 
 export function setPictureId(id) {
-  try {
-    localStorage.setItem(PICTURE_KEY, id);
-  } catch {
-    // storage unavailable: the choice just won't be remembered
-  }
-  pictureListeners.forEach((listener) => listener());
+  setAppearance({ picture: id });
 }
 
 // Turn a picture or video id into an address the browser can show (a blob: URL). Cached, so each
@@ -584,7 +577,13 @@ export function setPictureId(id) {
 const urlCache = new Map();
 export function resolveMediaUrl(id) {
   if (!id || id === NO_PICTURE) return Promise.resolve(null);
-  if (!urlCache.has(id)) urlCache.set(id, makeUrl(id));
+  if (!urlCache.has(id)) {
+    // (a picture that isn't here yet may arrive from another device, so "not found" is not remembered)
+    urlCache.set(id, makeUrl(id).then((url) => {
+      if (!url) urlCache.delete(id);
+      return url;
+    }));
+  }
   return urlCache.get(id);
 }
 
@@ -603,6 +602,12 @@ async function makeUrl(id) {
 // Hook: the address for a picture or video id, or null while it's being prepared (or for 'none').
 export function useMediaUrl(id) {
   const [url, setUrl] = useState(null);
+  const [arrivals, setArrivals] = useState(0); // goes up when pictures are added, deleted or arrive from another device
+  useEffect(() => {
+    const bump = () => setArrivals((count) => count + 1);
+    uploadListeners.add(bump);
+    return () => uploadListeners.delete(bump);
+  }, []);
   useEffect(() => {
     let current = true;
     resolveMediaUrl(id).then((result) => {
@@ -611,7 +616,7 @@ export function useMediaUrl(id) {
     return () => {
       current = false;
     };
-  }, [id]);
+  }, [id, arrivals]);
   return url;
 }
 
@@ -672,6 +677,7 @@ export async function addPictures(files) {
     try {
       const id = crypto.randomUUID();
       await dbPut({ id, name: file.name, kind: 'image', blob: await shrink(file), added: Date.now() });
+      saveSetting(uploadSettingId(id), { name: file.name }); // the next sync uploads the picture itself
       lastId = id;
     } catch {
       problems.push(`Could not add ${file.name}.`);
@@ -724,6 +730,7 @@ export async function addMedia(files) {
 // Delete a picture ('upload:<id>') or a video ('video:<id>'), and stop using it if it was chosen.
 export async function deleteMedia(fullId) {
   await dbDelete(fullId.slice(fullId.indexOf(':') + 1));
+  if (fullId.startsWith('upload:')) saveSetting(uploadSettingId(fullId.slice('upload:'.length)), { removed: true }); // other devices drop it too
   const url = await urlCache.get(fullId);
   if (url) URL.revokeObjectURL(url); // (frees the memory of the copy shown on screen)
   urlCache.delete(fullId);
@@ -755,3 +762,64 @@ export function useUploads() {
   }, []);
   return list;
 }
+
+
+// ======================================================================
+// SYNCING THE PICTURES YOU ADD
+// ======================================================================
+// The pictures are small (shrunk to 1920px JPEGs), so they sync through a private Supabase Storage bucket,
+// one file per picture at <your user id>/<picture id>.jpg. Videos are too big and stay on the device they were added on.
+// Which pictures exist (and their names) is kept in the synced settings table, one record per picture:
+// { name } while it exists, { removed: true } once deleted, so a device that still has a copy knows to drop it.
+const BUCKET = 'wallpapers';
+const UPLOAD_PREFIX = 'upload-';
+const uploadSettingId = (id) => UPLOAD_PREFIX + id;
+
+let syncingPictures = false;
+async function syncPictures(supabase, user) {
+  if (syncingPictures) return;
+  syncingPictures = true;
+  try {
+    const bucket = supabase.storage.from(BUCKET);
+    const { data: files, error } = await bucket.list(user.id, { limit: 1000 });
+    if (error) throw error;
+    const remote = new Set(files.map((file) => file.name.replace(/\.jpg$/, '')));
+
+    const known = Object.entries(getState().settings)
+      .filter(([key, record]) => key.startsWith(UPLOAD_PREFIX) && record && !record._deleted)
+      .map(([key, record]) => ({ id: key.slice(UPLOAD_PREFIX.length), ...record }));
+    const local = new Map((await dbAll()).filter((record) => record.kind !== 'video').map((record) => [record.id, record]));
+    let changed = false;
+
+    for (const entry of known) {
+      if (entry.removed) {
+        if (local.has(entry.id)) {
+          await deleteMedia('upload:' + entry.id); // also stops using it if it was the chosen one
+          changed = true;
+        }
+        if (remote.has(entry.id)) await bucket.remove([`${user.id}/${entry.id}.jpg`]);
+      } else if (!local.has(entry.id) && remote.has(entry.id)) {
+        const { data: blob, error: downloadError } = await bucket.download(`${user.id}/${entry.id}.jpg`);
+        if (downloadError) continue;
+        await dbPut({ id: entry.id, name: entry.name || 'Picture', kind: 'image', blob, added: Date.now() });
+        changed = true;
+      }
+    }
+
+    // Pictures that are only on this device: record them, and upload the ones the bucket doesn't have yet.
+    const knownIds = new Set(known.map((entry) => entry.id));
+    for (const record of local.values()) {
+      if (!knownIds.has(record.id)) saveSetting(uploadSettingId(record.id), { name: record.name });
+      else if (known.find((entry) => entry.id === record.id)?.removed) continue;
+      if (!remote.has(record.id)) {
+        await bucket.upload(`${user.id}/${record.id}.jpg`, record.blob, { contentType: 'image/jpeg', upsert: true });
+      }
+    }
+
+    if (changed) uploadListeners.forEach((listener) => listener());
+  } finally {
+    syncingPictures = false;
+  }
+}
+
+onSynced(syncPictures);
