@@ -25,7 +25,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { all, commit, getState, uid, useStore } from '../store.js';
+import { all, commit, getState, saveSetting, uid, useStore } from '../store.js';
 import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import DragLayer from './DragLayer.jsx';
@@ -282,6 +282,17 @@ function DueButton({ due, today, done, onClick }) {
 // FINISHING, REOPENING AND DELETING TASKS
 // ======================================================================
 
+// How many tasks have ever been finished, kept in the synced `settings` table as { tasksCompleted }.
+// A finished task can be deleted later, so this is a running total rather than a count of what's in the list.
+const STATS_ID = 'stats';
+const TASK_MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+
+function bumpTasksCompleted(by) {
+  const total = Math.max(0, (getState().settings[STATS_ID]?.tasksCompleted || 0) + by);
+  saveSetting(STATS_ID, { tasksCompleted: total });
+  return total;
+}
+
 // Mark a task as done. The tiny delay (140ms) lets the tick animation start first.
 function finishTask(task) {
   const changes = [{ t: 'tasks', id: task.id, patch: { done: true, done_at: Date.now() } }];
@@ -296,6 +307,13 @@ function finishTask(task) {
   }
 
   setTimeout(() => smooth(() => commit('task finished', changes)), 140);
+
+  // Milestones beat the usual comment.
+  const total = bumpTasksCompleted(1);
+  if (TASK_MILESTONES.includes(total)) {
+    toast(quip('taskMilestone', total));
+    return;
+  }
 
   // A rude comment. Better ones for projects and for tasks that were very late.
   if (task.kind === 'project') {
@@ -312,6 +330,7 @@ function finishTask(task) {
 // Un-finish a task.
 function reopenTask(task) {
   smooth(() => commit('task reopened', [{ t: 'tasks', id: task.id, patch: { done: false, done_at: null } }]));
+  bumpTasksCompleted(-1); // it will be counted again when it is finished again
   sass('reopened', [], { chance: 0.5 });
 }
 

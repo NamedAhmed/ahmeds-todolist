@@ -466,6 +466,7 @@ export const quips = {
   reminderAdded: ["Added. The nagging is now automated.", "A reminder. Your memory sends its regards. It quit."],
   // finishing
   taskDone: ["Took you long enough.", "Done! Frame it.", "You impress even me with your diligence, and I'm not even real.", "Finished. The bar was on the floor and you cleared it.", "Done. Don't let it go to your head. It's one task.", "One down. Imagine doing this on purpose.", "Done. I'd clap, but I'm text."],
+  taskMilestone: [(n) => `${n} tasks finished. Statistically, that's a personality.`, (n) => `${n} tasks done. I'd call it a habit, but let's not get ahead of ourselves.`, (n) => `That's ${n} finished tasks. Somebody call a historian.`, (n) => `${n} tasks. Proof you can do things when cornered.`],
   taskDoneLate: [(n) => `Finished. Only ${n} days after it mattered.`, (n) => `Done, ${n} days late. The task has been through things.`, (n) => `Finally. ${n} days. We were about to send a search party.`, (n) => `${n} days late. Great pacing. Truly.`, (n) => `Done ${n} days late. The deadline missed you too.`],
   stepDone: ["Step done. Tiny, but it counts. Barely.", "A step! Keep going, or don't, I'm not your mum."],
   projectDone: ["A whole project, finished. By you. Somebody check the logs.", "Project done. Took you long enough.", "Project complete. Don't start three new ones to celebrate.", "Done. A whole project. Who are you and what did you do with the real you?"],
