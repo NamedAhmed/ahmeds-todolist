@@ -80,6 +80,13 @@ function cursorKey(userId) {
 let busy = false;  // is a sync running right now?
 let again = false; // did someone ask to sync while one was already running?
 
+// Other files can ask to be run after each good sync (appearance.js uses it to sync your pictures).
+// Each gets (supabase, user) and may return a promise; its errors never break the sync.
+const afterSync = new Set();
+export function onSynced(task) {
+  afterSync.add(task);
+}
+
 // Upload local changes, then download remote changes.
 export async function syncNow() {
   const user = status.user;
@@ -134,6 +141,7 @@ export async function syncNow() {
     }
 
     setStatus({ sync: 'synced' });
+    for (const task of afterSync) Promise.resolve(task(supabase, user)).catch(() => {});
   } catch (error) {
     setStatus({ sync: 'error', error: error.message || String(error) });
   } finally {
