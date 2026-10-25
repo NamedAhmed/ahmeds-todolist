@@ -84,6 +84,10 @@ input[type="number"] {
 .track.hit:hover {
   stroke: var(--line-mid);
 }
+.track.hit.locked {
+  cursor: default;
+  pointer-events: none;
+}
 .ring-center .mono {
   padding: 2px 9px;
   border-radius: var(--r-pill);
@@ -277,6 +281,10 @@ input[type="number"] {
 }
 .daily-check:active {
   transform: scale(0.8);
+}
+.daily-check:disabled {
+  cursor: default;
+  transform: none;
 }
 .daily.on .daily-check {
   background: var(--c);
@@ -916,11 +924,6 @@ button.due:hover {
   border-color: var(--line-hi);
 }
 
-/* phones only */
-.daily-strip {
-  display: none;
-}
-
 /* ---------- notes ---------- */
 .col-notes {
   gap: 0;
@@ -1157,45 +1160,6 @@ select.field {
     display: none;
   }
 
-  .daily-strip {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    margin: 0 -20px;
-    padding: 2px 20px;
-    scrollbar-width: none;
-  }
-  .strip-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    height: 34px;
-    padding: 0 12px;
-    border-radius: var(--r-pill);
-    border: var(--bw) solid var(--line);
-    font-size: 13px;
-    color: var(--muted);
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition:
-      border-color 0.2s ease,
-      color 0.2s ease;
-  }
-  .strip-pill i {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--c);
-    transition: background-color 0.2s ease;
-  }
-  .strip-pill.on {
-    border-color: var(--c);
-    color: var(--text);
-  }
-  .strip-pill.on i {
-    background: var(--c);
-  }
-
   .tabbar {
     display: flex;
     position: fixed;
@@ -1286,8 +1250,7 @@ textarea:focus-visible,
 .done-head {
   animation: row-in 0.12s var(--ease) backwards;
 }
-.day,
-.strip-pill {
+.day {
   transition-property: opacity, transform, background-color, border-color, color;
   transition-duration: 0.3s;
 }

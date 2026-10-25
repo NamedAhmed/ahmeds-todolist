@@ -28,7 +28,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
-import { DailyStrip } from './Calendar.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
 import DatePicker from './DatePicker.jsx';
@@ -1206,8 +1205,6 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
 
       {/* The rude headline */}
       <p className="voice">{line}</p>
-
-      <DailyStrip today={today} />
 
       <AddRow day={day} today={today} />
 
