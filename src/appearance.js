@@ -1,15 +1,15 @@
 // appearance.js = the look of the app: the theme, the animated wallpaper, and the background picture.
 //
-//   - theme, wallpaper, dim and each wallpaper's settings are saved with saveSetting() (store.js),
+//   - theme, wallpaper, picture, dim and each wallpaper's settings are saved with saveSetting() (store.js),
 //     so they sync between your devices.
 //   - the pictures and videos you add are too big to sync. They live in this browser only, in
-//     IndexedDB (a small database inside the browser). Which picture is chosen is kept in localStorage.
+//     IndexedDB (a small database inside the browser). Which picture is chosen syncs like the other choices.
 //
 // The wallpapers are Lively Wallpaper web pages, copied into public/lively/ by scripts/import-lively.mjs.
 // Their list is src/wallpapers/catalog.json. The colours of each theme live in appearance.css.
 
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import { getState, saveSetting, useStore } from './store.js';
+import { getState, saveSetting, subscribe, useStore } from './store.js';
 import catalog from './wallpapers/catalog.json';
 import { DEFAULT_FIRE_COLOR, DEFAULT_FIRE_COVERAGE, DEFAULT_FIRE_STYLE, FIRE_COLORS, FIRE_COVERAGES, FIRE_STYLES } from './fire.js';
 
@@ -548,16 +548,13 @@ export function pickWallpaper(id) {
 //   'none'            no picture
 //   'photo:misty-mountain'   one of the built-in photos (see wallpapers/pictures.js)
 //   'upload:<id>'     a picture you added
-const PICTURE_KEY = 'todolist:picture';
+const PICTURE_KEY = 'todolist:picture'; // where the choice was kept before it synced (still read, until a choice is saved)
 export const NO_PICTURE = 'none';
 
-const pictureListeners = new Set();
-function subscribeToPicture(listener) {
-  pictureListeners.add(listener);
-  return () => pictureListeners.delete(listener);
-}
-
+// The choice is part of the synced `appearance` setting, so every device shows the same picture.
 function getPictureId() {
+  const saved = getState().settings[SETTING_ID];
+  if (saved && !saved._deleted && typeof saved.picture === 'string') return saved.picture;
   try {
     return localStorage.getItem(PICTURE_KEY) || NO_PICTURE;
   } catch {
@@ -567,16 +564,11 @@ function getPictureId() {
 
 // The id of the chosen picture. Re-draws the component when it changes.
 export function usePictureId() {
-  return useSyncExternalStore(subscribeToPicture, getPictureId);
+  return useSyncExternalStore(subscribe, getPictureId);
 }
 
 export function setPictureId(id) {
-  try {
-    localStorage.setItem(PICTURE_KEY, id);
-  } catch {
-    // storage unavailable: the choice just won't be remembered
-  }
-  pictureListeners.forEach((listener) => listener());
+  setAppearance({ picture: id });
 }
 
 // Turn a picture or video id into an address the browser can show (a blob: URL). Cached, so each
