@@ -13,6 +13,7 @@ import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import WallpaperSettings from './WallpaperSettings.jsx';
 import FireArt from './FireArt.jsx';
+import { testCase } from '../cases.js';
 import { FIRE_COLORS, FIRE_COVERAGES, FIRE_STYLES, fireColorStyle } from '../fire.js';
 import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetAppearance, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
 
@@ -287,6 +288,18 @@ export function GeneralTab() {
           <span className="auto-note">calmer, shorter animations in the app (your device's own setting is always respected)</span>
         </label>
       </section>
+
+      {/* Only on a copy running on this computer (npm run dev), never on the deployed site. */}
+      {import.meta.env.DEV && (
+        <section>
+          <h3 className="mono">Test (local only)</h3>
+          <div className="seg-row">
+            <button type="button" className="btn-ghost" onClick={testCase}>
+              Open a test case
+            </button>
+          </div>
+        </section>
+      )}
 
       <section>
         <h3 className="mono">Reset</h3>

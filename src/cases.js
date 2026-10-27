@@ -17,27 +17,35 @@ export const RARITIES = [
   { id: 'rare', name: 'Rare Special', color: '#ffd700', chance: 0.26 },
 ];
 
-// Every item: [rarity, name].
+// Every item: [rarity, weapon, skin, art]. `art` picks the picture drawn for it (see Weapon in CaseOpening.jsx).
 const ITEM_LIST = [
-  ['milspec', 'Sticky Note | Faded'],
-  ['milspec', 'Pencil Stub | Worn'],
-  ['milspec', 'Lukewarm Coffee | Field-Tested'],
-  ['milspec', 'Dog-Eared Page | Minimal Wear'],
-  ['milspec', 'Paperclip | Bent'],
-  ['milspec', 'Eraser Crumbs | Battle-Scarred'],
-  ['restricted', 'Highlighter | Neon'],
-  ['restricted', 'Mechanical Keyboard | Clacky'],
-  ['restricted', 'Desk Plant | Overwatered'],
-  ['restricted', 'Stapler | Jammed'],
-  ['classified', 'Planner | Color-Coded'],
-  ['classified', 'Headphones | Deep Focus'],
-  ['covert', 'Inbox Zero | Factory New'],
-  ['covert', 'Flow State | StatTrak™'],
-  ['rare', '★ Procrastination Knife | Fade'],
-  ['rare', '★ Gloves | Productivity'],
+  ['milspec', 'P250', 'Sand Dune', 'pistol'],
+  ['milspec', 'Five-SeveN', 'Forest Night', 'pistol'],
+  ['milspec', 'MP9', 'Hot Rod', 'smg'],
+  ['milspec', 'SG 553', 'Army Sheen', 'rifle'],
+  ['milspec', 'MAC-10', 'Heat', 'smg'],
+  ['restricted', 'AK-47', 'Redline', 'rifle'],
+  ['restricted', 'Glock-18', 'Water Elemental', 'pistol'],
+  ['restricted', 'Desert Eagle', 'Blaze', 'pistol'],
+  ['restricted', 'P90', 'Asiimov', 'smg'],
+  ['classified', 'AWP', 'Asiimov', 'sniper'],
+  ['classified', 'M4A4', 'Neo-Noir', 'rifle'],
+  ['covert', 'AK-47', 'Fire Serpent', 'rifle'],
+  ['covert', 'AWP', 'Dragon Lore', 'sniper'],
+  ['rare', '★ Karambit', 'Doppler', 'karambit'],
+  ['rare', '★ Butterfly Knife', 'Fade', 'bayonet'],
+  ['rare', '★ Bayonet', 'Crimson Web', 'bayonet'],
 ];
 
-export const ITEMS = ITEM_LIST.map(([rarity, name], index) => ({ ...RARITIES.find((r) => r.id === rarity), id: `i${index}`, rarity, name }));
+export const ITEMS = ITEM_LIST.map(([rarity, weapon, skin, art], index) => ({
+  ...RARITIES.find((r) => r.id === rarity),
+  id: `i${index}`,
+  rarity,
+  weapon,
+  skin,
+  art,
+  name: `${weapon} | ${skin}`,
+}));
 
 // Pick a random item, rarity first (by the odds), then an item of that rarity.
 export function rollItem() {
@@ -64,6 +72,9 @@ export function addDrop(item) {
   saveSetting(STATS_ID, { drops: { ...drops, [item.id]: (drops[item.id] || 0) + 1 } });
   return drops[item.id] ? drops[item.id] + 1 : 1;
 }
+
+// Open a case right now, for trying the animation out (the Test button in Settings, shown only on a local copy).
+export const testCase = () => window.dispatchEvent(new CustomEvent('todolist:open-case'));
 
 // Ask the app to open a case. `day` (a date string) limits it to once a day, e.g. for "all dailies done".
 export function earnCase(day) {
