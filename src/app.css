@@ -2585,19 +2585,13 @@ html[data-reduce-motion] *::after {
 
 /* The Rich and Markdown note editors (NoteEditors.jsx) */
 .rich-tools {
-  position: sticky;
-  top: 0;
-  z-index: 3;
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-  padding: 6px 0;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 2px 0 6px;
   overflow-x: auto;
   scrollbar-width: none;
-  background: color-mix(in srgb, var(--bg) 75%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
 }
 .rich-tools::-webkit-scrollbar {
   display: none;
@@ -2605,35 +2599,26 @@ html[data-reduce-motion] *::after {
 .rich-sep {
   flex-shrink: 0;
   width: 1px;
-  height: 18px;
-  margin: 0 4px;
+  height: 16px;
+  margin: 0 2px;
   background: var(--line-hi);
 }
+/* The buttons are ordinary ghost buttons (so every theme styles them); this only sizes them and shows what is on. */
 .rich-tool {
   flex-shrink: 0;
-  display: grid;
-  place-items: center;
   min-width: 34px;
   height: 32px;
-  padding: 0 9px;
-  border: var(--bw) solid var(--line);
-  border-radius: var(--r-xs);
-  background: color-mix(in srgb, var(--text) 5%, transparent);
+  padding: 0 10px;
   font-size: 13px;
   color: var(--text-soft);
-  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .rich-tool.wide {
   padding: 0 14px;
 }
-.rich-tool:hover {
-  background: color-mix(in srgb, var(--text) 11%, transparent);
-  color: var(--text);
-}
 .rich-tool.on {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--text);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .rich-tool.t-B { font-weight: 800; }
 .rich-tool.t-I { font-style: italic; font-family: var(--serif); font-size: 15px; }

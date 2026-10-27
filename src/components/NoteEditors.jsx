@@ -87,7 +87,7 @@ export function RichEditor({ md, onMd }) {
           <button
             key={name}
             type="button"
-            className={'rich-tool t-' + label.replace(/[^A-Za-z0-9]/g, '') + (active(editor) ? ' on' : '')}
+            className={'btn-ghost rich-tool t-' + label.replace(/[^A-Za-z0-9]/g, '') + (active(editor) ? ' on' : '')}
             aria-label={name}
             aria-pressed={active(editor)}
             title={name}
@@ -142,10 +142,10 @@ export function MarkdownEditor({ md, onMd }) {
   return (
     <div className="md-editor">
       <div className="rich-tools">
-        <button type="button" className={'rich-tool wide' + (!preview ? ' on' : '')} onClick={() => setPreview(false)}>
+        <button type="button" className={'btn-ghost rich-tool wide' + (!preview ? ' on' : '')} onClick={() => setPreview(false)}>
           Write
         </button>
-        <button type="button" className={'rich-tool wide' + (preview ? ' on' : '')} onClick={() => setPreview(true)}>
+        <button type="button" className={'btn-ghost rich-tool wide' + (preview ? ' on' : '')} onClick={() => setPreview(true)}>
           Preview
         </button>
       </div>
