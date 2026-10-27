@@ -250,6 +250,16 @@ export default function App() {
   }, [today, setDay]);
 
 
+  // Settings can open the other windows (the shortcut list, the Cases menu): they ask here.
+  useEffect(() => {
+    const openWindow = (event) => {
+      setCaseId(null);
+      setModal(event.detail);
+    };
+    window.addEventListener('todolist:open-modal', openWindow);
+    return () => window.removeEventListener('todolist:open-modal', openWindow);
+  }, []);
+
   // A case dropped (every daily finished, or a task milestone): say so, and open it after the tick animation has played.
   const [caseId, setCaseId] = useState(null); // the case the Cases menu opens on
   useEffect(() => {
@@ -285,7 +295,7 @@ export default function App() {
 
         <Resizer index={1} grid={grid} {...columns} />
         <section className="col col-notes" aria-label="Notes">
-          <Notes />
+          <Notes onSearch={() => setModal('search')} />
         </section>
       </div>
 

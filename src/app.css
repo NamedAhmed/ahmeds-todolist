@@ -344,9 +344,9 @@ input[type="number"] {
   /* Partly see-through so the wallpaper shows (see appearance.css), blurred so text beneath stays calm. */
   background: color-mix(in srgb, var(--bg) 70%, transparent);
   display: flex;
-  flex-wrap: wrap; /* the column is narrow: Account and Settings drop to a second row, on the right */
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .col-foot .foot-right {
   margin-left: auto;
@@ -616,6 +616,7 @@ input[type="number"] {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  padding: 0 9px; /* tight enough for Reminders, Account and Settings to share one row */
   font-size: 13px;
 }
 .task-controls {
@@ -1150,9 +1151,6 @@ select.field {
   }
   .col-foot .settings-button {
     display: none; /* Settings is in the tab bar on a phone */
-  }
-  .col-foot .shortcuts {
-    display: none; /* no keyboard on a phone */
   }
   .jab {
     display: none;
@@ -2460,4 +2458,11 @@ html[data-reduce-motion] *::after {
 .case-meta {
   margin: 4px 0 12px;
   color: #9aa1ab;
+}
+
+/* The buttons at the right of a column title (Notes: search and new note) */
+.head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

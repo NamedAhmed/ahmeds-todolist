@@ -73,6 +73,7 @@ export function addDrop(item) {
 // You earned a case: give a random one and tell the app (App.jsx opens the Cases menu on it).
 // `day` (a date string) limits it to once a day, e.g. for "all dailies done".
 export async function earnCase(day) {
+  if (getState().settings.appearance?.cases === false) return; // switched off in Settings > General
   if (day) {
     if (getState().settings[STATS_ID]?.lastCaseDay === day) return;
     saveSetting(STATS_ID, { lastCaseDay: day });

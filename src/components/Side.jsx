@@ -138,7 +138,8 @@ function orderNotes(notes) {
 // ======================================================================
 // NOTES: the whole column
 // ======================================================================
-export function Notes() {
+// Props: onSearch (opens the search window, Ctrl+K).
+export function Notes({ onSearch }) {
   const state = useStore(); // all the app's data
   const notes = orderNotes(all(state, 'notes'));
 
@@ -147,15 +148,11 @@ export function Notes() {
   const active = notes.find((note) => note.id === activeId) ?? notes[0];
   const [dragId, setDragId] = useState(null); // the note being dragged, or null
 
-  // Selecting several notes: Ctrl/Cmd+click, or press "Select" (for a phone) and tap notes. Then Delete removes them all.
+  // Selecting several notes: Ctrl/Cmd+click, then click more. Delete removes them all.
   const [picked, setPicked] = useState(() => new Set());
-  const [selecting, setSelecting] = useState(false);
-  const clearPicked = () => {
-    setPicked(new Set());
-    setSelecting(false);
-  };
+  const clearPicked = () => setPicked(new Set());
   function pick(event, id) {
-    if (!(selecting || picked.size || event.ctrlKey || event.metaKey)) return setActiveId(id);
+    if (!(picked.size || event.ctrlKey || event.metaKey)) return setActiveId(id);
     setPicked((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
@@ -216,12 +213,14 @@ export function Notes() {
     <div className="pane pane-notes">
       <header className="col-head">
         <h2>Notes</h2>
-        <button className={'btn-ghost' + (selecting || picked.size ? ' on' : '')} type="button" onClick={() => (selecting || picked.size ? clearPicked() : setSelecting(true))} title="Select several notes (Ctrl+click)">
-          {selecting || picked.size ? 'Cancel' : 'Select'}
-        </button>
-        <button className="btn-ghost" type="button" onClick={addNote} aria-label="New note" title="New note">
-          <Icon name="plus" size={16} />
-        </button>
+        <span className="head-actions">
+          <button className="btn-ghost" type="button" onClick={onSearch} aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">
+            <Icon name="search" size={16} />
+          </button>
+          <button className="btn-ghost" type="button" onClick={addNote} aria-label="New note" title="New note">
+            <Icon name="plus" size={16} />
+          </button>
+        </span>
       </header>
 
       <div className="notes">
@@ -240,10 +239,10 @@ export function Notes() {
               ))}
             </ul>
           </SortableContext>
-          {(selecting || picked.size > 0) && (
+          {picked.size > 0 && (
             <div className="bulk-bar" role="toolbar" aria-label="Selected notes">
-              <span className="mono">{picked.size ? `${picked.size} selected` : 'Tap notes to select'}</span>
-              <button className="btn-ghost danger" type="button" disabled={!picked.size} onClick={deletePicked}>
+              <span className="mono">{picked.size} selected</span>
+              <button className="btn-ghost danger" type="button" onClick={deletePicked}>
                 Delete
               </button>
             </div>

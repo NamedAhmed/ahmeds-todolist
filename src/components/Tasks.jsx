@@ -1111,16 +1111,12 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   const { taskGroups, showRepeating } = useAppearance();
 
   // ---- Selecting several tasks ----
-  // Ctrl/Cmd+click a row, or press "Select" (for a phone) and tap rows. A bar then offers Done and Delete.
+  // Ctrl/Cmd+click a row to select it; click more rows to add them. A bar then offers Done and Delete.
   const [selected, setSelected] = useState(() => new Set());
-  const [selecting, setSelecting] = useState(false);
-  const clearSelection = () => {
-    setSelected(new Set());
-    setSelecting(false);
-  };
+  const clearSelection = () => setSelected(new Set());
   function onListClickCapture(event) {
     const row = event.target.closest('li.task[data-task]');
-    if (!row || !(selecting || selected.size || event.ctrlKey || event.metaKey)) return;
+    if (!row || !(selected.size || event.ctrlKey || event.metaKey)) return;
     event.preventDefault();
     event.stopPropagation(); // the click only selects; it does not tick, rename or unfold anything
     const id = row.dataset.task;
@@ -1288,15 +1284,6 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
         <h1>Tasks</h1>
         <div className="task-controls">
           <button
-            className={'day-toggle' + (selecting || selected.size ? ' on' : '')}
-            aria-pressed={selecting || selected.size > 0}
-            title="Select several tasks (Ctrl+click)"
-            onClick={() => (selecting || selected.size ? clearSelection() : setSelecting(true))}
-          >
-            {selecting || selected.size ? 'Cancel' : 'Select'}
-          </button>
-          <span className="task-controls-separator" aria-hidden="true">•</span>
-          <button
             className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
             aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}
             title={`${SORT_LABELS[sort]} · Click to change sort`}
@@ -1431,12 +1418,11 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
           ))}
       </ul>
 
-      {(selecting || selected.size > 0) && (
+      {selected.size > 0 && (
         <div className="bulk-bar" role="toolbar" aria-label="Selected tasks">
-          <span className="mono">{selected.size ? `${selected.size} selected` : 'Tap tasks to select'}</span>
+          <span className="mono">{selected.size} selected</span>
           <button
             className="btn-ghost"
-            disabled={!selected.size}
             onClick={() => {
               finishTasks(top.filter((t) => selected.has(t.id)));
               clearSelection();
@@ -1446,7 +1432,6 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
           </button>
           <button
             className="btn-ghost danger"
-            disabled={!selected.size}
             onClick={() => {
               removeTasks(top.filter((t) => selected.has(t.id)));
               clearSelection();

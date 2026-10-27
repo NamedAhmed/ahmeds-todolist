@@ -8,6 +8,7 @@
 // Everything here is saved with setAppearance() so it syncs between your devices (pictures and videos stay on this device).
 
 import { useEffect } from 'react';
+import Icon from './Icons.jsx';
 import Background from './Background.jsx';
 import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
@@ -221,7 +222,8 @@ export function WallpaperTab() {
 }
 
 export function GeneralTab() {
-  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating } = useAppearance();
+  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases } = useAppearance();
+  const openWindow = (name) => window.dispatchEvent(new CustomEvent('todolist:open-modal', { detail: name }));
 
   return (
     <div className="look">
@@ -277,6 +279,33 @@ export function GeneralTab() {
             <Switch checked={showRepeating} onChange={(on) => setAppearance({ showRepeating: on })} />
             <span className="auto-note">show repeating reminders in the task list</span>
           </label>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mono">Cases</h3>
+        <div className="readability">
+          <label className="range-row auto-row">
+            <span className="mono">Drops</span>
+            <Switch checked={cases} onChange={(on) => setAppearance({ cases: on })} />
+            <span className="auto-note">a CS:GO case drops when you finish every daily or reach a task milestone</span>
+          </label>
+        </div>
+        {cases && (
+          <div className="seg-row">
+            <button type="button" className="btn-ghost" onClick={() => openWindow('cases')}>
+              <Icon name="box" size={16} /> Open cases
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h3 className="mono">Keyboard</h3>
+        <div className="seg-row">
+          <button type="button" className="btn-ghost" onClick={() => openWindow('keys')}>
+            <Icon name="help" size={16} /> Keyboard shortcuts
+          </button>
         </div>
       </section>
 
