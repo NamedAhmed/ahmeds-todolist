@@ -24,17 +24,25 @@ export default function CaseOpening({ onClose }) {
   const [owned, setOwned] = useState(0); // how many of the won item you have now
   const saved = useRef(false);
 
+  // Keep the item (once, even if React runs the effect twice while developing).
   useEffect(() => {
-    if (saved.current) return; // (React may run an effect twice while developing)
+    if (saved.current) return;
     saved.current = true;
     setOwned(addDrop(win));
+  }, [win]);
 
-    // Land somewhere inside the winning card, not always dead centre.
+  // Spin the strip and land somewhere inside the winning card, not always dead centre.
+  useEffect(() => {
     const centre = view.current.clientWidth / 2;
     const target = -(WIN_AT * (CARD + GAP)) + centre - CARD / 2 + (Math.random() - 0.5) * (CARD - 24);
-    const controls = animate(x, target, { duration: 6, ease: [0.08, 0.6, 0.12, 1], onComplete: () => setRevealed(true) });
-    return () => controls.stop();
-  }, [win, x]);
+    const controls = animate(x, target, { duration: 6, ease: [0.08, 0.6, 0.12, 1] });
+    let live = true;
+    controls.then(() => live && setRevealed(true));
+    return () => {
+      live = false;
+      controls.stop();
+    };
+  }, [x]);
 
   const collection = ITEMS.filter((item) => getDrops()[item.id]);
 

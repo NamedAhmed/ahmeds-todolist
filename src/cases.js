@@ -37,7 +37,7 @@ const ITEM_LIST = [
   ['rare', '★ Gloves | Productivity'],
 ];
 
-export const ITEMS = ITEM_LIST.map(([rarity, name], index) => ({ id: `i${index}`, rarity, name, ...RARITIES.find((r) => r.id === rarity) }));
+export const ITEMS = ITEM_LIST.map(([rarity, name], index) => ({ ...RARITIES.find((r) => r.id === rarity), id: `i${index}`, rarity, name }));
 
 // Pick a random item, rarity first (by the odds), then an item of that rarity.
 export function rollItem() {
