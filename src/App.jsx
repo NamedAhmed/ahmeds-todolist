@@ -25,7 +25,7 @@ import Cases from './components/Cases.jsx';
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
 import { useAppearance } from './appearance.js';
-import { startPushSync } from './push.js';
+import { startPushSync, usePushPrompt } from './push.js';
 import Wallpaper from './Wallpaper.jsx';
 
 // The three views in the bottom bar on a phone: [internal name, label shown, icon]. (Settings is the fourth button there.)
@@ -253,6 +253,7 @@ export default function App() {
 
   // Keep the push notification schedule up to date (does nothing until notifications are turned on in Settings).
   useEffect(() => startPushSync(), []);
+  const pushPrompt = usePushPrompt();
 
   // Settings can open the other windows (the shortcut list, the Cases menu): they ask here.
   useEffect(() => {
@@ -324,6 +325,18 @@ export default function App() {
       </AnimatePresence>
 
       {/* The little messages that slide in at the bottom. */}
+      {pushPrompt.show && (
+        <div className="push-prompt" role="dialog" aria-label="Notifications">
+          <span>Get a notification when a task or reminder is due?</span>
+          <button className="btn-add" onClick={pushPrompt.accept}>
+            Turn on
+          </button>
+          <button className="btn-ghost" onClick={pushPrompt.dismiss}>
+            Not now
+          </button>
+        </div>
+      )}
+
       <Toasts />
     </MotionConfig>
   );

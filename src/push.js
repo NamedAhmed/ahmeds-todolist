@@ -11,7 +11,8 @@
 //   On an iPhone the app must be added to the Home Screen first. Sign in is needed (the server has to know it is you).
 
 import { all, getState, subscribe } from './store.js';
-import { supabase } from './sync.js';
+import { useEffect, useState } from 'react';
+import { supabase, useSync } from './sync.js';
 import { addDays, formatTime, isDone, reminderOccursOn, todayStr } from './lib.js';
 
 const FLAG = 'todolist:push'; // is push switched on for THIS device?
@@ -140,6 +141,44 @@ export async function sendTestPush() {
   if (!pushEnabled()) return 'Turn notifications on first.';
   const { error } = await supabase.from('push_queue').upsert({ key: `test:${Date.now()}`, fire_at: new Date().toISOString(), title: 'Todolist', body: 'It works. Now go do something.' });
   return error ? error.message : '';
+}
+
+// ---- On by default ----
+// Notifications are on unless you turn them off. A browser only lets a site ask for permission after a tap, so:
+//   - a device that has already allowed notifications is switched on by itself, as soon as you are signed in
+//   - otherwise, once, a small card asks "Turn on notifications?" (usePushPrompt, shown by App.jsx)
+// "Turn off on this device" in Settings is remembered and nothing here switches it back on.
+const ASKED = 'todolist:push-asked';
+
+export function usePushPrompt() {
+  const { user } = useSync();
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (!user || !supabase || !pushSupported()) return;
+    let off = false;
+    try {
+      off = localStorage.getItem(FLAG) === '0';
+      if (off) return;
+      if (Notification.permission === 'granted' && localStorage.getItem(FLAG) !== '1') enablePush(); // already allowed here: just subscribe
+      else if (Notification.permission === 'default' && !localStorage.getItem(ASKED)) setShow(true);
+    } catch {
+      // storage unavailable: no prompt
+    }
+  }, [user]);
+
+  return {
+    show,
+    accept: async () => {
+      setShow(false);
+      localStorage.setItem(ASKED, '1');
+      await enablePush();
+    },
+    dismiss: () => {
+      setShow(false);
+      localStorage.setItem(ASKED, '1'); // asked once; Settings > General > Notifications is still there
+    },
+  };
 }
 
 // Call once at start: keep the schedule up to date while the app is open.

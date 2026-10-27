@@ -2682,3 +2682,31 @@ html[data-reduce-motion] *::after {
 .md-preview blockquote { padding-left: 14px; border-left: 3px solid var(--line-hi); font-style: italic; color: var(--muted); }
 .md-preview pre { padding: 10px 12px; background: color-mix(in srgb, var(--text) 8%, transparent); font-family: var(--mono); overflow-x: auto; }
 .md-marker { color: var(--muted); }
+
+/* The one-time "turn on notifications?" card (App.jsx) */
+.push-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  width: max-content;
+  max-width: 92vw;
+  padding: 10px 14px;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  font-size: 14px;
+}
+@media (max-width: 900px) {
+  .push-prompt {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}
