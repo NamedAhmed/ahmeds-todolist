@@ -2472,3 +2472,29 @@ html[data-reduce-motion] *::after {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   border-radius: var(--r-xs);
 }
+
+/* The time of day under the date picker (DatePicker.jsx) */
+.dp-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: var(--bw) solid var(--line);
+}
+.dp-time label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reminder-time {
+  width: 6.6em;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-xs);
+}

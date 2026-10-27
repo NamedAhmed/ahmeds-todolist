@@ -5,6 +5,8 @@
 //   value    the current date ("2026-10-18") or null for "no date"
 //   today    today's date
 //   onPick   called with the chosen date, or null for "no date"
+//   time     the current time of day ("17:00") or null, and onTime(time | null) called when it is changed
+//            (leave both out for a date-only picker)
 //   onClose  called to close the window (it is also called right after a pick)
 
 import { useState } from 'react';
@@ -24,7 +26,7 @@ function monthCells(year, month) {
   return cells;
 }
 
-export default function DatePicker({ value, today, onPick, onClose }) {
+export default function DatePicker({ value, today, onPick, onClose, time = null, onTime }) {
   const start = toDate(value || today);
   const [year, setYear] = useState(start.getFullYear());
   const [month, setMonth] = useState(start.getMonth());
@@ -103,6 +105,20 @@ export default function DatePicker({ value, today, onPick, onClose }) {
           )
         )}
       </div>
+
+      {onTime && (
+        <div className="dp-time">
+          <label>
+            <span className="mono">At</span>
+            <input type="time" value={time || ''} onChange={(event) => onTime(event.target.value || null)} aria-label="Time of day" />
+          </label>
+          {time && (
+            <button type="button" className="btn-ghost" onClick={() => onTime(null)}>
+              No time
+            </button>
+          )}
+        </div>
+      )}
     </Modal>
     </div>,
     document.body

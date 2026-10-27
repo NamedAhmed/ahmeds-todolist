@@ -111,13 +111,20 @@ export function Modal({ title, onClose, wide, children }) {
 export function RemindersModal({ today, onClose }) {
   const s = useStore();
 
-  // Existing reminders, oldest first.
+  // Existing reminders: single ones by their date first, then the repeating ones, oldest first.
   const reminders = all(s, 'reminders');
-  reminders.sort((a, b) => (a.created < b.created ? -1 : 1));
+  reminders.sort((a, b) => {
+    const once = (r) => (r.rule.type === 'once' ? 0 : 1);
+    if (once(a) !== once(b)) return once(a) - once(b);
+    if (once(a) === 0) return a.rule.date < b.rule.date ? -1 : 1;
+    return a.created < b.created ? -1 : 1;
+  });
 
   // What is currently typed/selected in the "add reminder" form.
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('weekly');              // 'weekly' | 'monthly' | 'yearly'
+  const [type, setType] = useState('once');                // 'once' | 'weekly' | 'monthly' | 'yearly'
+  const [date, setDate] = useState(today);                 // once: which day
+  const [time, setTime] = useState('');                    // the time of day to be notified at ('' = no time)
   const [days, setDays] = useState([new Date().getDay()]); // weekly: which weekdays (0 = Sunday)
   const [day, setDay] = useState(1);                       // monthly / yearly: day of the month
   const [month, setMonth] = useState(new Date().getMonth()); // yearly: which month (0 = January)
@@ -127,15 +134,17 @@ export function RemindersModal({ today, onClose }) {
     event.preventDefault();
     if (!title.trim()) return;
     if (type === 'weekly' && days.length === 0) return; // weekly needs at least one weekday
+    if (type === 'once' && !date) return;
 
-    // Build the "rule" that says when it repeats (see occursOn in lib.js).
+    // Build the "rule" that says when it happens (see occursOn in lib.js).
     let rule;
-    if (type === 'weekly') rule = { type, days: [...days].sort() };
+    if (type === 'once') rule = { type, date };
+    else if (type === 'weekly') rule = { type, days: [...days].sort() };
     else if (type === 'monthly') rule = { type, day };
     else rule = { type, month, day };
 
     commit('reminder added', [
-      { t: 'reminders', id: uid(), patch: { title: title.trim(), rule, created: today } },
+      { t: 'reminders', id: uid(), patch: { title: title.trim(), rule, time: time || null, created: today } },
     ]);
     setTitle('');
     sass('reminderAdded', [], { chance: 0.6 });
@@ -144,6 +153,10 @@ export function RemindersModal({ today, onClose }) {
   function deleteReminder(reminder) {
     commit('reminder deleted', [{ t: 'reminders', id: reminder.id, set: null }]);
     toast(quip('reminderDeleted'), { undoable: true });
+  }
+
+  function setReminderTime(reminder, value) {
+    commit('reminder time changed', [{ t: 'reminders', id: reminder.id, patch: { time: value || null } }]);
   }
 
   // Click a weekday button: add it to the list, or remove it if it was already chosen.
@@ -161,16 +174,26 @@ export function RemindersModal({ today, onClose }) {
   return (
     <Modal title="Reminders" onClose={onClose}>
       <p className="hint">
-        Repeating tasks. They show up in the list on their day and come back after you tick them. Forever. Like laundry.
+        A reminder shows up in the list on its day, and notifies you at its time if you gave it one (turn notifications on in Settings). A single one happens once; a repeating one comes back after you tick it. Forever. Like laundry.
       </p>
 
       {/* The existing reminders */}
       <ul className="plain-list">
         {reminders.map((reminder) => (
           <li key={reminder.id}>
-            <span className="repeat">↻</span>
+            <span className="repeat" title={reminder.rule.type === 'once' ? 'Happens once' : 'Repeats'}>
+              {reminder.rule.type === 'once' ? '•' : '↻'}
+            </span>
             <span className="grow">{reminder.title}</span>
             <span className="mono">{ruleText(reminder.rule)}</span>
+            <input
+              className="reminder-time"
+              type="time"
+              value={reminder.time || ''}
+              onChange={(event) => setReminderTime(reminder, event.target.value)}
+              aria-label={`Time for ${reminder.title}`}
+              title="Time of day to be notified"
+            />
             <button
               className="del show"
               aria-label={`Delete ${reminder.title}`}
@@ -193,19 +216,28 @@ export function RemindersModal({ today, onClose }) {
           aria-label="Reminder"
         />
 
-        {/* Choose weekly / monthly / yearly */}
-        <div className="seg-row">
-          {['weekly', 'monthly', 'yearly'].map((kind) => (
+        {/* Choose once / weekly / monthly / yearly */}
+        <div className="seg-row" role="group" aria-label="How often">
+          {[['once', 'Just once'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([kind, label]) => (
             <button
               type="button"
               key={kind}
               className={'chip' + (type === kind ? ' solid' : '')}
               onClick={() => setType(kind)}
             >
-              {kind}
+              {label}
             </button>
           ))}
         </div>
+
+        {/* Once: pick the day */}
+        {type === 'once' && (
+          <div className="seg-row">
+            <label className="target">
+              on <input type="date" min={today} value={date} onChange={(event) => setDate(event.target.value)} />
+            </label>
+          </div>
+        )}
 
         {/* Weekly: pick weekdays */}
         {type === 'weekly' && (
@@ -224,7 +256,7 @@ export function RemindersModal({ today, onClose }) {
         )}
 
         {/* Monthly / yearly: pick a day (and a month for yearly) */}
-        {type !== 'weekly' && (
+        {(type === 'monthly' || type === 'yearly') && (
           <div className="seg-row">
             {type === 'yearly' && (
               <select
@@ -245,6 +277,18 @@ export function RemindersModal({ today, onClose }) {
             </label>
           </div>
         )}
+
+        {/* The time of day to be notified at (optional) */}
+        <div className="seg-row">
+          <label className="target">
+            notify me at <input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+          </label>
+          {time && (
+            <button type="button" className="btn-ghost" onClick={() => setTime('')}>
+              No time
+            </button>
+          )}
+        </div>
 
         <div className="seg-row">
           <button className="btn-add" type="submit">

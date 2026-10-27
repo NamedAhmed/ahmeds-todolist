@@ -65,21 +65,30 @@ export function shortDate(text) {
 
 // Work out the label shown next to a task's due date, and its colour class.
 // Returns { text: 'Tomorrow', cls: '' }. cls is a CSS class name (see app.css).
-export function dueInfo(due, today) {
+export function dueInfo(due, today, time = null) {
   if (!due) return { text: '', cls: '' };
 
   const diff = diffDays(due, today); // 0 = today, 1 = tomorrow, -1 = yesterday ...
+  const at = time ? ` · ${formatTime(time)}` : ''; // a task due at a time of day: "Today · 5 PM"
 
-  if (diff === 0) return { text: 'Today', cls: 'today' };
-  if (diff === 1) return { text: 'Tomorrow', cls: '' };
+  if (diff === 0) return { text: 'Today' + at, cls: 'today' };
+  if (diff === 1) return { text: 'Tomorrow' + at, cls: '' };
 
   if (diff < 0) {
     if (diff === -1) return { text: 'Yesterday', cls: 'overdue' };
     return { text: `${-diff}d late`, cls: 'overdue' };
   }
 
-  if (diff < 7) return { text: DOW[toDate(due).getDay()], cls: '' }; // within a week: "Fri"
-  return { text: shortDate(due), cls: '' };                          // further away: "Nov 3"
+  if (diff < 7) return { text: DOW[toDate(due).getDay()] + at, cls: '' }; // within a week: "Fri"
+  return { text: shortDate(due) + at, cls: '' };                          // further away: "Nov 3"
+}
+
+// "17:00" -> "5 PM", "09:30" -> "9:30 AM". (Times of day are stored as "HH:MM", 24 hours.)
+export function formatTime(time) {
+  const [h, m] = String(time).split(':').map(Number);
+  if (Number.isNaN(h)) return '';
+  const hour = h % 12 || 12;
+  return `${hour}${m ? ':' + String(m).padStart(2, '0') : ''} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 // A React "hook" that gives the components today's date.
@@ -150,7 +159,12 @@ export function parseTyped(text) {
     .trim();
   if (!title) return null;
 
-  return { title, due: ymd(last.start.date()), phrase: last.text };
+  // "friday 5pm": a time of day was typed too.
+  const time = last.start.isCertain('hour')
+    ? `${String(last.start.get('hour')).padStart(2, '0')}:${String(last.start.get('minute') ?? 0).padStart(2, '0')}`
+    : null;
+
+  return { title, due: ymd(last.start.date()), time, phrase: last.text };
 }
 
 
@@ -204,13 +218,16 @@ export function streakOf(state, id, today) {
 // ======================================================================
 // 4. REMINDERS
 // ======================================================================
-// A reminder has a "rule" that says when it repeats. Three kinds:
+// A reminder has a "rule" that says when it happens, and optionally a `time` of day ("17:00") it notifies at.
+// A single reminder happens once; the others repeat. Four kinds:
+//   { type: 'once',    date: 'YYYY-MM-DD' }           one day only (it is done once you tick it)
 //   { type: 'weekly',  days: [0-6] }                  e.g. every Mon and Thu (0 = Sunday)
 //   { type: 'monthly', day: 1-31 }                    e.g. the 5th of every month
 //   { type: 'yearly',  month: 0-11, day: 1-31 }       e.g. every March 3rd (0 = January)
 
 // Does this rule happen on this date? true / false.
 export function occursOn(rule, date) {
+  if (rule.type === 'once') return date === rule.date;
   const d = toDate(date);
 
   if (rule.type === 'weekly') {
@@ -239,12 +256,14 @@ function reminderCreatedDate(reminder) {
 // A reminder cannot have occurrences before it was created. For legacy records without
 // a creation date, the caller can use today as the earliest date we can safely assume.
 export function reminderOccursOn(reminder, date, fallbackCreated = null) {
+  if (reminder.rule.type === 'once') return date === reminder.rule.date;
   const created = reminderCreatedDate(reminder) ?? fallbackCreated;
   return !!created && date >= created && occursOn(reminder.rule, date);
 }
 
 // Turn a rule into readable text, e.g. "Mon Thu" or "Monthly on the 5th".
 export function ruleText(rule) {
+  if (rule.type === 'once') return `Once · ${shortDate(rule.date)}`;
   if (rule.type === 'weekly') {
     if (rule.days.length === 7) return 'Every day';
     return rule.days.map((day) => DOW[day]).join(' ');

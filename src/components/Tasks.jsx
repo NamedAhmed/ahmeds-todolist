@@ -26,7 +26,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, u
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, saveSetting, uid, useStore } from '../store.js';
-import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, formatTime, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
@@ -256,8 +256,8 @@ function rowKeys(event, act) {
 // The due date label on a row. Clicking it opens the date picker.
 // A task with no date is "ongoing": it shows an infinity sign and never goes overdue.
 // Clicking either opens the date picker window (onClick).
-function DueButton({ due, today, done, onClick }) {
-  const info = dueInfo(due, today);
+function DueButton({ due, time, today, done, onClick }) {
+  const info = dueInfo(due, today, time);
 
   if (!due) {
     return (
@@ -677,13 +677,15 @@ const TaskRow = memo(
                 {steps.filter((step) => step.done).length}/{steps.length}
               </span>
             )}
-            <DueButton due={task.due} today={today} done={done} onClick={() => setPicking(true)} />
+            <DueButton due={task.due} time={task.due_time} today={today} done={done} onClick={() => setPicking(true)} />
             <AnimatePresence>
               {picking && (
                 <DatePicker
                   value={task.due || null}
                   today={today}
-                  onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', { due: date })}
+                  onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', date ? { due: date } : { due: null, due_time: null })}
+                  time={task.due_time || null}
+                  onTime={(time) => patch('due time changed', { due_time: time })}
                   onClose={() => setPicking(false)}
                 />
               )}
@@ -741,7 +743,7 @@ const TaskRow = memo(
 function ReminderRow({ reminder, date, today }) {
   const [closing, setClosing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const info = dueInfo(date, today);
+  const info = dueInfo(date, today, reminder.time);
 
   // Tick it (skipped = false) or skip it (skipped = true). Either way it's saved as a "completion".
   function finish(skipped) {
@@ -810,12 +812,15 @@ function AddRow({ day, today }) {
   const [picked, setPicked] = useState(null); // a date chosen by hand (beats a typed one)
   const [ongoing, setOngoing] = useState(false); // no due date: it just stays in the list
   const [picking, setPicking] = useState(false); // is the date picker window open?
+  const [pickedTime, setPickedTime] = useState(undefined); // a time of day chosen by hand (null = none); undefined = not chosen
 
   // Look for a date at the end of what is typed. (useMemo = only redo this when the text changes.)
   const parsed = useMemo(() => parseTyped(text), [text]);
 
   // Which due date to use: picked by hand, else typed, else the selected calendar day, else today.
   const due = ongoing ? null : (picked ?? parsed?.due ?? day ?? today);
+  // The time of day: chosen by hand, else typed ("friday 5pm"). Only with a date.
+  const dueTime = ongoing ? null : (pickedTime !== undefined ? pickedTime : (picked ? null : parsed?.time ?? null));
 
   function submit(event) {
     event.preventDefault();
@@ -833,12 +838,13 @@ function AddRow({ day, today }) {
     const label = kind === 'project' ? 'project added' : 'task added';
     smooth(() =>
       commit(label, [
-        { t: 'tasks', id: uid(), patch: { title, due, done: false, kind, position: top - 1, created: minuteTimestamp() } },
+        { t: 'tasks', id: uid(), patch: { title, due, due_time: dueTime, done: false, kind, position: top - 1, created: minuteTimestamp() } },
       ])
     );
 
     setText('');
     setPicked(null);
+    setPickedTime(undefined);
     setOngoing(false);
     sass(kind === 'project' ? 'projectAdded' : 'taskAdded', [], { chance: 0.4 });
   }
@@ -848,6 +854,7 @@ function AddRow({ day, today }) {
   if (ongoing) dueLabel = 'No date';
   else if (due === today) dueLabel = 'Today';
   else if (due === addDays(today, 1)) dueLabel = 'Tomorrow';
+  if (dueTime && !ongoing) dueLabel += ' · ' + formatTime(dueTime);
 
   return (
     <form className="task-form" onSubmit={submit} autoComplete="off">
@@ -882,6 +889,8 @@ function AddRow({ day, today }) {
           <DatePicker
             value={ongoing ? null : due}
             today={today}
+            time={dueTime}
+            onTime={setPickedTime}
             onPick={(date) => {
               setOngoing(date === null);
               setPicked(date);
@@ -1011,7 +1020,7 @@ class RowTouchSensor extends TouchSensor {
 
 // The card that floats under the pointer while a task is dragged.
 function TaskCard({ task }) {
-  const info = dueInfo(task.due, todayStr());
+  const info = dueInfo(task.due, todayStr(), task.due_time);
   return (
     <div className="drag-card">
       <span className="drag-mark">
