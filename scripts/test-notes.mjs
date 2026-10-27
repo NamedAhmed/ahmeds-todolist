@@ -70,4 +70,29 @@ const ok3 = noteMd(edited) === 'edited elsewhere';
 // A note with only plain text.
 const ok4 = noteMd({ body: 'one\ntwo', edited_at: 1 }) === 'one\n\ntwo';
 console.log(ok1 && ok2 && ok3 && ok4 ? 'legacy notes read and save safely' : `legacy checks failed: ${[ok1, ok2, ok3, ok4]}`);
-process.exit(failures || !(ok1 && ok2 && ok3 && ok4) ? 1 : 0);
+if (failures || !(ok1 && ok2 && ok3 && ok4)) process.exit(1);
+
+// ---- the notes people really have: headings, paragraphs, bullets, empty lines, "&" ----
+{
+  const blocks = [
+    { id: 'a', type: 'h2', html: 'Weekend &amp; errands', checked: false },
+    { id: 'b', type: 'p', html: 'call the bank', checked: false },
+    { id: 'c', type: 'p', html: '', checked: false },
+    { id: 'd', type: 'bullet', html: 'milk', checked: false },
+    { id: 'e', type: 'bullet', html: 'eggs &amp; bread', checked: false },
+    { id: 'f', type: 'p', html: '', checked: false },
+    { id: 'g', type: 'p', html: 'done', checked: false },
+  ];
+  const note = { id: 'n', title: 'Weekend', blocks, body: 'x', edited_at: 10 };
+  const shown = mdToBlocks(noteMd(note)); // what the Blocks editor opens
+  const same = JSON.stringify(norm(shown)) === JSON.stringify(norm(blocks));
+  // Opening writes nothing; the first save keeps the original blocks and every other field.
+  const patch = noteSavePatch(note, noteMd(note) + '\n\nmore', 99);
+  const kept = JSON.stringify(patch.legacy_blocks) === JSON.stringify(blocks) && !('title' in patch);
+  // A note with only plain text (no blocks) keeps every line, including blank ones.
+  const plain = { id: 'p', title: 'p', body: 'one\n\ntwo & three\nfour', edited_at: 1 };
+  const plainBack = mdToBlocks(noteMd(plain)).map((b) => b.html.replace(/<br>/g, '\n')).join('|');
+  const plainOk = plainBack === 'one||two &amp; three|four';
+  console.log(same && kept && plainOk ? 'real-shaped notes open unchanged' : `real-shaped notes FAILED: ${[same, kept, plainOk]} ${plainBack}`);
+  if (!(same && kept && plainOk)) process.exit(1);
+}
