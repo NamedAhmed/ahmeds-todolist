@@ -2275,8 +2275,8 @@ html[data-reduce-motion] *::after {
   place-items: center;
   height: 96px;
   padding: 8px;
-  border-bottom: 3px solid var(--rarity);
   border-radius: var(--r-xs);
+  box-shadow: inset 0 -3px 0 var(--rarity); /* the rarity stripe, following the rounded corners */
   background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--rarity) 30%, transparent));
   text-align: center;
 }
