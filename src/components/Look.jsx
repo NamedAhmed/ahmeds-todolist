@@ -7,7 +7,7 @@
 //
 // Everything here is saved with setAppearance() so it syncs between your devices (pictures and videos stay on this device).
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from './Icons.jsx';
 import Background from './Background.jsx';
 import Slider from './Slider.jsx';
@@ -15,6 +15,7 @@ import Switch from './Switch.jsx';
 import WallpaperSettings from './WallpaperSettings.jsx';
 import FireArt from './FireArt.jsx';
 import { testCase } from '../cases.js';
+import { disablePush, enablePush, pushEnabled, pushSupported, sendTestPush } from '../push.js';
 import { FIRE_COLORS, FIRE_COVERAGES, FIRE_STYLES, fireColorStyle } from '../fire.js';
 import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetAppearance, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
 
@@ -221,8 +222,62 @@ export function WallpaperTab() {
   );
 }
 
+// Settings > General > Notifications: turn push on for this device, and when to notify for tasks that only have a day.
+function Notifications({ defaultTime }) {
+  const [on, setOn] = useState(pushEnabled);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function run(action) {
+    setBusy(true);
+    setMessage((await action()) || '');
+    setOn(pushEnabled());
+    setBusy(false);
+  }
+
+  return (
+    <section>
+      <h3 className="mono">Notifications</h3>
+      <div className="seg-row">
+        {on ? (
+          <>
+            <button type="button" className="btn-ghost" disabled={busy} onClick={() => run(sendTestPush)}>
+              Send a test
+            </button>
+            <button type="button" className="btn-ghost danger" disabled={busy} onClick={() => run(disablePush)}>
+              Turn off on this device
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn-ghost" disabled={busy || !pushSupported()} onClick={() => run(enablePush)}>
+            Turn on notifications
+          </button>
+        )}
+      </div>
+      <div className="readability">
+        <label className="range-row auto-row">
+          <span className="mono">Day only</span>
+          <input
+            type="time"
+            className="field"
+            value={defaultTime}
+            onChange={(event) => setAppearance({ pushDefaultTime: event.target.value })}
+            aria-label="Time to notify for tasks and reminders that only have a day"
+          />
+          <span className="auto-note">when to notify for things that have a day but no time (clear it for no notification)</span>
+        </label>
+      </div>
+      {message && <p className="error">{message}</p>}
+      <p className="hint">
+        Tasks with a due time and reminders with a time notify you then, on this device and any other you turn it on for, even with the app closed.
+        Needs an account (the Account button). On an iPhone, add the app to the Home Screen first.
+      </p>
+    </section>
+  );
+}
+
 export function GeneralTab() {
-  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases } = useAppearance();
+  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases, pushDefaultTime } = useAppearance();
   const openWindow = (name) => window.dispatchEvent(new CustomEvent('todolist:open-modal', { detail: name }));
 
   return (
@@ -281,6 +336,8 @@ export function GeneralTab() {
           </label>
         </div>
       </section>
+
+      <Notifications defaultTime={pushDefaultTime} />
 
       <section>
         <h3 className="mono">Cases</h3>

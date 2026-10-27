@@ -130,7 +130,7 @@ export function usesPicture(wallpaperId) {
 }
 
 // (glass has no fixed default: see useAppearance. autoFix is "Auto" in Settings > Readability.)
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR, fireCoverage: DEFAULT_FIRE_COVERAGE, reduceMotion: false, taskGroups: false, showRepeating: true, cases: true };
+const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR, fireCoverage: DEFAULT_FIRE_COVERAGE, reduceMotion: false, taskGroups: false, showRepeating: true, cases: true, pushDefaultTime: '09:00' };
 export const MAX_DIM = 0.7;
 export const MAX_GLASS = 0.9;
 const SETTING_ID = 'appearance'; // the one record in the settings table that holds theme, wallpaper and dim
@@ -172,11 +172,12 @@ export function useAppearance() {
   const fireCoverage = FIRE_COVERAGES.some((item) => item.id === choices.fireCoverage) ? choices.fireCoverage : DEFAULTS.fireCoverage;
 
   const reduceMotion = choices.reduceMotion === true;
+  const pushDefaultTime = /^\d{2}:\d{2}$/.test(choices.pushDefaultTime ?? '') ? choices.pushDefaultTime : choices.pushDefaultTime === '' ? '' : DEFAULTS.pushDefaultTime; // '' = none
   const cases = choices.cases !== false; // Cases: do cases drop (and show in Settings)
   const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
   const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look, fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases };
+  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look, fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases, pushDefaultTime };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).

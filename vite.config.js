@@ -20,6 +20,7 @@ export default defineConfig({
       workbox: {
         // The wallpaper pages (public/lively/) are separate web pages shown in a frame. They must not be
         // answered with the app's own page, and they are too big to save for offline use up front.
+        importScripts: ['push-sw.js'], // shows push notifications (see push.js)
         navigateFallbackDenylist: [/^\/auth/, /^\/lively\//],
         globIgnores: ['lively/**'],
         runtimeCaching: [{

@@ -25,6 +25,7 @@ import Cases from './components/Cases.jsx';
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
 import { useAppearance } from './appearance.js';
+import { startPushSync } from './push.js';
 import Wallpaper from './Wallpaper.jsx';
 
 // The three views in the bottom bar on a phone: [internal name, label shown, icon]. (Settings is the fourth button there.)
@@ -249,6 +250,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [today, setDay]);
 
+
+  // Keep the push notification schedule up to date (does nothing until notifications are turned on in Settings).
+  useEffect(() => startPushSync(), []);
 
   // Settings can open the other windows (the shortcut list, the Cases menu): they ask here.
   useEffect(() => {

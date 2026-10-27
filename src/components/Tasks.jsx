@@ -789,7 +789,7 @@ function ReminderRow({ reminder, date, today }) {
         <span className="task-title">{reminder.title}</span>
         <span className="row-end">
           <span className="tag" title={ruleText(reminder.rule)}>
-            <Icon name="repeat" size={12} /> {ruleText(reminder.rule)}
+            <Icon name={reminder.rule.type === 'once' ? 'calendar' : 'repeat'} size={12} /> {ruleText(reminder.rule)}
           </span>
           <span className={'due ' + info.cls}>{info.text}</span>
           <RowMenu items={[{ label: 'Skip this one', icon: 'x', run: () => finish(true) }]} open={menuOpen} onOpenChange={setMenuOpen} />
