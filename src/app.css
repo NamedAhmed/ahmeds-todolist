@@ -2237,3 +2237,62 @@ html[data-reduce-motion] *::after {
   outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: -1px;
 }
+
+
+/* ---------- Case opening (CaseOpening.jsx) ---------- */
+.case-view {
+  position: relative;
+  overflow: hidden;
+  margin: 14px 0;
+  padding: 10px 0;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.case-marker {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: #ffd700;
+  box-shadow: 0 0 10px #ffd700;
+}
+.case-strip {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  will-change: transform;
+}
+.case-card {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  height: 96px;
+  padding: 8px;
+  border-bottom: 3px solid var(--rarity);
+  border-radius: var(--r-xs);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--rarity) 30%, transparent));
+  text-align: center;
+}
+.case-name {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.case-result {
+  min-height: 3.2em;
+  text-align: center;
+}
+.case-collection {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.case-collection ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}

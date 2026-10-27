@@ -31,6 +31,7 @@ import { sass, toast } from './Fire.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
 import DatePicker from './DatePicker.jsx';
+import { earnCase } from '../cases.js';
 import { useAppearance } from '../appearance.js';
 
 
@@ -313,6 +314,7 @@ function finishTask(task) {
   const total = bumpTasksCompleted(1);
   if (TASK_MILESTONES.includes(total)) {
     toast(quip('taskMilestone', total));
+    earnCase(); // a milestone drops a case
     return;
   }
 

@@ -14,7 +14,8 @@ import Icon from './Icons.jsx';
 import FireArt from './FireArt.jsx';
 import { fireColorStyle } from '../fire.js';
 import { useAppearance } from '../appearance.js';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { earnCase } from '../cases.js';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
@@ -77,6 +78,13 @@ function BigRing({ s, date, today }) {
   const count = dailies.length;
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
+
+  // Finishing the last daily of today (not just opening the app on a finished day) drops a case, once a day.
+  const wasDone = useRef(everythingDone);
+  useEffect(() => {
+    if (everythingDone && !wasDone.current && date === today) earnCase(today);
+    wasDone.current = everythingDone;
+  }, [everythingDone, date, today]);
   const { fireStyle, fireColor, fireCoverage } = useAppearance(); // the look of the flames (Settings > Look > Fire)
 
   // Ring sizes: they share the space, but never get thicker than 10.
