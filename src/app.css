@@ -2547,3 +2547,123 @@ html[data-reduce-motion] *::after {
   padding: 0 8px;
   font-size: 12px;
 }
+
+/* The Trash under the notes list (Side.jsx) */
+.note-trash-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.note-trash-toggle.on,
+.note-trash-toggle:hover {
+  color: var(--text);
+}
+.note-trash {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.note-trash li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.note-trash .t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* The Rich and Markdown note editors (NoteEditors.jsx) */
+.rich-tools {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 0 8px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.rich-tool {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: var(--r-xs);
+  font-size: 12px;
+  color: var(--muted);
+}
+.rich-tool.wide {
+  padding: 0 12px;
+}
+.rich-tool:hover,
+.rich-tool.on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.rich {
+  min-height: 40vh;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+  padding-bottom: 80px;
+}
+.rich > * {
+  margin: 0 0 6px;
+}
+.rich h1 { font-size: 24px; font-weight: 600; margin-top: 12px; }
+.rich h2 { font-size: 20px; font-weight: 600; margin-top: 10px; }
+.rich h3 { font-size: 17px; font-weight: 600; margin-top: 8px; }
+.rich ul, .rich ol { padding-left: 22px; }
+.rich ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+.rich ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
+.rich ul[data-type="taskList"] li > label { margin-top: 5px; }
+.rich ul[data-type="taskList"] li > div { flex: 1; }
+.rich li > p { margin: 0; }
+.rich blockquote { margin-left: 0; padding-left: 14px; border-left: 3px solid var(--line-hi); font-family: var(--serif); font-style: italic; color: var(--muted); }
+.rich pre { padding: 10px 12px; border-radius: var(--r-xs); background: color-mix(in srgb, var(--text) 8%, transparent); font-family: var(--mono); font-size: 13px; overflow-x: auto; }
+.rich code { font-family: var(--mono); font-size: 0.9em; padding: 1px 4px; border-radius: 4px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.rich pre code { padding: 0; background: none; }
+.rich a { color: var(--accent); }
+.rich p.is-editor-empty:first-child::before {
+  content: "Write here. # heading, - list, [ ] to-do, > quote";
+  float: left;
+  height: 0;
+  color: var(--faint);
+  pointer-events: none;
+}
+.rich ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.md-text {
+  display: block;
+  width: 100%;
+  min-height: 40vh;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.md-preview {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-soft);
+  padding-bottom: 60px;
+}
+.md-preview > * { margin: 0 0 8px; }
+.md-preview blockquote { padding-left: 14px; border-left: 3px solid var(--line-hi); font-style: italic; color: var(--muted); }
+.md-preview pre { padding: 10px 12px; background: color-mix(in srgb, var(--text) 8%, transparent); font-family: var(--mono); overflow-x: auto; }
+.md-marker { color: var(--muted); }

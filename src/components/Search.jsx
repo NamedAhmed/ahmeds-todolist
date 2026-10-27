@@ -28,6 +28,7 @@ function searchable(state) {
     items.push({ kind: 'task', id: task.id, label: task.title || '', text: '', done: !!task.done, project: task.kind === 'project' });
   }
   for (const note of all(state, 'notes')) {
+    if (note.trashed) continue; // in the Trash
     items.push({ kind: 'note', id: note.id, label: note.title || 'Untitled', text: note.body || '' });
   }
   for (const daily of all(state, 'dailies')) {

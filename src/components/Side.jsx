@@ -9,76 +9,88 @@
 //   position  where the note is in the list (you drag notes to change it)
 
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { all, commit, uid, useStore } from '../store.js';
+import { all, commit, getState, uid, useStore } from '../store.js';
+import { useAppearance } from '../appearance.js';
+import { noteMd, noteSavePatch } from '../notes.js';
+import { flushNoteSaves, pendingText, queueNoteSave } from '../noteSave.js';
 import { empties, quip, shortDate, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
-import BlockEditor, { blocksFromNote, blocksToText, cleanHtml, newBlock } from './BlockEditor.jsx';
+import { newBlock } from './BlockEditor.jsx';
+import { BlocksEditor, MarkdownEditor, RichEditor } from './NoteEditors.jsx';
+import { Modal } from './Modals.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
 
 
 // ======================================================================
-// EDITOR: the title + the blocks of ONE note
+// EDITOR: the title + the text of ONE note
 // ======================================================================
+// The text is edited by whichever editor Settings > General > Notes editor says (NoteEditors.jsx). Saving goes through
+// noteSave.js, which keeps what is waiting outside this component so leaving the note, switching editor or closing the
+// page can never lose it.
 function Editor({ note }) {
-  // What is currently in the editor.
-  const [title, setTitle] = useState(note.title);
-  const [blocks, setBlocks] = useState(() => blocksFromNote(note));
-  const [saved, setSaved] = useState(''); // the small "Saving…" / "Saved" label
+  const { noteEditor } = useAppearance();
 
-  // A timer we keep between re-draws (useRef holds a value that survives them).
-  const timer = useRef();
+  // What is currently in the editor (an unsaved change from a moment ago wins over what is stored).
+  const waiting = pendingText(note.id);
+  const [title, setTitle] = useState(waiting?.title ?? note.title);
+  const [md] = useState(() => waiting?.md ?? noteMd(note)); // only read when the editor opens; the editor owns the text after that
+  const [saved, setSaved] = useState('');
+  const [history, setHistory] = useState(false);
+  const [revision, setRevision] = useState(0); // bumped to open the editor again on restored text
   const blockArea = useRef(null);
+  const savedLabel = useRef();
 
-  // Called on every change. We don't save immediately. We wait 500ms after you
-  // stop typing, so a whole paragraph is ONE undo step instead of forty.
-  function scheduleSave(newTitle, newBlocks) {
+  // Leaving the note (or switching editor) writes what is waiting.
+  useEffect(() => () => flushNoteSaves(), []);
+
+  function onMd(text) {
     setSaved('Saving…');
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      // Only the formatting we support is saved (see cleanHtml).
-      const cleaned = newBlocks.map((block) => ({ ...block, html: cleanHtml(block.html) }));
-      commit('note edited', [
-        { t: 'notes', id: note.id, patch: { title: newTitle, blocks: cleaned, body: blocksToText(cleaned), edited_at: Date.now() } },
-      ]);
-      setSaved('Saved');
-    }, 500);
+    queueNoteSave(note.id, { md: text });
+    clearTimeout(savedLabel.current);
+    savedLabel.current = setTimeout(() => setSaved('Saved'), 600);
   }
 
   function onTitleChange(event) {
     setTitle(event.target.value);
-    scheduleSave(event.target.value, blocks);
+    setSaved('Saving…');
+    queueNoteSave(note.id, { title: event.target.value });
   }
 
-  function onBlocksChange(newBlocks) {
-    setBlocks(newBlocks);
-    scheduleSave(title, newBlocks);
-  }
-
-  // Enter in the title jumps into the first block.
+  // Enter in the title jumps into the text.
   function onTitleKeyDown(event) {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    blockArea.current?.querySelector('.block-text')?.focus();
+    blockArea.current?.querySelector('.block-text, .rich, textarea')?.focus();
   }
 
-  function deleteNote() {
-    clearTimeout(timer.current); // cancel any save that was waiting
-    commit('note deleted', [{ t: 'notes', id: note.id, set: null }]); // set: null = delete
+  // A note is never deleted from here: it goes to the Trash, where it can be restored.
+  function trashNote() {
+    flushNoteSaves();
+    commit('note trashed', [{ t: 'notes', id: note.id, patch: { trashed: Date.now() } }]);
     toast(quip('noteDeleted'), { undoable: true });
   }
 
+  // Bring back an earlier copy. The text as it is now is kept in the history first.
+  function restoreVersion(version) {
+    flushNoteSaves();
+    const latest = getState().notes[note.id];
+    const now = Date.now();
+    const patch = noteSavePatch(latest, version.md, now);
+    patch.versions = [{ at: now, md: noteMd(latest) }, ...(latest.versions || []).filter((v) => v !== version)].slice(0, 10);
+    commit('note restored', [{ t: 'notes', id: note.id, patch }]);
+    setHistory(false);
+    setRevision((n) => n + 1);
+  }
+
+  const Body = { rich: RichEditor, blocks: BlocksEditor, markdown: MarkdownEditor }[noteEditor] ?? RichEditor;
+
   return (
-    <motion.div
-      className="note-editor"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.1 }}
-    >
+    <motion.div className="note-editor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
       <input
         id="note-title"
         type="text"
@@ -89,14 +101,38 @@ function Editor({ note }) {
         onKeyDown={onTitleKeyDown}
       />
       <div className="note-scroll" ref={blockArea}>
-        <BlockEditor blocks={blocks} onChange={onBlocksChange} />
+        <Body key={noteEditor + revision} md={revision ? noteMd(getState().notes[note.id]) : md} onMd={onMd} />
       </div>
       <footer className="note-foot">
         <span className="mono">{saved}</span>
-        <button className="btn-ghost danger" type="button" onClick={deleteNote} aria-label="Delete note" title="Delete note">
+        {(note.versions?.length ?? 0) > 0 && (
+          <button className="btn-ghost" type="button" onClick={() => setHistory(true)} title="Earlier versions of this note">
+            History
+          </button>
+        )}
+        <button className="btn-ghost danger" type="button" onClick={trashNote} aria-label="Move note to the Trash" title="Move note to the Trash">
           <Icon name="trash" size={16} />
         </button>
       </footer>
+
+      <AnimatePresence>
+        {history && (
+          <Modal title="History" onClose={() => setHistory(false)}>
+            <p className="hint">Earlier copies of this note, saved as you wrote. Restoring one keeps the current text in the history, so nothing is lost.</p>
+            <ul className="plain-list">
+              {(note.versions || []).map((version) => (
+                <li key={version.at}>
+                  <span className="mono">{new Date(version.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  <span className="grow">{version.md.replace(/\s+/g, ' ').slice(0, 80) || '(empty)'}</span>
+                  <button className="btn-ghost" type="button" onClick={() => restoreVersion(version)}>
+                    Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Modal>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -141,7 +177,10 @@ function orderNotes(notes) {
 // Props: onSearch (opens the search window, Ctrl+K).
 export function Notes({ onSearch }) {
   const state = useStore(); // all the app's data
-  const notes = orderNotes(all(state, 'notes'));
+  const every = all(state, 'notes');
+  const notes = orderNotes(every.filter((note) => !note.trashed));
+  const trashed = every.filter((note) => note.trashed).sort((a, b) => b.trashed - a.trashed);
+  const [showTrash, setShowTrash] = useState(false);
 
   // Which note is selected. If none is chosen yet, we show the first one.
   const [activeId, setActiveId] = useState(null);
@@ -160,10 +199,18 @@ export function Notes({ onSearch }) {
       return next;
     });
   }
-  function deletePicked() {
-    commit('notes deleted', [...picked].map((id) => ({ t: 'notes', id, set: null }))); // set: null = delete
-    toast(`${picked.size} notes gone.`, { undoable: true });
+  function trashPicked() {
+    flushNoteSaves();
+    commit('notes trashed', [...picked].map((id) => ({ t: 'notes', id, patch: { trashed: Date.now() } })));
+    toast(`${picked.size} notes in the Trash.`, { undoable: true });
     clearPicked();
+  }
+
+  // The Trash: a note comes back whole, or is deleted for good (only here, and only after asking).
+  const restoreNote = (id) => commit('note restored', [{ t: 'notes', id, patch: { trashed: null } }]);
+  function deleteForever(note) {
+    if (!window.confirm(`Delete "${note.title || 'Untitled'}" for good? This can't be undone.`)) return;
+    commit('note deleted', [{ t: 'notes', id: note.id, set: null }]); // set: null = delete
   }
 
   // A note picked in the search (see App.jsx).
@@ -203,7 +250,7 @@ export function Notes({ onSearch }) {
     const id = uid();
     const top = Math.min(0, ...notes.map((note) => note.position ?? 0)) - 1;
     commit('note added', [
-      { t: 'notes', id, patch: { title: '', body: '', blocks: [newBlock()], position: top, edited_at: Date.now() } },
+      { t: 'notes', id, patch: { title: '', md: '', md_at: Date.now(), body: '', blocks: [newBlock()], position: top, edited_at: Date.now() } },
     ]);
     setActiveId(id);
     sass('noteAdded', [], { chance: 0.5 }); // a rude comment, half the time
@@ -239,11 +286,31 @@ export function Notes({ onSearch }) {
               ))}
             </ul>
           </SortableContext>
+          {trashed.length > 0 && (
+            <button type="button" className={'note-trash-toggle mono' + (showTrash ? ' on' : '')} onClick={() => setShowTrash(!showTrash)} aria-expanded={showTrash}>
+              <Icon name="trash" size={13} /> Trash ({trashed.length})
+            </button>
+          )}
+          {showTrash && trashed.length > 0 && (
+            <ul className="note-trash">
+              {trashed.map((note) => (
+                <li key={note.id}>
+                  <span className="t">{note.title || 'Untitled'}</span>
+                  <button type="button" className="btn-ghost" onClick={() => restoreNote(note.id)}>
+                    Restore
+                  </button>
+                  <button type="button" className="btn-ghost danger" onClick={() => deleteForever(note)} aria-label="Delete for good" title="Delete for good">
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {picked.size > 0 && (
             <div className="bulk-bar" role="toolbar" aria-label="Selected notes">
               <span className="mono">{picked.size} selected</span>
-              <button className="btn-ghost danger" type="button" onClick={deletePicked}>
-                Delete
+              <button className="btn-ghost danger" type="button" onClick={trashPicked}>
+                Trash
               </button>
             </div>
           )}

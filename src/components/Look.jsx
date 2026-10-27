@@ -277,7 +277,7 @@ function Notifications({ defaultTime }) {
 }
 
 export function GeneralTab() {
-  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases, pushDefaultTime } = useAppearance();
+  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases, pushDefaultTime, noteEditor } = useAppearance();
   const openWindow = (name) => window.dispatchEvent(new CustomEvent('todolist:open-modal', { detail: name }));
 
   return (
@@ -335,6 +335,25 @@ export function GeneralTab() {
             <span className="auto-note">show repeating reminders in the task list</span>
           </label>
         </div>
+      </section>
+
+      <section>
+        <h3 className="mono">Notes editor</h3>
+        <div className="seg-row" role="radiogroup" aria-label="Notes editor">
+          {[
+            ['rich', 'Rich'],
+            ['blocks', 'Blocks'],
+            ['markdown', 'Markdown'],
+          ].map(([id, label]) => (
+            <button key={id} type="button" role="radio" aria-checked={noteEditor === id} className={'chip' + (noteEditor === id ? ' solid' : '')} onClick={() => setAppearance({ noteEditor: id })}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          Rich: like a word processor, select across lines freely. Blocks: move blocks by their handle, "/" menu. Markdown: plain text with # and - and **bold**.
+          Every note opens in any of them, and nothing in it changes when you switch.
+        </p>
       </section>
 
       <Notifications defaultTime={pushDefaultTime} />
