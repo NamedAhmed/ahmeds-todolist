@@ -37,6 +37,9 @@ function startingHeight() {
 export default function Sheet({ title, tabs, onClose, children }) {
   const [height, setHeight] = useState(startingHeight);
   const dragging = useRef(false);
+  // The content is heavy (fonts, previews, the wallpaper gallery). Mounting it while the sheet is still sliding
+  // up is what made opening choppy, so it appears once the slide has finished.
+  const [settled, setSettled] = useState(false);
 
   // Tell the page how tall the sheet is, so the page can make itself that much shorter.
   useEffect(() => {
@@ -117,6 +120,7 @@ export default function Sheet({ title, tabs, onClose, children }) {
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+      onAnimationComplete={() => setSettled(true)}
     >
       <div
         className="sheet-handle"
@@ -141,7 +145,7 @@ export default function Sheet({ title, tabs, onClose, children }) {
         </button>
       </header>
 
-      <div className="sheet-body">{children}</div>
+      <div className="sheet-body">{settled && <div className="sheet-content">{children}</div>}</div>
     </motion.section>
   );
 }
