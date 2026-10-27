@@ -64,8 +64,12 @@ export default function App() {
   // ---- things the screen remembers (React "state") ----
   // Calendar dates are transient; the task filter is remembered across sessions.
   const [selection, setSelection] = useState(() => ({ mode: readTaskFilter(), date: null }));
-  const filter = selection.mode;
-  const day = filter === 'today' ? today : filter === 'date' ? selection.date : null;
+  // With "Group tasks by date" on (Settings > General) the time-period switcher is not used: week, month and
+  // no-date become sections of the "all" list. Picking a day on the calendar still narrows the list to that day.
+  const { taskGroups } = useAppearance();
+  const mode = selection.mode;
+  const filter = taskGroups && ['week', 'month', 'undated'].includes(mode) ? 'all' : mode;
+  const day = mode === 'today' ? today : mode === 'date' ? selection.date : null;
   const setDay = useCallback(
     (value) =>
       setSelection((previous) => {

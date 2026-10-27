@@ -31,6 +31,7 @@ import { sass, toast } from './Fire.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
 import DatePicker from './DatePicker.jsx';
+import { useAppearance } from '../appearance.js';
 
 
 // ======================================================================
@@ -1058,6 +1059,17 @@ const FILTER_LABELS = {
   undated: 'No Due Date',
   all: 'All Tasks',
 };
+// The sections of "Group tasks by date" (Settings > General), in order.
+const GROUPS = ['Overdue', 'Today', 'Next 7 days', 'Next month', 'Later', 'No due date'];
+function groupOf(due, today, day) {
+  if (!due) return 5;
+  if (!day && due < today) return 0;
+  if (due <= today) return 1;
+  if (due <= addDays(today, 7)) return 2;
+  if (due <= oneMonthFrom(today)) return 3;
+  return 4;
+}
+
 const SORT_ORDER = ['custom', 'due', 'added'];
 const SORT_LABELS = {
   custom: 'Custom',
@@ -1069,6 +1081,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   const s = useStore();
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
+  const { taskGroups, showRepeating } = useAppearance();
 
   // A task picked in the search (see App.jsx): show it (finished tasks too), scroll to it, focus it and flash it.
   useEffect(() => {
@@ -1126,7 +1139,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   }
 
   // Reminders to show: { reminder, date } pairs.
-  const reminders = all(s, 'reminders')
+  const reminders = (showRepeating ? all(s, 'reminders') : [])
     .map((reminder) => {
       let date = null;
       if (filter === 'date' && day) {
@@ -1199,6 +1212,18 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
     return <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />;
   }
 
+  // "Group tasks by date": one list in sections, reminders first inside each section.
+  const grouped = taskGroups && filter === 'all';
+  const groupRows = grouped
+    ? [
+        ...reminders.map((item) => ({ group: groupOf(item.date, today, day), reminder: item })),
+        ...open.map((task) => ({ group: groupOf(task.due, today, day), task })),
+      ]
+        .map((row, order) => ({ ...row, order }))
+        .sort((a, b) => a.group - b.group || a.order - b.order)
+    : [];
+  const groupCount = (group) => groupRows.filter((row) => row.group === group).length;
+
   const finishedShown = showDone || filter !== 'all'; // filtered views show matching finished tasks
   const nothing = open.length === 0 && reminders.length === 0 && done.length === 0;
 
@@ -1218,8 +1243,8 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
           >
             {SORT_LABELS[sort]}
           </button>
-          <span className="task-controls-separator" aria-hidden="true">•</span>
-          <button
+          {!(taskGroups && filter === 'all') && <span className="task-controls-separator" aria-hidden="true">•</span>}
+          {!(taskGroups && filter === 'all') && <button
             className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
             aria-pressed={filter !== 'all'}
             aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}. Click to change.`}
@@ -1234,7 +1259,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
             }}
           >
             {filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}
-          </button>
+          </button>}
         </div>
 
       </header>
@@ -1245,6 +1270,25 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
       <AddRow day={day} today={today} />
 
       <ul className="task-list">
+        {grouped ? (
+          <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            {groupRows.map((row, i) => (
+              <Fragment key={row.task ? row.task.id : row.reminder.r.id + row.reminder.date}>
+                {(i === 0 || groupRows[i - 1].group !== row.group) && (
+                  <li className={'group-head' + (row.group === 0 ? ' late' : '')}>
+                    {GROUPS[row.group]} · {groupCount(row.group)}
+                  </li>
+                )}
+                {row.task ? (
+                  <TaskRow s={s} task={row.task} today={today} sortable={sort === 'custom'} open={openIds.has(row.task.id)} onToggleOpen={toggleOpen} onMove={moveRow} />
+                ) : (
+                  reminderRow(row.reminder)
+                )}
+              </Fragment>
+            ))}
+          </SortableContext>
+        ) : (
+        <>
         {/* 1. Overdue things first */}
         {lateTotal > 0 && <li className="group-head late">Overdue · {lateTotal}</li>}
         {lateReminders.map(reminderRow)}
@@ -1282,6 +1326,8 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
             </>
           )}
         </SortableContext>
+        </>
+        )}
 
         {/* Nothing at all to show */}
         {nothing && (

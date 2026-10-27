@@ -3,7 +3,7 @@
 //   StyleTab       Theme, Font, Glass look (Liquid theme only), and Text & readability
 //   WallpaperTab   one gallery: None, Liquid, Lively wallpapers, photos, and your own pictures and videos,
 //                  with the settings of the wallpaper you picked right under it
-//   GeneralTab     Fire (the flames around a finished ring), Reduce motion, and Reset appearance
+//   GeneralTab     Fire (the flames around a finished ring), Tasks layout, Reduce motion, and Reset appearance
 //
 // Everything here is saved with setAppearance() so it syncs between your devices (pictures and videos stay on this device).
 
@@ -220,7 +220,7 @@ export function WallpaperTab() {
 }
 
 export function GeneralTab() {
-  const { fireStyle, fireColor, fireCoverage, reduceMotion } = useAppearance();
+  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating } = useAppearance();
 
   return (
     <div className="look">
@@ -261,6 +261,22 @@ export function GeneralTab() {
           ))}
         </div>
         <p className="hint">The flames that rise around the big ring when every daily is done.</p>
+      </section>
+
+      <section>
+        <h3 className="mono">Tasks</h3>
+        <div className="readability">
+          <label className="range-row auto-row">
+            <span className="mono">Groups</span>
+            <Switch checked={taskGroups} onChange={(on) => setAppearance({ taskGroups: on })} />
+            <span className="auto-note">sections (Today, Next 7 days, Next month, Later, No due date) instead of the time-period switcher</span>
+          </label>
+          <label className="range-row auto-row">
+            <span className="mono">Repeating</span>
+            <Switch checked={showRepeating} onChange={(on) => setAppearance({ showRepeating: on })} />
+            <span className="auto-note">show repeating reminders in the task list</span>
+          </label>
+        </div>
       </section>
 
       <section>
