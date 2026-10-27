@@ -263,9 +263,18 @@ export default function App() {
       </div>
 
       {/* The bottom bar. It is only visible on a phone (see app.css). */}
-      <nav className="tabbar" aria-label="Sections">
+      <nav
+        className="tabbar"
+        aria-label="Sections"
+        // Dragging a finger along the bar switches to whichever tab it is over.
+        onPointerMove={(e) => {
+          if (e.pointerType === 'mouse' && !e.buttons) return
+          const id = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-tab]')?.dataset.tab
+          if (id && id !== tab) setTab(id)
+        }}
+      >
         {TABS.map(([id, label, icon]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)} aria-label={label} title={label}>
+          <button key={id} data-tab={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)} aria-label={label} title={label}>
             <Icon name={icon} size={22} />
           </button>
         ))}

@@ -1176,6 +1176,7 @@ select.field {
     padding: 6px;
     gap: 2px;
     border-radius: 32px;
+    touch-action: none; /* a horizontal drag scrubs between tabs instead of panning the page */
     background: color-mix(in srgb, var(--bg) 38%, transparent);
     -webkit-backdrop-filter: blur(22px) saturate(1.8);
     backdrop-filter: blur(22px) saturate(1.8);
