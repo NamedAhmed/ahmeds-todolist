@@ -1,9 +1,11 @@
-// Settings.jsx = the Settings sheet. Four tabs:
+// Settings.jsx = the Settings sheet (three tabs) and the Account window.
 //
 //   Style       theme, font, text colour and readability (Look.jsx)
 //   Wallpaper   the background gallery and the settings of the one you picked (Look.jsx)
 //   General     fire, reduce motion and reset (Look.jsx)
-//   Sync        signing in (to sync your tasks between devices) and downloading a backup
+//
+// The Account window (signing in to sync your tasks between devices, and downloading a backup) opens from
+// the Account button in the Calendar column's footer.
 //
 // It slides up from the bottom without covering the page (Sheet.jsx), so changes show up live.
 
@@ -15,6 +17,7 @@ import Icon from './Icons.jsx';
 import { GeneralTab, StyleTab, WallpaperTab } from './Look.jsx';
 import Sheet from './Sheet.jsx';
 import { toast } from './Fire.jsx';
+import { Modal } from './Modals.jsx';
 
 
 // ======================================================================
@@ -250,9 +253,10 @@ function RestoreBackup() {
   );
 }
 
-function AccountTab() {
+export function AccountModal({ onClose }) {
   return (
-    <div className="look">
+    <Modal title="Account" onClose={onClose}>
+      <div className="look account-window">
       <section>
         <h3 className="mono">Sync</h3>
         <Account />
@@ -268,7 +272,8 @@ function AccountTab() {
         </div>
         <p className="hint">Ctrl+Z undoes anything. Ctrl+Shift+Z brings it back, in case you regret your regret.</p>
       </section>
-    </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -281,7 +286,6 @@ const TABS = [
   ['style', 'Style', 'palette'],
   ['wallpaper', 'Wallpaper', 'image'],
   ['general', 'General', 'sliders'],
-  ['sync', 'Sync', 'user'],
 ];
 
 export function SettingsSheet({ onClose }) {
@@ -307,7 +311,7 @@ export function SettingsSheet({ onClose }) {
 
   return (
     <Sheet title="Settings" tabs={tabs} onClose={onClose}>
-      {tab === 'style' ? <StyleTab /> : tab === 'wallpaper' ? <WallpaperTab /> : tab === 'general' ? <GeneralTab /> : <AccountTab />}
+      {tab === 'style' ? <StyleTab /> : tab === 'wallpaper' ? <WallpaperTab /> : <GeneralTab />}
     </Sheet>
   );
 }

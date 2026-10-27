@@ -4,7 +4,7 @@
 // follows your finger, the tab under it is selected as you pass, and when you let go it springs to rest on
 // the tab you ended on. A plain tap does the same thing in one step.
 //
-// Props: tabs ([id, label, icon] each), tab (the selected id), setTab, settingsOpen, openSettings, syncState.
+// Props: tabs ([id, label, icon] each), tab (the selected id), setTab, settingsOpen, openSettings.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'motion/react';
@@ -12,7 +12,7 @@ import Icon from './Icons.jsx';
 
 const SPRING = { type: 'spring', stiffness: 520, damping: 36, mass: 0.8 };
 
-export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings, syncState }) {
+export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings }) {
   const nav = useRef(null);
   const x = useMotionValue(0);
   const [lens, setLens] = useState({ width: 0 }); // the lens is as wide as one button
@@ -114,7 +114,6 @@ export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings, 
         title="Settings"
       >
         <Icon name="sliders" size={22} />
-        <i className={'sync-dot ' + syncState} />
       </button>
     </nav>
   );

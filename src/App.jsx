@@ -17,7 +17,7 @@ import Tasks, { TaskDnd } from './components/Tasks.jsx';
 import { Notes } from './components/Side.jsx';
 import { DailyEditModal, KeysModal, RemindersModal } from './components/Modals.jsx';
 import Search from './components/Search.jsx';
-import { SettingsSheet } from './components/Settings.jsx';
+import { AccountModal, SettingsSheet } from './components/Settings.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
 import TabBar from './components/TabBar.jsx';
@@ -100,7 +100,7 @@ export default function App() {
   }, []);
   const { reduceMotion } = useAppearance();
   const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
-  const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | 'search' | null
+  const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'account' | 'keys' | 'search' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
 
@@ -272,13 +272,13 @@ export default function App() {
         setTab={setTab}
         settingsOpen={modal === 'settings'}
         openSettings={() => setModal('settings')}
-        syncState={sync.sync}
       />
 
       {/* Pop-up windows. Only the one named in `modal` is shown. */}
       <AnimatePresence>
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
         {modal === 'settings' && <SettingsSheet key="s" onClose={() => setModal(null)} />}
+        {modal === 'account' && <AccountModal key="a" onClose={() => setModal(null)} />}
         {modal === 'keys' && <KeysModal key="k" onClose={() => setModal(null)} />}
         {modal === 'search' && <Search key="f" onClose={() => setModal(null)} onPick={pickResult} />}
         {editingDaily && <DailyEditModal key="d" id={editingDaily} onClose={() => setEditingDaily(null)} />}

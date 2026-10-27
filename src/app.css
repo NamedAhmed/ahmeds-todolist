@@ -1153,7 +1153,7 @@ select.field {
   .col-foot {
     position: static; /* at the bottom of the page, not stuck above the tab bar */
   }
-  .col-foot .account {
+  .col-foot .settings-button {
     display: none; /* Settings is in the tab bar on a phone */
   }
   .col-foot .shortcuts {
@@ -1224,12 +1224,6 @@ select.field {
   }
   .tabbar button {
     background: none;
-  }
-  .tabbar .sync-dot {
-    position: absolute;
-    top: 11px;
-    right: calc(50% - 20px);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg) 60%, transparent);
   }
   .toasts {
     bottom: calc(80px + env(safe-area-inset-bottom));
