@@ -2198,3 +2198,42 @@ html[data-reduce-motion] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+
+/* Several tasks selected (Tasks.jsx) */
+.task.selected {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -1px;
+}
+.bulk-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.bulk-bar .mono {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .bulk-bar {
+    margin-bottom: 84px; /* above the floating tab bar */
+  }
+}
+
+.note-item.selected {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -1px;
+}

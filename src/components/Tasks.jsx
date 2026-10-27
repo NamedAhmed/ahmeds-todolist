@@ -343,6 +343,30 @@ function removeTask(task) {
   toast(quip('taskDeleted'), { undoable: true });
 }
 
+// The same for several tasks at once (the selection bar): one change, so one Undo brings them all back.
+function finishTasks(tasks) {
+  const now = Date.now();
+  const changes = [];
+  for (const task of tasks.filter((t) => !t.done)) {
+    changes.push({ t: 'tasks', id: task.id, patch: { done: true, done_at: now } });
+    if (task.kind === 'project') {
+      for (const step of subtasksOf(getState(), task.id)) {
+        if (!step.done) changes.push({ t: 'tasks', id: step.id, patch: { done: true, done_at: now } });
+      }
+    }
+  }
+  if (!changes.length) return;
+  smooth(() => commit('tasks finished', changes));
+  bumpTasksCompleted(tasks.filter((t) => !t.done).length);
+  toast(`${tasks.length} tasks finished. Look at you go.`, { undoable: true });
+}
+
+function removeTasks(tasks) {
+  const changes = tasks.flatMap((task) => [task, ...subtasksOf(getState(), task.id)]).map((t) => ({ t: 'tasks', id: t.id, set: null }));
+  smooth(() => commit('tasks deleted', changes));
+  toast(`${tasks.length} tasks gone.`, { undoable: true });
+}
+
 
 // ======================================================================
 // THE INSIDES OF A PROJECT (its steps)
@@ -490,7 +514,7 @@ function ProjectBody({ s, task }) {
 //   onMove         function to move the row up/down (Alt+arrows)
 //   sortable       can this row be dragged? (finished tasks can't)
 const TaskRow = memo(
-  function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable }) {
+  function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable, selected }) {
     // Drag-and-drop helpers from the dnd-kit library.
     const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
       id: task.id,
@@ -597,7 +621,7 @@ const TaskRow = memo(
       transition,
     };
 
-    const className = ['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ');
+    const className = ['task', done && 'done', isProject && 'project', isDragging && 'dragging', selected && 'selected'].filter(Boolean).join(' ');
 
     return (
       <li
@@ -701,6 +725,7 @@ const TaskRow = memo(
     before.today === after.today &&
     before.open === after.open &&
     before.sortable === after.sortable &&
+    before.selected === after.selected &&
     before.onMove === after.onMove &&
     (before.task.kind !== 'project' || before.s.tasks === after.s.tasks)
 );
@@ -1083,6 +1108,34 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
   const { taskGroups, showRepeating } = useAppearance();
 
+  // ---- Selecting several tasks ----
+  // Ctrl/Cmd+click a row, or press "Select" (for a phone) and tap rows. A bar then offers Done and Delete.
+  const [selected, setSelected] = useState(() => new Set());
+  const [selecting, setSelecting] = useState(false);
+  const clearSelection = () => {
+    setSelected(new Set());
+    setSelecting(false);
+  };
+  function onListClickCapture(event) {
+    const row = event.target.closest('li.task[data-task]');
+    if (!row || !(selecting || selected.size || event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    event.stopPropagation(); // the click only selects; it does not tick, rename or unfold anything
+    const id = row.dataset.task;
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  useEffect(() => {
+    if (!selected.size) return;
+    const onKey = (event) => event.key === 'Escape' && clearSelection();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected.size]);
+
   // A task picked in the search (see App.jsx): show it (finished tasks too), scroll to it, focus it and flash it.
   useEffect(() => {
     function reveal(event) {
@@ -1233,6 +1286,15 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
         <h1>Tasks</h1>
         <div className="task-controls">
           <button
+            className={'day-toggle' + (selecting || selected.size ? ' on' : '')}
+            aria-pressed={selecting || selected.size > 0}
+            title="Select several tasks (Ctrl+click)"
+            onClick={() => (selecting || selected.size ? clearSelection() : setSelecting(true))}
+          >
+            {selecting || selected.size ? 'Cancel' : 'Select'}
+          </button>
+          <span className="task-controls-separator" aria-hidden="true">•</span>
+          <button
             className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
             aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}
             title={`${SORT_LABELS[sort]} · Click to change sort`}
@@ -1269,7 +1331,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
 
       <AddRow day={day} today={today} />
 
-      <ul className="task-list">
+      <ul className="task-list" onClickCapture={onListClickCapture}>
         {grouped ? (
           <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {groupRows.map((row, i) => (
@@ -1280,7 +1342,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
                   </li>
                 )}
                 {row.task ? (
-                  <TaskRow s={s} task={row.task} today={today} sortable={sort === 'custom'} open={openIds.has(row.task.id)} onToggleOpen={toggleOpen} onMove={moveRow} />
+                  <TaskRow s={s} task={row.task} today={today} sortable={sort === 'custom'} open={openIds.has(row.task.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(row.task.id)} />
                 ) : (
                   reminderRow(row.reminder)
                 )}
@@ -1314,6 +1376,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
                 open={openIds.has(t.id)}
                 onToggleOpen={toggleOpen}
                 onMove={moveRow}
+                selected={selected.has(t.id)}
               />
             </Fragment>
           ))}
@@ -1361,9 +1424,36 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
               open={openIds.has(t.id)}
               onToggleOpen={toggleOpen}
               onMove={moveRow}
+              selected={selected.has(t.id)}
             />
           ))}
       </ul>
+
+      {(selecting || selected.size > 0) && (
+        <div className="bulk-bar" role="toolbar" aria-label="Selected tasks">
+          <span className="mono">{selected.size ? `${selected.size} selected` : 'Tap tasks to select'}</span>
+          <button
+            className="btn-ghost"
+            disabled={!selected.size}
+            onClick={() => {
+              finishTasks(top.filter((t) => selected.has(t.id)));
+              clearSelection();
+            }}
+          >
+            Done
+          </button>
+          <button
+            className="btn-ghost danger"
+            disabled={!selected.size}
+            onClick={() => {
+              removeTasks(top.filter((t) => selected.has(t.id)));
+              clearSelection();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </section>
   );
 }

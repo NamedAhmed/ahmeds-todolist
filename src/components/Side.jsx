@@ -105,14 +105,14 @@ function Editor({ note }) {
 // ======================================================================
 // ONE NOTE IN THE LIST (drag it to move it)
 // ======================================================================
-function NoteItem({ note, active, onPick }) {
+function NoteItem({ note, active, picked, onPick }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: note.id });
 
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} className={isDragging ? 'dragging' : undefined}>
       <button
         type="button"
-        className={'note-item' + (active ? ' active' : '')}
+        className={'note-item' + (active ? ' active' : '') + (picked ? ' selected' : '')}
         onClick={onPick}
         {...attributes}
         {...listeners}
@@ -146,6 +146,28 @@ export function Notes() {
   const [activeId, setActiveId] = useState(null);
   const active = notes.find((note) => note.id === activeId) ?? notes[0];
   const [dragId, setDragId] = useState(null); // the note being dragged, or null
+
+  // Selecting several notes: Ctrl/Cmd+click, or press "Select" (for a phone) and tap notes. Then Delete removes them all.
+  const [picked, setPicked] = useState(() => new Set());
+  const [selecting, setSelecting] = useState(false);
+  const clearPicked = () => {
+    setPicked(new Set());
+    setSelecting(false);
+  };
+  function pick(event, id) {
+    if (!(selecting || picked.size || event.ctrlKey || event.metaKey)) return setActiveId(id);
+    setPicked((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function deletePicked() {
+    commit('notes deleted', [...picked].map((id) => ({ t: 'notes', id, set: null }))); // set: null = delete
+    toast(`${picked.size} notes gone.`, { undoable: true });
+    clearPicked();
+  }
 
   // A note picked in the search (see App.jsx).
   useEffect(() => {
@@ -194,6 +216,9 @@ export function Notes() {
     <div className="pane pane-notes">
       <header className="col-head">
         <h2>Notes</h2>
+        <button className={'btn-ghost' + (selecting || picked.size ? ' on' : '')} type="button" onClick={() => (selecting || picked.size ? clearPicked() : setSelecting(true))} title="Select several notes (Ctrl+click)">
+          {selecting || picked.size ? 'Cancel' : 'Select'}
+        </button>
         <button className="btn-ghost" type="button" onClick={addNote} aria-label="New note" title="New note">
           <Icon name="plus" size={16} />
         </button>
@@ -211,10 +236,18 @@ export function Notes() {
           <SortableContext items={notes.map((note) => note.id)} strategy={verticalListSortingStrategy}>
             <ul className="note-list">
               {notes.map((note) => (
-                <NoteItem key={note.id} note={note} active={note.id === active?.id} onPick={() => setActiveId(note.id)} />
+                <NoteItem key={note.id} note={note} active={note.id === active?.id} picked={picked.has(note.id)} onPick={(event) => pick(event, note.id)} />
               ))}
             </ul>
           </SortableContext>
+          {(selecting || picked.size > 0) && (
+            <div className="bulk-bar" role="toolbar" aria-label="Selected notes">
+              <span className="mono">{picked.size ? `${picked.size} selected` : 'Tap notes to select'}</span>
+              <button className="btn-ghost danger" type="button" disabled={!picked.size} onClick={deletePicked}>
+                Delete
+              </button>
+            </div>
+          )}
           <DragLayer>
             {dragged && (
               <div className="drag-card note-card">
