@@ -949,6 +949,7 @@ html[data-backdrop] .col-foot {
     0 -18px 60px rgba(0, 0, 0, 0.28),
     var(--panel-shadow);
   padding-bottom: env(safe-area-inset-bottom);
+  will-change: transform; /* its own layer, so the slide runs on the GPU instead of repainting the blur every frame */
 }
 /* The grab bar at the top: drag it to resize the sheet. */
 .sheet-handle {
@@ -1319,6 +1320,7 @@ html[data-sheet-dragging] .app {
     margin: 0 0 var(--sheet-offset, 0px);
     overflow: visible;
     border-radius: 0;
+    transition: none; /* the change happens behind the sheet; animating it would re-flow the whole page every frame */
   }
 }
 
