@@ -9,7 +9,7 @@
 //   Toasts (little messages)      -> components/Fire.jsx
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, MotionConfig } from 'motion/react';
 import { ensureTaskCreatedDates, getState, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
@@ -23,6 +23,7 @@ import Icon from './components/Icons.jsx';
 import TabBar from './components/TabBar.jsx';
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
+import { useAppearance } from './appearance.js';
 import Wallpaper from './Wallpaper.jsx';
 
 // The three views in the bottom bar on a phone: [internal name, label shown, icon]. (Settings is the fourth button there.)
@@ -97,6 +98,7 @@ export default function App() {
   useEffect(() => {
     ensureTaskCreatedDates();
   }, []);
+  const { reduceMotion } = useAppearance();
   const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
   const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'keys' | 'search' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
@@ -245,7 +247,7 @@ export default function App() {
 
   // ---- What gets drawn on the screen ----
   return (
-    <>
+    <MotionConfig reducedMotion={reduceMotion ? 'always' : 'user'}>
       {/* The animated background and the theme. It sits behind everything. */}
       <Wallpaper />
 
@@ -284,6 +286,6 @@ export default function App() {
 
       {/* The little messages that slide in at the bottom. */}
       <Toasts />
-    </>
+    </MotionConfig>
   );
 }

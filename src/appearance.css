@@ -1465,3 +1465,23 @@ html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-lis
 .big-ring > svg:not(.ring-fire) {
   opacity: calc(1 - var(--dim-soft, 0));
 }
+
+
+/* Settings tabs: an icon and a word each, so it is clear what is behind them. */
+.sheet-head .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 480px) {
+  .sheet-head .tabs {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .sheet-head .tab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 6px;
+    letter-spacing: 0.04em;
+  }
+}

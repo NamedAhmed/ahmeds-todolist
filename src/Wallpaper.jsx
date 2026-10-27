@@ -21,6 +21,7 @@ import {
   resolveMediaUrl,
   useAppearance,
   useApplyFont,
+  useApplyReduceMotion,
   useApplyTheme,
   gravitySettings,
   liquidSettings,
@@ -223,7 +224,7 @@ function SettingsCanvas({ id, start, settingsOf, pointer }) {
 }
 
 export default function Wallpaper() {
-  const { theme, wallpaper, dim, glass, font, autoFix, textColor, look } = useAppearance();
+  const { theme, wallpaper, dim, glass, font, autoFix, textColor, look, reduceMotion } = useAppearance();
   const pictureId = usePictureId();
   const pictureUrl = useMediaUrl(pictureId);
   const lively = findLively(wallpaper);
@@ -231,6 +232,7 @@ export default function Wallpaper() {
   const frameBox = useRef(null);
   const pointer = useRef({ x: 0.5, y: 0.5, active: false }); // the mouse, as a fraction of the window (0 to 1)
 
+  useApplyReduceMotion(reduceMotion);
   useApplyTheme(theme); // put the theme on the page (this component is always on screen)
   useApplyFont(theme, font);
   useApplyTextColor(textColor);

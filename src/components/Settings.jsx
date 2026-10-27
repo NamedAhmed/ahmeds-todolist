@@ -1,7 +1,9 @@
-// Settings.jsx = the Settings sheet. Two tabs:
+// Settings.jsx = the Settings sheet. Four tabs:
 //
-//   Look      everything about how the app looks (Look.jsx)
-//   Account   signing in (to sync your tasks between devices) and downloading a backup
+//   Style       theme, font, text colour and readability (Look.jsx)
+//   Wallpaper   the background gallery and the settings of the one you picked (Look.jsx)
+//   General     fire, reduce motion and reset (Look.jsx)
+//   Sync        signing in (to sync your tasks between devices) and downloading a backup
 //
 // It slides up from the bottom without covering the page (Sheet.jsx), so changes show up live.
 
@@ -10,7 +12,7 @@ import { exportJson, importJson } from '../store.js';
 import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
-import Look from './Look.jsx';
+import { GeneralTab, StyleTab, WallpaperTab } from './Look.jsx';
 import Sheet from './Sheet.jsx';
 import { toast } from './Fire.jsx';
 
@@ -252,7 +254,7 @@ function AccountTab() {
   return (
     <div className="look">
       <section>
-        <h3 className="mono">Account</h3>
+        <h3 className="mono">Sync</h3>
         <Account />
       </section>
 
@@ -276,12 +278,14 @@ function AccountTab() {
 // ======================================================================
 // The tabs: [id, label].
 const TABS = [
-  ['look', 'Look', 'palette'],
-  ['account', 'Account', 'user'],
+  ['style', 'Style', 'palette'],
+  ['wallpaper', 'Wallpaper', 'image'],
+  ['general', 'General', 'sliders'],
+  ['sync', 'Sync', 'user'],
 ];
 
 export function SettingsSheet({ onClose }) {
-  const [tab, setTab] = useState('look');
+  const [tab, setTab] = useState('style');
 
   const tabs = (
     <div className="tabs" role="tablist">
@@ -291,12 +295,11 @@ export function SettingsSheet({ onClose }) {
           type="button"
           role="tab"
           aria-selected={tab === id}
-          aria-label={label}
-          title={label}
           className={'tab' + (tab === id ? ' active' : '')}
           onClick={() => setTab(id)}
         >
-          <Icon name={icon} size={18} />
+          <Icon name={icon} size={16} />
+          <span>{label}</span>
         </button>
       ))}
     </div>
@@ -304,7 +307,7 @@ export function SettingsSheet({ onClose }) {
 
   return (
     <Sheet title="Settings" tabs={tabs} onClose={onClose}>
-      {tab === 'look' ? <Look /> : <AccountTab />}
+      {tab === 'style' ? <StyleTab /> : tab === 'wallpaper' ? <WallpaperTab /> : tab === 'general' ? <GeneralTab /> : <AccountTab />}
     </Sheet>
   );
 }

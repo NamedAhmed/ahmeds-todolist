@@ -130,7 +130,7 @@ export function usesPicture(wallpaperId) {
 }
 
 // (glass has no fixed default: see useAppearance. autoFix is "Auto" in Settings > Readability.)
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR, fireCoverage: DEFAULT_FIRE_COVERAGE };
+const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR, fireCoverage: DEFAULT_FIRE_COVERAGE, reduceMotion: false };
 export const MAX_DIM = 0.7;
 export const MAX_GLASS = 0.9;
 const SETTING_ID = 'appearance'; // the one record in the settings table that holds theme, wallpaper and dim
@@ -171,12 +171,20 @@ export function useAppearance() {
 
   const fireCoverage = FIRE_COVERAGES.some((item) => item.id === choices.fireCoverage) ? choices.fireCoverage : DEFAULTS.fireCoverage;
 
-  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look, fireStyle, fireColor, fireCoverage };
+  const reduceMotion = choices.reduceMotion === true;
+
+  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look, fireStyle, fireColor, fireCoverage, reduceMotion };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).
 export function setAppearance(patch) {
   saveSetting(SETTING_ID, patch);
+}
+
+// Put every choice back to how it started (glass goes back to the theme's own starting value, which depends on the theme).
+export function resetAppearance() {
+  setAppearance({ ...DEFAULTS, glass: null });
+  resetGlassLook();
 }
 
 // Puts the theme on the page: <html data-theme="forest">. appearance.css reads that attribute.
@@ -823,3 +831,10 @@ async function syncPictures(supabase, user) {
 }
 
 onSynced(syncPictures);
+
+// "Reduce motion" in Settings: <html data-reduce-motion> makes app.css shorten every animation and transition.
+export function useApplyReduceMotion(reduceMotion) {
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute('data-reduce-motion', reduceMotion);
+  }, [reduceMotion]);
+}

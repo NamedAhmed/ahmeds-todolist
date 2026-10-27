@@ -1,12 +1,9 @@
-// Look.jsx = the "Look" tab of Settings: everything about how the app looks, in one place.
+// Look.jsx = the appearance tabs of Settings, one export each:
 //
-//   Theme         colours, corner shapes, panel material and fonts, all at once
-//   Font          replaces the theme's fonts (or keep the theme's own)
-//   Glass look    (Liquid theme only) frost, vibrancy, shine, depth and corners
-//   Fire          the shape and colour of the flames around a finished ring
-//   Text          the text colour, and Auto / Dim / Glass for when text is hard to read over a busy background
-//   Background    one gallery: None, Liquid, Lively wallpapers, photos, and your own pictures and videos
-//   (settings)    the settings of the wallpaper you picked, appear right under the gallery
+//   StyleTab       Theme, Font, Glass look (Liquid theme only), and Text & readability
+//   WallpaperTab   one gallery: None, Liquid, Lively wallpapers, photos, and your own pictures and videos,
+//                  with the settings of the wallpaper you picked right under it
+//   GeneralTab     Fire (the flames around a finished ring), Reduce motion, and Reset appearance
 //
 // Everything here is saved with setAppearance() so it syncs between your devices (pictures and videos stay on this device).
 
@@ -17,7 +14,7 @@ import Switch from './Switch.jsx';
 import WallpaperSettings from './WallpaperSettings.jsx';
 import FireArt from './FireArt.jsx';
 import { FIRE_COLORS, FIRE_COVERAGES, FIRE_STYLES, fireColorStyle } from '../fire.js';
-import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
+import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetAppearance, resetGlassLook, setAppearance, setGlassLook, useAppearance } from '../appearance.js';
 
 
 // ======================================================================
@@ -96,10 +93,10 @@ const TEXT_COLORS = ['#ffffff', '#f3ead9', '#ffd9a0', '#bfe3ff', '#b8ffc8', '#11
 
 
 // ======================================================================
-// THE TAB
+// THE TABS
 // ======================================================================
-export default function Look() {
-  const { theme, font, dim, glass, autoFix, textColor, look, fireStyle, fireColor, fireCoverage } = useAppearance();
+export function StyleTab() {
+  const { theme, font, dim, glass, autoFix, textColor, look } = useAppearance();
 
   // Fonts are downloaded when needed, so download them all now and every preview shows its own font.
   useEffect(() => {
@@ -148,45 +145,6 @@ export default function Look() {
           </p>
         </section>
       )}
-
-      <section>
-        <h3 className="mono">Fire</h3>
-        <div className="fire-row">
-          {FIRE_STYLES.map((style) => (
-            <FireStyleCard key={style.id} style={style} color={fireColor} coverage={fireCoverage} picked={fireStyle === style.id} />
-          ))}
-        </div>
-        <div className="fire-coverage" role="group" aria-label="Where the fire is">
-          {FIRE_COVERAGES.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={'fire-where' + (fireCoverage === item.id ? ' picked' : '')}
-              aria-pressed={fireCoverage === item.id}
-              onClick={() => setAppearance({ fireCoverage: item.id })}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <div className="fire-colors" role="group" aria-label="Fire colour">
-          {FIRE_COLORS.map((color) => (
-            <button
-              key={color.id}
-              type="button"
-              className={'fire-swatch' + (fireColor === color.id ? ' picked' : '') + (color.id === 'rainbow' ? ' fire-rainbow' : '')}
-              style={color.a ? { background: `linear-gradient(135deg, ${color.a} 50%, ${color.b} 50%)` } : undefined}
-              title={color.label}
-              aria-label={color.label}
-              aria-pressed={fireColor === color.id}
-              onClick={() => setAppearance({ fireColor: color.id })}
-            >
-              {!color.a && <span className="mono">Theme</span>}
-            </button>
-          ))}
-        </div>
-        <p className="hint">The flames that rise around the big ring when every daily is done.</p>
-      </section>
 
       <section>
         <h3 className="mono">Text &amp; readability</h3>
@@ -248,13 +206,81 @@ export default function Look() {
             : 'Dim darkens the background. Glass frosts the panels behind the text. Turn them up, or change the text colour, if text is hard to read.'}
         </p>
       </section>
+    </div>
+  );
+}
 
+export function WallpaperTab() {
+  return (
+    <div className="look">
+      <Background />
+      <WallpaperSettings />
+    </div>
+  );
+}
+
+export function GeneralTab() {
+  const { fireStyle, fireColor, fireCoverage, reduceMotion } = useAppearance();
+
+  return (
+    <div className="look">
       <section>
-        <h3 className="mono">Background</h3>
-        <Background />
+        <h3 className="mono">Celebration fire</h3>
+        <div className="fire-row">
+          {FIRE_STYLES.map((style) => (
+            <FireStyleCard key={style.id} style={style} color={fireColor} coverage={fireCoverage} picked={fireStyle === style.id} />
+          ))}
+        </div>
+        <div className="fire-coverage" role="group" aria-label="Where the fire is">
+          {FIRE_COVERAGES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={'fire-where' + (fireCoverage === item.id ? ' picked' : '')}
+              aria-pressed={fireCoverage === item.id}
+              onClick={() => setAppearance({ fireCoverage: item.id })}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="fire-colors" role="group" aria-label="Fire colour">
+          {FIRE_COLORS.map((color) => (
+            <button
+              key={color.id}
+              type="button"
+              className={'fire-swatch' + (fireColor === color.id ? ' picked' : '') + (color.id === 'rainbow' ? ' fire-rainbow' : '')}
+              style={color.a ? { background: `linear-gradient(135deg, ${color.a} 50%, ${color.b} 50%)` } : undefined}
+              title={color.label}
+              aria-label={color.label}
+              aria-pressed={fireColor === color.id}
+              onClick={() => setAppearance({ fireColor: color.id })}
+            >
+              {!color.a && <span className="mono">Theme</span>}
+            </button>
+          ))}
+        </div>
+        <p className="hint">The flames that rise around the big ring when every daily is done.</p>
       </section>
 
-      <WallpaperSettings />
+      <section>
+        <h3 className="mono">Motion</h3>
+        <label className="range-row auto-row">
+          <span className="mono">Reduce</span>
+          <Switch checked={reduceMotion} onChange={(on) => setAppearance({ reduceMotion: on })} />
+          <span className="auto-note">calmer, shorter animations in the app (your device's own setting is always respected)</span>
+        </label>
+      </section>
+
+      <section>
+        <h3 className="mono">Reset</h3>
+        <div className="seg-row">
+          <button type="button" className="btn-ghost danger" onClick={resetAppearance}>
+            Reset appearance
+          </button>
+        </div>
+        <p className="hint">Puts the theme, font, text colour, glass, wallpaper, fire and motion back to how they started. Your tasks and notes are not touched.</p>
+      </section>
     </div>
   );
 }
