@@ -344,17 +344,12 @@ input[type="number"] {
   /* Partly see-through so the wallpaper shows (see appearance.css), blurred so text beneath stays calm. */
   background: color-mix(in srgb, var(--bg) 70%, transparent);
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-.account {
-  display: inline-flex;
+  flex-wrap: wrap; /* the column is narrow: Account and Settings drop to a second row, on the right */
   align-items: center;
   gap: 8px;
-  max-width: 60%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.col-foot .foot-right {
+  margin-left: auto;
 }
 .sync-dot {
   width: 7px;
