@@ -2589,27 +2589,57 @@ html[data-reduce-motion] *::after {
   top: 0;
   z-index: 3;
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 4px 0 8px;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 6px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.rich-tools::-webkit-scrollbar {
+  display: none;
+}
+.rich-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line-hi);
 }
 .rich-tool {
-  min-width: 30px;
-  height: 28px;
-  padding: 0 7px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 32px;
+  padding: 0 9px;
+  border: var(--bw) solid var(--line);
   border-radius: var(--r-xs);
-  font-size: 12px;
-  color: var(--muted);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  font-size: 13px;
+  color: var(--text-soft);
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .rich-tool.wide {
-  padding: 0 12px;
+  padding: 0 14px;
 }
-.rich-tool:hover,
-.rich-tool.on {
+.rich-tool:hover {
+  background: color-mix(in srgb, var(--text) 11%, transparent);
   color: var(--text);
-  background: color-mix(in srgb, var(--text) 12%, transparent);
 }
+.rich-tool.on {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--text);
+}
+.rich-tool.t-B { font-weight: 800; }
+.rich-tool.t-I { font-style: italic; font-family: var(--serif); font-size: 15px; }
+.rich-tool.t-U { text-decoration: underline; }
+.rich-tool.t-S { text-decoration: line-through; }
+.rich-tool.t-H1, .rich-tool.t-H2 { font-family: var(--mono); font-size: 12px; font-weight: 700; }
 .rich {
   min-height: 40vh;
   outline: none;

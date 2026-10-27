@@ -39,11 +39,14 @@ const TOOLS = [
   ['I', 'Italic', (c) => c.toggleItalic(), (e) => e.isActive('italic')],
   ['U', 'Underline', (c) => c.toggleUnderline(), (e) => e.isActive('underline')],
   ['S', 'Strikethrough', (c) => c.toggleStrike(), (e) => e.isActive('strike')],
+  null,
   ['H1', 'Heading 1', (c) => c.toggleHeading({ level: 1 }), (e) => e.isActive('heading', { level: 1 })],
   ['H2', 'Heading 2', (c) => c.toggleHeading({ level: 2 }), (e) => e.isActive('heading', { level: 2 })],
+  null,
   ['•', 'Bulleted list', (c) => c.toggleBulletList(), (e) => e.isActive('bulletList')],
   ['1.', 'Numbered list', (c) => c.toggleOrderedList(), (e) => e.isActive('orderedList')],
   ['☐', 'To-do list', (c) => c.toggleTaskList(), (e) => e.isActive('taskList')],
+  null,
   ['❝', 'Quote', (c) => c.toggleBlockquote(), (e) => e.isActive('blockquote')],
   ['</>', 'Code block', (c) => c.toggleCodeBlock(), (e) => e.isActive('codeBlock')],
 ];
@@ -77,11 +80,14 @@ export function RichEditor({ md, onMd }) {
   return (
     <div className="rich-editor">
       <div className="rich-tools" role="toolbar" aria-label="Formatting">
-        {TOOLS.map(([label, name, run, active]) => (
+        {TOOLS.map((tool, index) => {
+          if (!tool) return <span key={index} className="rich-sep" aria-hidden="true" />;
+          const [label, name, run, active] = tool;
+          return (
           <button
             key={name}
             type="button"
-            className={'rich-tool' + (active(editor) ? ' on' : '')}
+            className={'rich-tool t-' + label.replace(/[^A-Za-z0-9]/g, '') + (active(editor) ? ' on' : '')}
             aria-label={name}
             aria-pressed={active(editor)}
             title={name}
@@ -90,7 +96,8 @@ export function RichEditor({ md, onMd }) {
           >
             {label}
           </button>
-        ))}
+          );
+        })}
       </div>
       <EditorContent editor={editor} />
     </div>
