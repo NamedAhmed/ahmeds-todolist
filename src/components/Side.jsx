@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useAppearance } from '../appearance.js';
@@ -279,7 +279,8 @@ export function Notes({ onSearch }) {
           onDragCancel={() => setDragId(null)}
           onDragEnd={onDragEnd}
         >
-          <SortableContext items={notes.map((note) => note.id)} strategy={verticalListSortingStrategy}>
+          <div className="note-side">
+          <SortableContext items={notes.map((note) => note.id)} strategy={rectSortingStrategy}>
             <ul className="note-list">
               {notes.map((note) => (
                 <NoteItem key={note.id} note={note} active={note.id === active?.id} picked={picked.has(note.id)} onPick={(event) => pick(event, note.id)} />
@@ -314,6 +315,7 @@ export function Notes({ onSearch }) {
               </button>
             </div>
           )}
+          </div>
           <DragLayer>
             {dragged && (
               <div className="drag-card note-card">

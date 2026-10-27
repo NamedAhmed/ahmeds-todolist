@@ -2587,14 +2587,10 @@ html[data-reduce-motion] *::after {
 .rich-tools {
   display: flex;
   align-items: center;
+  flex-wrap: wrap; /* a narrow note wraps the buttons onto a second row instead of cutting them off */
   gap: 6px;
   margin-bottom: 10px;
   padding: 2px 0 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.rich-tools::-webkit-scrollbar {
-  display: none;
 }
 .rich-sep {
   flex-shrink: 0;
@@ -2606,9 +2602,9 @@ html[data-reduce-motion] *::after {
 /* The buttons are ordinary ghost buttons (so every theme styles them); this only sizes them and shows what is on. */
 .rich-tool {
   flex-shrink: 0;
-  min-width: 34px;
-  height: 32px;
-  padding: 0 10px;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
   font-size: 13px;
   color: var(--text-soft);
 }
@@ -2709,4 +2705,100 @@ html[data-reduce-motion] *::after {
   .push-prompt {
     bottom: calc(84px + env(safe-area-inset-bottom));
   }
+}
+
+/* The notes column: the list of notes beside the editor, or above it when the column is narrow. */
+.pane-notes {
+  container-type: inline-size;
+  container-name: notespane;
+}
+.note-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.note-side .note-list {
+  flex: 0 1 auto;
+}
+@container notespane (max-width: 600px) {
+  .notes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+  }
+  .note-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .note-side .note-list {
+    flex-direction: row;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .note-side .note-item {
+    width: auto;
+    min-width: 96px;
+    max-width: 160px;
+    flex-shrink: 0;
+  }
+  .note-side .note-trash-toggle {
+    margin-top: 0;
+  }
+  .note-side .note-trash,
+  .note-side .bulk-bar {
+    flex-basis: 100%;
+  }
+}
+
+.note-side .note-list li {
+  flex-shrink: 0;
+}
+
+/* Markdown editor: writing and result together */
+.md-editor {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.md-editor .md-text {
+  min-height: 30vh;
+}
+.md-editor .md-preview {
+  padding: 12px 0 60px;
+  border-top: var(--bw) solid var(--line);
+}
+@container (min-width: 520px) {
+  .md-editor {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  .md-editor .md-preview {
+    padding: 0 0 60px 20px;
+    border-top: 0;
+    border-left: var(--bw) solid var(--line);
+  }
+}
+
+/* Blocks editor: the handles are always faintly visible (a phone has no hover), and the left gutter is narrower. */
+.block {
+  padding-left: 20px;
+}
+.block-grip {
+  opacity: 0.35;
+}
+@media (hover: none) {
+  .block-grip {
+    opacity: 0.55;
+    width: 20px;
+  }
+}
+.block-grip:hover {
+  opacity: 1;
 }

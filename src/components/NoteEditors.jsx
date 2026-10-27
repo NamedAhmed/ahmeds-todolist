@@ -4,7 +4,7 @@
 //   RichEditor      like a word processor: select across lines freely, markdown shortcuts (# , - , [] , > ), Ctrl+B/I/U.
 //                   Enter is a new line in the same block (in a list it is a new item); Shift+Enter starts a new block.
 //   BlocksEditor    the block editor (BlockEditor.jsx): handles to move blocks, "/" menu, pick whole blocks.
-//   MarkdownEditor  the Markdown as plain text, with a Preview switch.
+//   MarkdownEditor  the Markdown as plain text with the result shown next to it, live.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Extension } from '@tiptap/core';
@@ -19,7 +19,7 @@ import { blocksToMd, mdToBlocks, mdToHtml } from '../notes.js';
 // ======================================================================
 // RICH (TipTap)
 // ======================================================================
-// Enter: a new line in the same block, except in a list (a new item), a task or code (as usual).
+// Enter: a new line in the same block, except in a list (a new item), a task, code or a heading (as usual).
 // Shift+Enter: a new block, except in those.
 const inListLike = (editor) => editor.isActive('listItem') || editor.isActive('taskItem') || editor.isActive('codeBlock');
 const Lines = Extension.create({
@@ -27,7 +27,7 @@ const Lines = Extension.create({
   priority: 1000,
   addKeyboardShortcuts() {
     return {
-      Enter: ({ editor }) => (inListLike(editor) ? false : editor.commands.setHardBreak()),
+      Enter: ({ editor }) => (inListLike(editor) || editor.isActive('heading') ? false : editor.commands.setHardBreak()), // a heading ends at Enter
       'Shift-Enter': ({ editor }) => (inListLike(editor) ? false : editor.commands.splitBlock()),
     };
   },
@@ -127,7 +127,6 @@ export function BlocksEditor({ md, onMd }) {
 // ======================================================================
 export function MarkdownEditor({ md, onMd }) {
   const [text, setText] = useState(md);
-  const [preview, setPreview] = useState(false);
   const area = useRef(null);
 
   // The box grows with its text (the note scrolls, not the box).
@@ -135,52 +134,42 @@ export function MarkdownEditor({ md, onMd }) {
     if (!area.current) return;
     area.current.style.height = 'auto';
     area.current.style.height = area.current.scrollHeight + 'px';
-  }, [text, preview]);
+  }, [text]);
 
-  const html = useMemo(() => (preview ? mdToBlocks(text) : []), [preview, text]);
+  const blocks = useMemo(() => mdToBlocks(text), [text]);
 
+  // The writing and the result are always side by side (stacked when the note is narrow), so there is no Preview switch.
   return (
     <div className="md-editor">
-      <div className="rich-tools">
-        <button type="button" className={'btn-ghost rich-tool wide' + (!preview ? ' on' : '')} onClick={() => setPreview(false)}>
-          Write
-        </button>
-        <button type="button" className={'btn-ghost rich-tool wide' + (preview ? ' on' : '')} onClick={() => setPreview(true)}>
-          Preview
-        </button>
+      <textarea
+        ref={area}
+        className="md-text"
+        value={text}
+        spellCheck
+        aria-label="Note text (Markdown)"
+        placeholder="Write here. # heading, - list, - [ ] to-do, > quote, **bold**, *italic*"
+        onChange={(event) => {
+          setText(event.target.value);
+          onMd(event.target.value);
+        }}
+      />
+      <div className="md-preview" aria-label="Preview">
+        {blocks.map((block) => {
+          const inner = { __html: block.html };
+          if (block.type === 'h1') return <h1 key={block.id} dangerouslySetInnerHTML={inner} />;
+          if (block.type === 'h2') return <h2 key={block.id} dangerouslySetInnerHTML={inner} />;
+          if (block.type === 'h3') return <h3 key={block.id} dangerouslySetInnerHTML={inner} />;
+          if (block.type === 'quote') return <blockquote key={block.id} dangerouslySetInnerHTML={inner} />;
+          if (block.type === 'code') return <pre key={block.id} dangerouslySetInnerHTML={inner} />;
+          const marker = { bullet: '•', number: '–', todo: block.checked ? '☑' : '☐' }[block.type];
+          return (
+            <p key={block.id} style={{ marginLeft: (block.indent ?? 0) * 20 }}>
+              {marker && <span className="md-marker">{marker} </span>}
+              <span dangerouslySetInnerHTML={inner} />
+            </p>
+          );
+        })}
       </div>
-      {preview ? (
-        <div className="md-preview">
-          {html.map((block) => {
-            const inner = { __html: block.html };
-            if (block.type === 'h1') return <h1 key={block.id} dangerouslySetInnerHTML={inner} />;
-            if (block.type === 'h2') return <h2 key={block.id} dangerouslySetInnerHTML={inner} />;
-            if (block.type === 'h3') return <h3 key={block.id} dangerouslySetInnerHTML={inner} />;
-            if (block.type === 'quote') return <blockquote key={block.id} dangerouslySetInnerHTML={inner} />;
-            if (block.type === 'code') return <pre key={block.id} dangerouslySetInnerHTML={inner} />;
-            const marker = { bullet: '•', number: '–', todo: block.checked ? '☑' : '☐' }[block.type];
-            return (
-              <p key={block.id} style={{ marginLeft: (block.indent ?? 0) * 20 }}>
-                {marker && <span className="md-marker">{marker} </span>}
-                <span dangerouslySetInnerHTML={inner} />
-              </p>
-            );
-          })}
-        </div>
-      ) : (
-        <textarea
-          ref={area}
-          className="md-text"
-          value={text}
-          spellCheck
-          aria-label="Note text (Markdown)"
-          placeholder="Write here. # heading, - list, - [ ] to-do, > quote, **bold**, *italic*"
-          onChange={(event) => {
-            setText(event.target.value);
-            onMd(event.target.value);
-          }}
-        />
-      )}
     </div>
   );
 }
