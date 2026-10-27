@@ -1,86 +1,87 @@
-// cases.js = the CS:GO-style case drops (see components/CaseOpening.jsx).
+// cases.js = the CS:GO case drops (the Cases menu is components/Cases.jsx).
 //
 // A case is earned when every daily is finished for the day, and at the task milestones. Opening one rolls a
-// random item with CS:GO's own odds. What you own is kept in the synced `settings` table as
-// { drops: { itemId: count }, lastCaseDay }, next to the tasks-completed count (see Tasks.jsx).
+// random skin with CS:GO's own odds. What you own is kept in the synced `settings` table, next to the
+// tasks-completed count (see Tasks.jsx):  { cases: { caseId: count }, drops: { "AK-47 | Redline": count }, lastCaseDay }
+//
+// The list of cases is src/cases-catalog.json (made by scripts/import-cases.mjs). It is big, so it is only
+// loaded when needed.
 
 import { getState, saveSetting } from './store.js';
 
 const STATS_ID = 'stats';
 
-// Rarity: [id, name shown, colour, chance in %]. The odds are CS:GO's.
+// Rarity: the colour and the chance in %. The odds are CS:GO's; index 4 is the gold knife or gloves.
 export const RARITIES = [
-  { id: 'milspec', name: 'Mil-Spec', color: '#4b69ff', chance: 79.92 },
-  { id: 'restricted', name: 'Restricted', color: '#8847ff', chance: 15.98 },
-  { id: 'classified', name: 'Classified', color: '#d32ce6', chance: 3.2 },
-  { id: 'covert', name: 'Covert', color: '#eb4b4b', chance: 0.64 },
-  { id: 'rare', name: 'Rare Special', color: '#ffd700', chance: 0.26 },
+  { name: 'Mil-Spec', color: '#4b69ff', chance: 79.92 },
+  { name: 'Restricted', color: '#8847ff', chance: 15.98 },
+  { name: 'Classified', color: '#d32ce6', chance: 3.2 },
+  { name: 'Covert', color: '#eb4b4b', chance: 0.64 },
+  { name: 'Rare Special Item', color: '#ffd700', chance: 0.26 },
 ];
 
-// Every item: [rarity, weapon, skin, art]. `art` picks the picture drawn for it (see Weapon in CaseOpening.jsx).
-const ITEM_LIST = [
-  ['milspec', 'P250', 'Sand Dune', 'pistol'],
-  ['milspec', 'Five-SeveN', 'Forest Night', 'pistol'],
-  ['milspec', 'MP9', 'Hot Rod', 'smg'],
-  ['milspec', 'SG 553', 'Army Sheen', 'rifle'],
-  ['milspec', 'MAC-10', 'Heat', 'smg'],
-  ['restricted', 'AK-47', 'Redline', 'rifle'],
-  ['restricted', 'Glock-18', 'Water Elemental', 'pistol'],
-  ['restricted', 'Desert Eagle', 'Blaze', 'pistol'],
-  ['restricted', 'P90', 'Asiimov', 'smg'],
-  ['classified', 'AWP', 'Asiimov', 'sniper'],
-  ['classified', 'M4A4', 'Neo-Noir', 'rifle'],
-  ['covert', 'AK-47', 'Fire Serpent', 'rifle'],
-  ['covert', 'AWP', 'Dragon Lore', 'sniper'],
-  ['rare', '★ Karambit', 'Doppler', 'karambit'],
-  ['rare', '★ Butterfly Knife', 'Fade', 'bayonet'],
-  ['rare', '★ Bayonet', 'Crimson Web', 'bayonet'],
-];
+// ---- The catalog ----
+let loading;
+export function loadCatalog() {
+  loading ??= import('./cases-catalog.json').then((module) => module.default);
+  return loading;
+}
 
-export const ITEMS = ITEM_LIST.map(([rarity, weapon, skin, art], index) => ({
-  ...RARITIES.find((r) => r.id === rarity),
-  id: `i${index}`,
-  rarity,
-  weapon,
-  skin,
-  art,
-  name: `${weapon} | ${skin}`,
-}));
+// A Steam image address from the catalog's short form, at a size (e.g. '256fx192f').
+export const pictureUrl = (catalog, path, size) => (path ? `${catalog.prefix}${path}/${size}` : '');
 
-// Pick a random item, rarity first (by the odds), then an item of that rarity.
-export function rollItem() {
-  let roll = Math.random() * RARITIES.reduce((sum, r) => sum + r.chance, 0);
-  let rarity = RARITIES[0];
-  for (const r of RARITIES) {
-    if (roll < r.chance) {
-      rarity = r;
+// One case's skins, as { id, name, rarity, image }, grouped by rarity: tiers[0] is Mil-Spec ... tiers[4] the gold ones.
+export function tiersOf(crate) {
+  const tiers = [[], [], [], [], []];
+  for (const [name, rarity, image] of crate.items) tiers[rarity].push({ id: name, name, rarity, image });
+  for (const [name, image] of crate.rare) tiers[4].push({ id: name, name, rarity: 4, image });
+  return tiers;
+}
+
+// Pick a random skin from a case: the rarity first (by the odds, among the rarities this case has), then a skin of it.
+export function rollItem(tiers) {
+  const present = RARITIES.map((rarity, index) => ({ index, chance: tiers[index].length ? rarity.chance : 0 }));
+  let roll = Math.random() * present.reduce((sum, tier) => sum + tier.chance, 0);
+  let picked = present.find((tier) => tier.chance > 0);
+  for (const tier of present) {
+    if (roll < tier.chance) {
+      picked = tier;
       break;
     }
-    roll -= r.chance;
+    roll -= tier.chance;
   }
-  const pool = ITEMS.filter((item) => item.rarity === rarity.id);
+  const pool = tiers[picked.index];
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// The items you own, as { itemId: count }.
-export function getDrops() {
-  return getState().settings[STATS_ID]?.drops || {};
+// ---- What you own ----
+export const getCases = () => getState().settings[STATS_ID]?.cases || {};
+export const getDrops = () => getState().settings[STATS_ID]?.drops || {};
+
+export function addCase(id, by = 1) {
+  const cases = getCases();
+  saveSetting(STATS_ID, { cases: { ...cases, [id]: Math.max(0, (cases[id] || 0) + by) } });
 }
 
 export function addDrop(item) {
   const drops = getDrops();
-  saveSetting(STATS_ID, { drops: { ...drops, [item.id]: (drops[item.id] || 0) + 1 } });
-  return drops[item.id] ? drops[item.id] + 1 : 1;
+  const count = (drops[item.id] || 0) + 1;
+  saveSetting(STATS_ID, { drops: { ...drops, [item.id]: count } });
+  return count;
 }
 
-// Open a case right now, for trying the animation out (the Test button in Settings, shown only on a local copy).
-export const testCase = () => window.dispatchEvent(new CustomEvent('todolist:open-case'));
-
-// Ask the app to open a case. `day` (a date string) limits it to once a day, e.g. for "all dailies done".
-export function earnCase(day) {
+// You earned a case: give a random one and tell the app (App.jsx opens the Cases menu on it).
+// `day` (a date string) limits it to once a day, e.g. for "all dailies done".
+export async function earnCase(day) {
   if (day) {
     if (getState().settings[STATS_ID]?.lastCaseDay === day) return;
     saveSetting(STATS_ID, { lastCaseDay: day });
   }
-  window.dispatchEvent(new CustomEvent('todolist:open-case'));
+  const { cases } = await loadCatalog();
+  const crate = cases[Math.floor(Math.random() * cases.length)];
+  addCase(crate.id);
+  window.dispatchEvent(new CustomEvent('todolist:case-earned', { detail: crate.id }));
 }
+
+// The "give me a case" button in Settings, shown only on a local copy (npm run dev).
+export const testCase = () => earnCase();

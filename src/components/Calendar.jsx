@@ -564,6 +564,9 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
         <button className="btn-ghost" onClick={() => open('search')} aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">
           <Icon name="search" size={16} />
         </button>
+        <button className="btn-ghost" onClick={() => open('cases')} aria-label="Cases" title="Cases">
+          <Icon name="box" size={16} />
+        </button>
         <button className="btn-ghost shortcuts" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onClick={() => open('keys')}>
           <Icon name="help" size={16} />
         </button>

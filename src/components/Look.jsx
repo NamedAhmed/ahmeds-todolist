@@ -295,7 +295,7 @@ export function GeneralTab() {
           <h3 className="mono">Test (local only)</h3>
           <div className="seg-row">
             <button type="button" className="btn-ghost" onClick={testCase}>
-              Open a test case
+              Give me a case
             </button>
           </div>
         </section>
