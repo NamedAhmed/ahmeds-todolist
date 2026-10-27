@@ -20,6 +20,7 @@ import Search from './components/Search.jsx';
 import { SettingsSheet } from './components/Settings.jsx';
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
+import TabBar from './components/TabBar.jsx';
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
 import Wallpaper from './Wallpaper.jsx';
@@ -263,26 +264,14 @@ export default function App() {
       </div>
 
       {/* The bottom bar. It is only visible on a phone (see app.css). */}
-      <nav
-        className="tabbar"
-        aria-label="Sections"
-        // Dragging a finger along the bar switches to whichever tab it is over.
-        onPointerMove={(e) => {
-          if (e.pointerType === 'mouse' && !e.buttons) return
-          const id = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-tab]')?.dataset.tab
-          if (id && id !== tab) setTab(id)
-        }}
-      >
-        {TABS.map(([id, label, icon]) => (
-          <button key={id} data-tab={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)} aria-label={label} title={label}>
-            <Icon name={icon} size={22} />
-          </button>
-        ))}
-        <button className={'settings-tab' + (modal === 'settings' ? ' active' : '')} onClick={() => setModal('settings')} aria-label="Settings" title="Settings">
-          <Icon name="sliders" size={22} />
-          <i className={'sync-dot ' + sync.sync} />
-        </button>
-      </nav>
+      <TabBar
+        tabs={TABS}
+        tab={tab}
+        setTab={setTab}
+        settingsOpen={modal === 'settings'}
+        openSettings={() => setModal('settings')}
+        syncState={sync.sync}
+      />
 
       {/* Pop-up windows. Only the one named in `modal` is shown. */}
       <AnimatePresence>
