@@ -87,7 +87,7 @@ function Editor({ note }) {
     setRevision((n) => n + 1);
   }
 
-  const Body = { rich: RichEditor, blocks: BlocksEditor, markdown: MarkdownEditor }[noteEditor] ?? RichEditor;
+  const Body = { rich: RichEditor, blocks: BlocksEditor, markdown: MarkdownEditor }[noteEditor] ?? BlocksEditor;
 
   return (
     <motion.div className="note-editor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>

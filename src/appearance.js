@@ -130,7 +130,7 @@ export function usesPicture(wallpaperId) {
 }
 
 // (glass has no fixed default: see useAppearance. autoFix is "Auto" in Settings > Readability.)
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR, fireCoverage: DEFAULT_FIRE_COVERAGE, reduceMotion: false, taskGroups: false, showRepeating: true, cases: true, pushDefaultTime: '09:00', noteEditor: 'rich' };
+const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '', fireStyle: DEFAULT_FIRE_STYLE, fireColor: DEFAULT_FIRE_COLOR, fireCoverage: DEFAULT_FIRE_COVERAGE, reduceMotion: false, taskGroups: false, showRepeating: true, cases: true, pushDefaultTime: '09:00', noteEditor: 'blocks' };
 export const MAX_DIM = 0.7;
 export const MAX_GLASS = 0.9;
 const SETTING_ID = 'appearance'; // the one record in the settings table that holds theme, wallpaper and dim

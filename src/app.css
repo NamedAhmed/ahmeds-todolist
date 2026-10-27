@@ -2668,16 +2668,6 @@ html[data-reduce-motion] *::after {
   font-size: 13.5px;
   line-height: 1.7;
 }
-.md-preview {
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--text-soft);
-  padding-bottom: 60px;
-}
-.md-preview > * { margin: 0 0 8px; }
-.md-preview blockquote { padding-left: 14px; border-left: 3px solid var(--line-hi); font-style: italic; color: var(--muted); }
-.md-preview pre { padding: 10px 12px; background: color-mix(in srgb, var(--text) 8%, transparent); font-family: var(--mono); overflow-x: auto; }
-.md-marker { color: var(--muted); }
 
 /* The one-time "turn on notifications?" card (App.jsx) */
 .push-prompt {
@@ -2760,31 +2750,6 @@ html[data-reduce-motion] *::after {
   flex-shrink: 0;
 }
 
-/* Markdown editor: writing and result together */
-.md-editor {
-  container-type: inline-size;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-.md-editor .md-text {
-  min-height: 30vh;
-}
-.md-editor .md-preview {
-  padding: 12px 0 60px;
-  border-top: var(--bw) solid var(--line);
-}
-@container (min-width: 520px) {
-  .md-editor {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 20px;
-  }
-  .md-editor .md-preview {
-    padding: 0 0 60px 20px;
-    border-top: 0;
-    border-left: var(--bw) solid var(--line);
-  }
-}
 
 /* Blocks editor: the handles are always faintly visible (a phone has no hover), and the left gutter is narrower. */
 .block {
@@ -2802,3 +2767,53 @@ html[data-reduce-motion] *::after {
 .block-grip:hover {
   opacity: 1;
 }
+
+/* Markdown editor: one surface. A coloured copy (.md-color) sits behind a see-through text box (.md-text); the two share
+   every font and spacing value so the characters line up exactly. */
+.md-editor {
+  position: relative;
+  min-height: 40vh;
+}
+.md-color,
+.md-editor .md-text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+.md-color {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--text-soft);
+}
+.md-editor .md-text {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 40vh;
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+.md-editor .md-text::placeholder {
+  color: var(--faint);
+}
+.md-editor .md-text::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.md-color b { color: var(--text); font-weight: 700; }
+.md-color i { font-style: italic; color: var(--text); }
+.md-color s { text-decoration: line-through; opacity: 0.7; }
+.md-color .mk-mark { color: var(--faint); }
+.md-color .mk-h { color: var(--text); font-weight: 700; }
+.md-color .mk-q { color: var(--muted); font-style: italic; }
+.md-color .mk-code { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 3px; }
+.md-color .mk-link { color: var(--accent); }
+.md-color .mk-done { opacity: 0.55; text-decoration: line-through; }

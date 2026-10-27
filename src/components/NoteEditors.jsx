@@ -4,7 +4,7 @@
 //   RichEditor      like a word processor: select across lines freely, markdown shortcuts (# , - , [] , > ), Ctrl+B/I/U.
 //                   Enter is a new line in the same block (in a list it is a new item); Shift+Enter starts a new block.
 //   BlocksEditor    the block editor (BlockEditor.jsx): handles to move blocks, "/" menu, pick whole blocks.
-//   MarkdownEditor  the Markdown as plain text with the result shown next to it, live.
+//   MarkdownEditor  the Markdown itself, coloured as you type (one surface, nothing to switch).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Extension } from '@tiptap/core';
@@ -13,7 +13,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import BlockEditor, { cleanHtml } from './BlockEditor.jsx';
-import { blocksToMd, mdToBlocks, mdToHtml } from '../notes.js';
+import { blocksToMd, mdToBlocks } from '../notes.js';
 
 
 // ======================================================================
@@ -125,6 +125,37 @@ export function BlocksEditor({ md, onMd }) {
 // ======================================================================
 // MARKDOWN
 // ======================================================================
+// ONE surface: you type the Markdown itself, and it is coloured as you type (headings bold, **bold** bold, `code` shaded,
+// markers dimmed). A coloured copy of the text sits behind a see-through text box with exactly the same font and size, so
+// nothing shifts and there is nothing to switch between.
+const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function colour(md) {
+  return md
+    .split('\n')
+    .map((raw) => {
+      let line = escapeHtml(raw);
+      const heading = /^(#{1,3} )(.*)$/.exec(line);
+      const quote = /^(&gt; ?)(.*)$/.exec(line);
+      const item = /^(\s*(?:[-*+]|\d+[.)]) (?:\[[ xX]\] )?)(.*)$/.exec(line);
+      const done = /^\s*[-*+] \[[xX]\] /.test(line);
+      // inline marks: the characters stay (so the box lines up); they are only wrapped
+      const inline = (text) =>
+        text
+          .replace(/(`[^`\n]+`)/g, '<span class="mk-code">$1</span>')
+          .replace(/(\*\*[^*\n]+\*\*)/g, '<b>$1</b>')
+          .replace(/(~~[^~\n]+~~)/g, '<s>$1</s>')
+          .replace(/(^|[^*])(\*[^*\n]+\*)/g, '$1<i>$2</i>')
+          .replace(/(\[[^\]\n]+\]\([^)\s]*\))/g, '<span class="mk-link">$1</span>');
+      if (heading) return `<span class="mk-mark">${heading[1]}</span><span class="mk-h">${inline(heading[2])}</span>`;
+      if (quote) return `<span class="mk-mark">${quote[1]}</span><span class="mk-q">${inline(quote[2])}</span>`;
+      if (item) return `<span class="mk-mark">${item[1]}</span><span class="${done ? 'mk-done' : ''}">${inline(item[2])}</span>`;
+      if (/^```/.test(line)) return `<span class="mk-mark">${line}</span>`;
+      return inline(line);
+    })
+    .join('\n');
+}
+
 export function MarkdownEditor({ md, onMd }) {
   const [text, setText] = useState(md);
   const area = useRef(null);
@@ -136,11 +167,11 @@ export function MarkdownEditor({ md, onMd }) {
     area.current.style.height = area.current.scrollHeight + 'px';
   }, [text]);
 
-  const blocks = useMemo(() => mdToBlocks(text), [text]);
+  const html = useMemo(() => colour(text) + '\n ', [text]); // a last line break so the copy is as tall as the box
 
-  // The writing and the result are always side by side (stacked when the note is narrow), so there is no Preview switch.
   return (
     <div className="md-editor">
+      <pre className="md-color" aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
       <textarea
         ref={area}
         className="md-text"
@@ -153,23 +184,6 @@ export function MarkdownEditor({ md, onMd }) {
           onMd(event.target.value);
         }}
       />
-      <div className="md-preview" aria-label="Preview">
-        {blocks.map((block) => {
-          const inner = { __html: block.html };
-          if (block.type === 'h1') return <h1 key={block.id} dangerouslySetInnerHTML={inner} />;
-          if (block.type === 'h2') return <h2 key={block.id} dangerouslySetInnerHTML={inner} />;
-          if (block.type === 'h3') return <h3 key={block.id} dangerouslySetInnerHTML={inner} />;
-          if (block.type === 'quote') return <blockquote key={block.id} dangerouslySetInnerHTML={inner} />;
-          if (block.type === 'code') return <pre key={block.id} dangerouslySetInnerHTML={inner} />;
-          const marker = { bullet: '•', number: '–', todo: block.checked ? '☑' : '☐' }[block.type];
-          return (
-            <p key={block.id} style={{ marginLeft: (block.indent ?? 0) * 20 }}>
-              {marker && <span className="md-marker">{marker} </span>}
-              <span dangerouslySetInnerHTML={inner} />
-            </p>
-          );
-        })}
-      </div>
     </div>
   );
 }
