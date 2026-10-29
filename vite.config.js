@@ -26,14 +26,11 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // The wallpaper pages (public/lively/) are separate web pages shown in a frame. They must not be
-        // answered with the app's own page, and they are too big to save for offline use up front.
         importScripts: ['push-sw.js'], // shows push notifications (see push.js)
-        navigateFallbackDenylist: [/^\/auth/, /^\/lively\//],
-        globIgnores: ['lively/**', '**/cases-catalog-*.js'], // too big to download for everyone; cached the first time Cases opens
+        navigateFallbackDenylist: [/^\/auth/],
         runtimeCaching: [{
-          // The Cases list and the photo wallpapers: saved the first time they are used, then served from the device.
-          urlPattern: ({ url }) => /cases-catalog-.*\.js$/.test(url.pathname) || url.pathname.startsWith('/pictures/') || url.pathname.startsWith('/lively/'),
+          // The photo backgrounds: saved the first time they are used, then served from the device.
+          urlPattern: ({ url }) => url.pathname.startsWith('/pictures/'),
           handler: 'CacheFirst',
           options: { cacheName: 'heavy-assets', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 }, cacheableResponse: { statuses: [0, 200] } }
         }, {
@@ -44,5 +41,7 @@ export default defineConfig({
       }
     })
   ],
-  server: { port: 3000, strictPort: true }
+  server: { port: 3000, strictPort: true },
+  // `npm test` (Vitest): the tests run in Node, with the bits of browser they need from src/test-setup.js.
+  test: { setupFiles: ['src/test-setup.js'] }
 });

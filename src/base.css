@@ -13,6 +13,15 @@
    ====================================================================== */
 
 :root {
+  /* What sits on top of what, for everything that floats over the page (small numbers inside one row or card are local
+     and don't need these). Bottom to top: */
+  --z-bar: 15;       /* the phone's tab bar */
+  --z-menu: 20;      /* a row's ⋯ menu, the slash menu */
+  --z-menu-open: 30; /* the row whose menu is open, drop-down lists */
+  --z-fx: 45;        /* theme effects over the whole page (Terminal's scanlines) */
+  --z-sheet: 55;     /* the Settings sheet */
+  --z-window: 60;    /* windows (modals) and their dark backdrop */
+  --z-toast: 80;     /* messages, and the notifications card */
   --bg: #0c0b0a;
   --line: #221f1b;
   --surface: #151311;

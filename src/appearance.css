@@ -16,8 +16,7 @@
      in Settings do exactly that, to preview their own colours and shapes.
    - Some themes need extra rules (glass, paper texture, scanlines). Those are at the END of this file,
      under THEME EXTRAS.
-   - Use 6-digit hex colours (#rrggbb) for --accent, --blue, --green, --warn and --text where you can:
-     the liquid wallpaper reads them.
+   - Each theme also sets --flame and --flame-core: the colours of the fire around a finished ring.
 
    TO ADD A THEME: copy a block below, change the name and values, then add it to THEMES in appearance.js.
    ====================================================================== */
@@ -25,6 +24,8 @@
 /* DEFAULT. It is also the :root block in base.css; repeated here so a theme CARD can show it
    while another theme is active. */
 [data-theme="ember"] {
+  --flame: #ff8a3d; /* the fire around a finished ring: orange, like a real fire */
+  --flame-core: #ffd27a;
   --bg: #0c0b0a;
   --line: #221f1b;
   --surface: #151311;
@@ -67,6 +68,8 @@
 
 /* LIGHT. The same shapes as Default, in warm daylight colours. */
 [data-theme="light"] {
+  --flame: #f2542d; /* the fire around a finished ring: a deeper red-orange, so it shows on the pale page */
+  --flame-core: #ffb347;
   --bg: #f6f2ea;
   --line: #e2dccf;
   --surface: #ffffff;
@@ -111,6 +114,8 @@
 /* LIQUID. Glass: see-through, blurred panels that float over the background, with big soft corners.
    (The blur is under THEME EXTRAS.) */
 [data-theme="liquid"] {
+  --flame: #3d9bff; /* the fire around a finished ring: a blue gas flame, like the accent */
+  --flame-core: #d8efff;
   --bg: #0b0b0d;
   --line: rgba(255, 255, 255, 0.14);
   --surface: rgba(255, 255, 255, 0.1);
@@ -153,6 +158,8 @@
 
 /* PAPER. A warm notebook: cream pages, ink, serif type, square corners, thicker lines, hard shadows. */
 [data-theme="paper"] {
+  --flame: #c0392b; /* the fire around a finished ring: ink red and ochre */
+  --flame-core: #f0b45a;
   --bg: #efe6d2;
   --line: #cfc2a2;
   --surface: #f8f1e1;
@@ -196,6 +203,8 @@
 
 /* TERMINAL. Green on black, monospace everywhere, sharp corners, a faint glow. */
 [data-theme="terminal"] {
+  --flame: #2bff6a; /* the fire around a finished ring: green phosphor */
+  --flame-core: #d2ffe0;
   --bg: #050a06;
   --line: #12351d;
   --surface: #08120a;
@@ -236,6 +245,52 @@
   --mono: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 }
 
+/* DUSK. The sky just after sunset: a deep violet night, lavender text, a warm peach accent, and floating, very
+   rounded panels lit faintly from above (see THEME EXTRAS). Italic serif headings. Its fire is a sunset: pink into
+   peach. */
+[data-theme="dusk"] {
+  --flame: #ff5f9e; /* the fire around a finished ring: a sunset, pink into peach */
+  --flame-core: #ffd2a8;
+  --bg: #15101f;
+  --line: #2b2339;
+  --surface: #1d1629;
+  --text: #f4ebf7;
+  --muted: #a796ba;
+  --faint: #5c4f72;
+  --faint-text: #8f80a3; /* faint, but readable as text (5 : 1) */
+  --accent: #ff9e7a;
+  --blue: #8fb4ff;
+  --green: #8fe3c0;
+  --warn: #ffc56b;
+  --track: #251d35;
+  --line-hi: #473b5e;
+  --line-mid: #342a46;
+  --panel-a: #1f182c;
+  --panel-b: #2a2139;
+  --panel-c: #241c33;
+  --text-soft: #ded2e8;
+  --scrim: rgba(10, 6, 18, 0.78);
+  --hover-fill: #ffffff;
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 26px;
+  --r-pill: 999px;
+  --bw: 1px;
+  --divider: 1px;
+  --app-pad: 14px;
+  --app-gap: 14px;
+  --col-radius: 28px;
+  --shadow-pop: 0 18px 50px rgba(8, 3, 18, 0.6);
+  --panel-bg: #1d1629;
+  --panel-blur: 0px;
+  --panel-shadow: 0 18px 50px rgba(8, 3, 18, 0.55), inset 0 1px 0 rgba(255, 214, 236, 0.08);
+  --field-bg: #140f1d;
+  --serif: "DM Serif Display", Georgia, serif;
+  --sans: "DM Sans", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, monospace;
+}
+
 /* Colours change smoothly when you pick another theme. */
 body {
   transition:
@@ -260,15 +315,7 @@ body {
   background-size: cover;
   background-position: center;
 }
-/* A Lively wallpaper is a whole web page, shown in a frame that fills the screen. */
-.wallpaper-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: transparent;
-}
+
 .wallpaper-video {
   position: absolute;
   inset: 0;
@@ -505,15 +552,7 @@ html[data-backdrop] .col-foot {
   opacity: 1;
 }
 
-/* The wallpaper browser (Wallpapers.jsx) */
-.tile-author {
-  margin-top: -4px;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+
 .wp-toolbar {
   display: flex;
   align-items: center;
@@ -523,37 +562,7 @@ html[data-backdrop] .col-foot {
   flex: 1;
 }
 
-/* The chosen wallpaper's own settings: a quiet card with one hairline-separated row per setting. */
-.customize {
-  display: flex;
-  flex-direction: column;
-  padding: 20px 22px 12px;
-  border-radius: var(--r-lg);
-  border: var(--bw) solid var(--line);
-  background: var(--panel-a);
-}
-.customize-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: var(--bw) solid var(--line);
-}
-.customize-title h3 {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 26px;
-  font-weight: 400;
-  line-height: 1.1;
-  color: var(--text);
-}
-.customize-meta {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--muted);
-}
-.customize a,
+
 .credits a,
 .pictures a {
   color: var(--text-soft);
@@ -562,76 +571,12 @@ html[data-backdrop] .col-foot {
   text-underline-offset: 3px;
   transition: color 0.2s ease;
 }
-.customize a:hover,
+
 .credits a:hover,
 .pictures a:hover {
   color: var(--text);
 }
-.props {
-  display: flex;
-  flex-direction: column;
-}
-.prop {
-  display: grid;
-  grid-template-columns: 1fr minmax(180px, 52%);
-  align-items: center;
-  gap: 20px;
-  min-height: 48px;
-  font-size: 14px;
-  color: var(--text-soft);
-}
-.prop + .prop,
-.prop-label + .prop {
-  border-top: var(--bw) solid var(--line);
-}
-.prop-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.prop-control {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  min-width: 0;
-}
-.prop-control .slider {
-  flex: 1;
-}
-.prop-control .select {
-  width: 100%;
-}
-.prop-value {
-  min-width: 38px;
-  text-align: right;
-  color: var(--muted);
-  font-size: 12px;
-}
-.prop-label {
-  margin: 18px 0 4px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 400;
-}
-.more-settings {
-  align-self: center;
-  margin: 6px 0 4px;
-  padding: 8px 14px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  border-top: var(--bw) solid var(--line);
-  width: 100%;
-  transition: color 0.2s ease;
-}
-.more-settings:hover {
-  color: var(--text);
-}
+
 .credits {
   font-size: 12px;
 }
@@ -785,7 +730,7 @@ html[data-backdrop] .col-foot {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: var(--z-menu-open);
   max-height: 300px;
   overflow-y: auto;
   padding: 6px;
@@ -876,12 +821,7 @@ html[data-backdrop] .col-foot {
   min-width: 36px;
   text-align: right;
 }
-.lively-help {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
+
 .file-hidden {
   display: none;
 }
@@ -942,7 +882,7 @@ html[data-backdrop] .col-foot {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 55;
+  z-index: var(--z-sheet);
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
@@ -1063,26 +1003,6 @@ html[data-backdrop] .col-foot {
 
 
 /* ======================================================================
-   THE LIQUID WALLPAPER (liquid.js draws a small canvas; the browser scales it up and blurs it into liquid)
-   ====================================================================== */
-.liquid-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  filter: blur(7px) saturate(1.3);
-  transform: scale(1.08); /* so the blurred edges stay off-screen */
-}
-.liquid-preview {
-  background: var(--bg);
-}
-.liquid-preview .liquid-canvas {
-  filter: blur(1.5px) saturate(1.3);
-  transform: none;
-}
-
-
-/* ======================================================================
    THEME EXTRAS: what a theme does beyond the variables above.
    (These come last so they win over the general rules earlier in the file.)
    ====================================================================== */
@@ -1118,10 +1038,9 @@ html[data-backdrop] .col-foot {
 }
 
 /* ---- LIQUID: Apple-style glass ---- */
-/* Plain glass: the panels are see-through and blur what is behind them. NOTHING is laid over the page: no
-   tint, no dim film, no shine. If text is hard to read over a bright background, raise "Backing" in Settings
-   (the Glass setting), or leave Auto on: it adds backing only when your picture or video is bright. The
-   backing itself comes from the general rule "html[data-backdrop] .col" in the READABILITY section. */
+/* Glass panels over the picture: no dim film is laid over the page. Over a background the panels always get the same
+   dark tint and blur (LIQUID_GLASS in appearance.js, through the general rule "html[data-backdrop] .col" in the
+   READABILITY section): Auto readability leaves Liquid alone, so it always looks the same. */
 /* The glass, in plain CSS (no filters beyond one backdrop blur per panel, so it stays fast). The way Apple's
    Liquid Glass reads is: a clear, frosted body whose colours are boosted (saturate); a thin bright rim where
    light hits the edge, strongest on the top-left and again, fainter, on the bottom-right; a soft glow just
@@ -1185,9 +1104,10 @@ html[data-theme="paper"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal 
   font-style: normal;
   letter-spacing: -0.01em;
 }
-html[data-theme="paper"] :is(.task-form, .customize, .tile-preview, .font-choice) {
+html[data-theme="paper"] :is(.task-form, .tile-preview, .font-choice) {
   box-shadow: 3px 3px 0 rgba(43, 36, 24, 0.14);
 }
+
 
 /* ---- TERMINAL: a faint glow on the text, scan lines over everything, headings in capitals ---- */
 html[data-theme="terminal"] body {
@@ -1197,7 +1117,7 @@ html[data-theme="terminal"] body::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 45; /* above the page, below the Settings sheet (55), windows (60) and messages (70-80) */
+  z-index: var(--z-fx); /* above the page, below the Settings sheet, windows and messages */
   pointer-events: none;
   background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.16) 3px);
 }
@@ -1350,47 +1270,6 @@ html[data-sheet-dragging] .app {
 }
 
 
-/* The text colour choices in Settings > Text & readability. */
-.text-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.text-colors {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.text-swatch {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1.5px solid var(--line-hi);
-  border-radius: 50%;
-  transition:
-    transform 0.15s ease,
-    border-color 0.15s ease;
-}
-.text-swatch:hover {
-  transform: scale(1.1);
-}
-.text-swatch.picked {
-  border-color: var(--text);
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text);
-}
-.text-swatch.theme-swatch {
-  width: auto;
-  padding: 0 11px;
-  border-radius: var(--r-pill);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.readability .text-row {
-  grid-column: 1 / -1;
-}
-
 /* A small text button inside a hint (for example "Reset glass"). */
 .link-button {
   padding: 0;
@@ -1405,27 +1284,13 @@ html[data-animated] {
 }
 
 
-/* The built-in Matrix wallpaper draws its own black background, one pixel per screen pixel. */
-.matrix-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: #000;
-}
-.matrix-preview {
-  background: #000;
-}
-
-
 /* ======================================================================
    THE DEFAULT THEME OVER A BACKGROUND
    On its own the default theme is flat and near-black: full-height columns split by thin lines, with opaque black
    boxes inside. Over a picture those dark boxes look like holes and the faint text disappears. So while a
    background is showing, the default theme becomes three floating panes of frosted glass: rounded, with a small gap
    between them, and every box, ring track and divider inside is a see-through light shade instead of solid black.
-   (Wallpaper.jsx sets data-backdrop; the panes' blur and tint are under READABILITY above. A text colour chosen in
-   Settings is set on the page itself, so it still wins over the shades below.)
+   (Wallpaper.jsx sets data-backdrop; the panes' blur and tint are under READABILITY above.)
    ====================================================================== */
 html[data-theme="ember"][data-backdrop] {
   --app-pad: 14px;
@@ -1513,4 +1378,26 @@ html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-lis
   html {
     --lg-blur-cap: 8px;
   }
+}
+
+
+/* ---- DUSK: a night sky behind the panels, and panels lit faintly from above, with a soft violet rim ---- */
+html[data-theme="dusk"] body {
+  background:
+    radial-gradient(120% 70% at 50% -10%, #3b2150 0%, transparent 60%),
+    radial-gradient(90% 60% at 100% 110%, #2a1a3e 0%, transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+}
+html[data-theme="dusk"] .col {
+  border: 1px solid rgba(214, 180, 255, 0.1);
+  box-shadow: var(--panel-shadow);
+}
+/* (With a background picture the panels are frosted glass instead: see READABILITY.) */
+html[data-theme="dusk"]:not([data-backdrop]) .col {
+  background: linear-gradient(180deg, #221a31 0%, #1b1527 40%, #18121f 100%);
+}
+html[data-theme="dusk"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
+  font-style: italic;
+  letter-spacing: 0;
 }

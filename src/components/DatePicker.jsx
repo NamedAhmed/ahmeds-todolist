@@ -53,8 +53,12 @@ export default function DatePicker({ value, today, onPick, onClose, time = null,
 
   // It is drawn at the end of the page (a portal), not inside the row or form that opened it: otherwise its
   // buttons would count as that form's buttons, and clicks and keys would also reach the row's own handlers
-  // (rename, drag, shortcuts). The wrapper stops those events here.
-  const stop = (event) => event.stopPropagation();
+  // (rename, drag, shortcuts). The wrapper stops those events here. That also keeps Escape from the window's own
+  // handler (it listens on the page), so Escape is handled right here: it closes the picker.
+  const stop = (event) => {
+    event.stopPropagation();
+    if (event.type === 'keydown' && event.key === 'Escape') onClose();
+  };
 
   return createPortal(
     <div className="dp-root" onKeyDown={stop} onClick={stop} onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>

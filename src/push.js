@@ -180,10 +180,11 @@ export function usePushPrompt() {
 
   return {
     show,
+    // Returns '' when notifications are on, otherwise what went wrong (App.jsx shows it as a message).
     accept: async () => {
       setShow(false);
       storage.set(ASKED, '1');
-      await enablePush();
+      return enablePush();
     },
     dismiss: () => {
       setShow(false);

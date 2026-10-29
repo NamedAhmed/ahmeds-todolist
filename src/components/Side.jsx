@@ -17,7 +17,7 @@ import { all, commit, getState, uid, useStore } from '../store.js';
 import { useAppearance } from '../appearance.js';
 import { noteMd, noteSavePatch } from '../notes.js';
 import { flushNoteSaves, pendingText, queueNoteSave } from '../noteSave.js';
-import { empties, quip, shortDate, ymd } from '../lib.js';
+import { quip, shortDate, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import { newBlock } from './BlockEditor.jsx';
 import { BlocksEditor, MarkdownEditor } from './NoteEditors.jsx';
@@ -332,8 +332,8 @@ export function Notes({ onSearch }) {
           </DragLayer>
         </DndContext>
 
-        {/* The editor for the selected note, or a message if there are no notes. */}
-        {active ? <Editor key={active.id + ':' + noteEditor} note={active} /> : <p className="empty">{empties.notes}</p>}
+        {/* The editor for the selected note. With no notes the column stays clear: the + button says what to do. */}
+        {active && <Editor key={active.id + ':' + noteEditor} note={active} />}
       </div>
     </div>
   );

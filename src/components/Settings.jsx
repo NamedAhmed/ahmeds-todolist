@@ -14,7 +14,7 @@ import { exportJson, importJson } from '../store.js';
 import { PREVIOUS_BACKUP, sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
-import { GeneralTab, StyleTab, WallpaperTab } from './Look.jsx';
+import { GeneralTab, StyleTab } from './Look.jsx';
 import Sheet from './Sheet.jsx';
 import { toast } from './Fire.jsx';
 import { Modal } from './Modals.jsx';
@@ -27,6 +27,18 @@ import { Modal } from './Modals.jsx';
 //   1. You type your email and press "Email me" -> sendCode() asks Supabase to email you.
 //   2. The email has a link AND a code. Click the link, or type the code here -> verifyCode().
 //   3. Once signed in, sync.js takes over and keeps your data in sync.
+
+// What to tell you when signing in fails. Supabase's own messages are written for developers, so the usual ones are
+// put in plain words; anything else is shown as it is.
+function signInProblem(error) {
+  const text = String(error?.message || error || '');
+  if (/expired|invalid.*(otp|token)|token.*(expired|invalid)/i.test(text)) return 'That code is wrong or has expired. Ask for a new email and use the newest code.';
+  if (/rate limit|too many|only request this after|security purposes/i.test(text)) return 'Too many emails asked for in a short time. Wait a minute, then try again.';
+  if (/invalid.*email|email.*invalid|validate email/i.test(text)) return "That doesn't look like an email address.";
+  if (/failed to fetch|network|load failed|offline/i.test(text)) return "Can't reach the server. Check your internet connection and try again.";
+  return text || 'Something went wrong. Try again.';
+}
+
 function Account() {
   const sync = useSync(); // { user, sync: 'signed-out' | 'syncing' | 'synced' | 'error' | 'off', error }
 
@@ -72,7 +84,7 @@ function Account() {
     try {
       await action();
     } catch (err) {
-      setError(err.message || String(err));
+      setError(signInProblem(err));
     }
     setBusy(false);
   }
@@ -311,7 +323,6 @@ export function AccountModal({ onClose }) {
 // The tabs: [id, label].
 const TABS = [
   ['style', 'Style', 'palette'],
-  ['wallpaper', 'Wallpaper', 'image'],
   ['general', 'General', 'sliders'],
 ];
 
@@ -338,7 +349,7 @@ export function SettingsSheet({ onClose }) {
 
   return (
     <Sheet title="Settings" tabs={tabs} onClose={onClose}>
-      {tab === 'style' ? <StyleTab /> : tab === 'wallpaper' ? <WallpaperTab /> : <GeneralTab />}
+      {tab === 'style' ? <StyleTab /> : <GeneralTab />}
     </Sheet>
   );
 }
