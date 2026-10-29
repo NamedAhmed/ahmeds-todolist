@@ -167,19 +167,25 @@ export function ensureTaskCreatedDates() {
 // ======================================================================
 
 // Tell everyone the state changed, and save to the browser shortly after.
-// We wait 150ms so lots of quick changes only cause one save.
+// We wait 400ms so lots of quick changes only cause one save (writing everything is the slow part on an old phone), and
+// anything still waiting is written the moment the page is hidden or closed, so the wait never costs a change.
 let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Could not save locally', error);
+  }
+}
 function emit() {
   listeners.forEach((listener) => listener());
-
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch (error) {
-      console.warn('Could not save locally', error);
-    }
-  }, 150);
+  saveTimer = setTimeout(save, 400);
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => saveTimer && save());
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && saveTimer && save());
 }
 
 // Apply a list of changes to the state, and return the list of changes that would reverse them.

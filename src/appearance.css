@@ -1494,3 +1494,17 @@ html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-lis
     padding-bottom: 0;
   }
 }
+
+/* Phones: blur is the costliest thing to draw (it is redone every frame over a moving wallpaper), so it is off, except
+   for the Liquid theme (which is made of glass) where it is capped to a light blur. */
+@media (max-width: 900px) {
+  html:not([data-theme="liquid"]) *,
+  html:not([data-theme="liquid"]) *::before,
+  html:not([data-theme="liquid"]) *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html {
+    --lg-blur-cap: 8px;
+  }
+}

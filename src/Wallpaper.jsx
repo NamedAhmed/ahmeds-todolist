@@ -135,6 +135,11 @@ function LivelyFrame({ wallpaper }) {
     };
   }, []);
 
+  // "Reduce motion" on the device: a still picture instead of a running scene (saves battery too).
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return <img className="wallpaper-frame" src={`/lively/${wallpaper.id}/${wallpaper.thumbnail}`} alt="" />;
+  }
+
   return (
     <iframe
       ref={frame}
