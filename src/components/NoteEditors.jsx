@@ -33,7 +33,8 @@ export function BlocksEditor({ md, onMd }) {
 // ONE surface: you type the Markdown itself, and it is coloured as you type (headings bold, **bold** bold, `code` shaded,
 // markers dimmed). A coloured copy of the text sits behind a see-through text box with exactly the same font and size, so
 // nothing shifts and there is nothing to switch between.
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Everything typed is escaped here BEFORE any tag is added, and the tags added carry no attributes: keep it that way.
+const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 function colour(md) {
   return md

@@ -109,7 +109,8 @@ export function mdToHtml(md) {
     } else if (text[i] === '[') {
       const link = /^\[((?:\\.|[^\]\\])*)\]\(([^)\s]*)\)/.exec(rest);
       if (link) {
-        out += `<a href="${escapeHtml(link[2])}" target="_blank" rel="noreferrer">${mdToHtml(link[1])}</a>`;
+        // Only web and mail links become links: a javascript: or data: address stays plain text.
+        out += /^(https?:|mailto:)/i.test(link[2]) ? `<a href="${escapeHtml(link[2])}" target="_blank" rel="noreferrer">${mdToHtml(link[1])}</a>` : mdToHtml(link[1]);
         i += link[0].length - 1;
       } else out += '[';
     } else if (text[i] === '\n') {

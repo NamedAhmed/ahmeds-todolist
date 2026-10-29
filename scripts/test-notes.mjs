@@ -5,7 +5,7 @@
 // Random notes are turned into Markdown and back, thousands of times; the blocks that come back must equal the blocks that
 // went in. A note must never lose or change text just because it was opened in a different editor.
 
-import { blocksToMd, mdToBlocks, noteMd, noteSavePatch } from '../src/notes.js';
+import { blocksToMd, mdToBlocks, mdToHtml, noteMd, noteSavePatch } from '../src/notes.js';
 
 let seed = 12345;
 const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
@@ -95,4 +95,13 @@ if (failures || !(ok1 && ok2 && ok3 && ok4)) process.exit(1);
   const plainOk = plainBack === 'one||two &amp; three|four';
   console.log(same && kept && plainOk ? 'real-shaped notes open unchanged' : `real-shaped notes FAILED: ${[same, kept, plainOk]} ${plainBack}`);
   if (!(same && kept && plainOk)) process.exit(1);
+}
+
+// ---- links: only http(s) and mailto become links ----
+{
+  const bad = mdToHtml('[click](javascript:alert(1)) and [data](data:text/html,x)');
+  const good = mdToHtml('[site](https://example.com/a) [mail](mailto:a@b.c)');
+  const ok = !/href="javascript|href="data/i.test(bad) && !bad.includes('<a ') && good.split('<a ').length === 3;
+  console.log(ok ? 'unsafe links stay plain text' : `LINK CHECK FAILED: ${bad} | ${good}`);
+  if (!ok) process.exit(1);
 }
