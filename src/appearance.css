@@ -1690,10 +1690,7 @@ html[data-focus="normal"] .big-ring.ablaze,
 html[data-focus="strict"] .big-ring.ablaze {
   margin-top: 0; /* no flames, so no room kept for them */
 }
-/* Strict: also the decoration (the joke line, the script weekday and clock, hints, note dates), and the colours are muted. */
+/* Strict: also the decoration (the joke line, the script weekday and clock, hints, note dates). The colours stay as they are. */
 html[data-focus="strict"] :is(.voice, .stamp-day, .stamp-time, .ring-hint, .note-item .d, .empty-row .hint) {
   display: none;
-}
-html[data-focus="strict"] .app {
-  filter: saturate(0.3);
 }

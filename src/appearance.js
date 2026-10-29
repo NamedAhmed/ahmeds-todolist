@@ -63,10 +63,10 @@ export const MAIN_COLORS = {
 };
 export const TEXT_SIZES = [['s', 'Small', 0.92], ['m', 'Normal', 1], ['l', 'Large', 1.12]];
 // Focus: how much of the extras the app shows. 'default' is everything; 'normal' drops the eye-catching extras (the fire, the
-// late-task jabs, streak badges) and half of the jokes; 'strict' also mutes the colours and shows only what you need.
+// late-task jabs, streak badges) and half of the jokes; 'strict' also drops the jokes and the decoration.
 export const FOCUS = [['strict', 'Strict'], ['normal', 'Normal'], ['default', 'Default']];
 export const FOCUS_NOTES = {
-  strict: 'Muted colours, no jokes or extras. Only what you need.',
+  strict: 'No jokes or decoration. Only what you need.',
   normal: 'Calmer: no fire, jabs or streak badges, fewer jokes. Colours stay.',
   default: 'Everything.',
 };
@@ -201,8 +201,8 @@ export function useApplyLook(theme, { mainColor, accent, textSize, focus, densit
     const root = document.documentElement;
     const style = root.style;
 
-    // accent (Strict keeps the theme's own, muted)
-    if (accent && focus !== 'strict') style.setProperty('--accent', accent);
+    // accent
+    if (accent) style.setProperty('--accent', accent);
     else style.removeProperty('--accent');
 
     // main colour: the page, and the panels and fields built from it
