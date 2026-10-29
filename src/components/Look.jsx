@@ -281,6 +281,13 @@ function Notifications({ defaultTime, lead }) {
         </label>
       </div>
       {message && <p className="error">{message}</p>}
+      {!pushSupported() && (
+        <p className="hint">
+          {/iphone|ipad/i.test(navigator.userAgent) && !navigator.standalone
+            ? 'On an iPhone: tap Share, then "Add to Home Screen", and open the app from there to turn notifications on.'
+            : "This browser can't show notifications."}
+        </p>
+      )}
       <p className="hint">
         Tasks with a due time and reminders with a time notify you then, on this device and any other you turn it on for, even with the app closed.
         Needs an account (the Account button). On an iPhone, add the app to the Home Screen first.

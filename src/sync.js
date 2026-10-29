@@ -270,7 +270,9 @@ if (supabase) {
   window.addEventListener('focus', syncNow);
   window.addEventListener('online', syncNow);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) syncNow();
+    // Coming back: catch up. Going away (the phone locks, the app is swiped off): send what is waiting NOW, because the
+    // page may be frozen or closed before the usual 1.5 second wait is over.
+    syncNow();
   });
   setInterval(syncNow, 60000);
 }

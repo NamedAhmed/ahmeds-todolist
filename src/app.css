@@ -2679,7 +2679,7 @@ html[data-reduce-motion] *::after {
 .push-prompt {
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: 84px; /* above the messages (they sit at 28px) so the two never cover each other */
   transform: translateX(-50%);
   z-index: 70;
   display: flex;
