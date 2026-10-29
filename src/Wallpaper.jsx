@@ -16,6 +16,8 @@ import {
   useAppearance,
   useApplyFont,
   useApplyGlass,
+  useApplyTextColor,
+  useApplyThemeOptions,
   useApplyTheme,
   useBackdropTones,
   useMediaUrl,
@@ -23,7 +25,7 @@ import {
 } from './appearance.js';
 
 export default function Wallpaper() {
-  const { theme, wallpaper, dim, glass, font, look } = useAppearance();
+  const { theme, wallpaper, dim, glass, liquidBlur, font, look, opts, textColor } = useAppearance();
   const pictureId = usePictureId();
   const pictureUrl = useMediaUrl(pictureId);
   const videoUrl = useMediaUrl(wallpaper.startsWith('video:') ? wallpaper : NO_PICTURE);
@@ -32,6 +34,8 @@ export default function Wallpaper() {
   useApplyTheme(theme); // put the theme on the page (this component is always on screen)
   useApplyFont(theme, font);
   useApplyGlass(theme, look);
+  useApplyThemeOptions(theme, opts);
+  useApplyTextColor(textColor);
 
   const showsSomething = pictureUrl || videoUrl;
 
@@ -66,8 +70,8 @@ export default function Wallpaper() {
     frameBox.current.style.setProperty('--dim', dimNow);
     root.style.setProperty('--dim-soft', dimNow * 0.5); // the same Dim, at half strength, for selections, the add box and the daily circles
     root.style.setProperty('--glass', Math.ceil(strength * 100) + '%'); // rounded up, so Auto never falls just short
-    root.style.setProperty('--glass-blur', Math.round(strength * 20) + 'px'); // more glass = a stronger blur too
-  }, [showsSomething, videoUrl, glass, dim, tones, theme, isLightTheme]);
+    root.style.setProperty('--glass-blur', (liquidBlur ?? Math.round(strength * 20)) + 'px'); // more glass = a stronger blur too (Liquid has its own Blur setting)
+  }, [showsSomething, videoUrl, glass, liquidBlur, dim, tones, theme, isLightTheme]);
 
   return (
     <div className="wallpaper" aria-hidden="true" ref={frameBox}>

@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import * as chrono from 'chrono-node'; // a library that understands "tomorrow", "next friday", etc.
-import { all } from './store.js';
+import { all, getState } from './store.js';
 
 
 // ======================================================================
@@ -55,6 +55,8 @@ export function diffDays(a, b) {
 
 // Short names for the days and months. Index 0 = Sunday / January.
 export const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// The weekday numbers (0 = Sunday) in the order a week is shown.
+export const weekOrder = (weekMon) => (weekMon ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6]);
 export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // "2026-10-18" -> "Oct 18"
@@ -87,6 +89,7 @@ export function dueInfo(due, today, time = null) {
 export function formatTime(time) {
   const [h, m] = String(time).split(':').map(Number);
   if (Number.isNaN(h)) return '';
+  if (getState().settings.appearance?.clock24 === true) return `${String(h).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`; // Settings > Style > More > Clock
   const hour = h % 12 || 12;
   return `${hour}${m ? ':' + String(m).padStart(2, '0') : ''} ${h < 12 ? 'AM' : 'PM'}`;
 }
@@ -117,8 +120,9 @@ export function useToday() {
 // The dates shown in the calendar, as a list of weeks. Each week is a list of 7 dates.
 // month = true  -> five weeks, this week in the middle (two weeks of past, two of future)
 // month = false -> just this week and next week
-export function calendarWeeks(today, month) {
-  const thisSunday = addDays(today, -toDate(today).getDay());
+// `weekMon`: the week starts on Monday instead of Sunday (Settings > Style > More).
+export function calendarWeeks(today, month, weekMon = false) {
+  const thisSunday = addDays(today, -((toDate(today).getDay() - (weekMon ? 1 : 0) + 7) % 7)); // the first day of this week
   const start = month ? addDays(thisSunday, -14) : thisSunday; // the first date shown (always a Sunday)
   const weekCount = month ? 5 : 2;                             // how many rows of 7
 

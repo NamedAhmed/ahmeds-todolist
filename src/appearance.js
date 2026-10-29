@@ -32,7 +32,48 @@ export const THEMES = [
 //   'video:<id>'       a video you added
 export const OFF = 'off';
 
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0 };
+// ======================================================================
+// EACH THEME'S OWN TWO SETTINGS (Settings > Style)
+// ======================================================================
+// kind: 'swatch' (pick a colour), 'switch' (on or off) or 'slider'. Saved as `<theme>_<key>`, so every theme remembers its own.
+const ACCENTS = [['#ff6b57', 'Coral'], ['#f0b35a', 'Amber'], ['#7ee0a1', 'Mint'], ['#6cb8ff', 'Sky'], ['#c59bff', 'Violet']];
+export const THEME_OPTIONS = {
+  ember: [
+    { key: 'accent', label: 'Accent', kind: 'swatch', choices: ACCENTS, default: '#ff6b57' },
+    { key: 'lines', label: 'Divider lines', kind: 'switch', default: true },
+  ],
+  light: [
+    { key: 'accent', label: 'Accent', kind: 'swatch', choices: [['#e5533d', 'Coral'], ['#c9831f', 'Amber'], ['#2f9e63', 'Green'], ['#2f7fd4', 'Blue'], ['#8a5cd6', 'Violet']], default: '#e5533d' },
+    { key: 'warmth', label: 'Warmth', kind: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 50 },
+  ],
+  liquid: [
+    { key: 'backing', label: 'Backing', kind: 'slider', min: 0, max: 90, step: 1, unit: '%', default: 43 },
+    { key: 'blur', label: 'Blur', kind: 'slider', min: 0, max: 30, step: 1, unit: 'px', default: 9 },
+  ],
+  paper: [
+    { key: 'grain', label: 'Paper grain', kind: 'switch', default: true },
+    { key: 'ink', label: 'Ink shadows', kind: 'switch', default: true },
+  ],
+  terminal: [
+    { key: 'phosphor', label: 'Phosphor', kind: 'swatch', choices: [['green', 'Green', '#39ff7a'], ['amber', 'Amber', '#ffb000'], ['cyan', 'Cyan', '#4dd7ff'], ['white', 'White', '#e8e2d6']], default: 'green' },
+    { key: 'scan', label: 'Scan lines', kind: 'switch', default: true },
+  ],
+  dusk: [
+    { key: 'accent', label: 'Accent', kind: 'swatch', choices: [['#ff9e7a', 'Peach'], ['#ff8fc7', 'Pink'], ['#5ee0d4', 'Teal'], ['#f0c860', 'Gold'], ['#b9a2ff', 'Lilac']], default: '#ff9e7a' },
+    { key: 'glow', label: 'Glow', kind: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 40 },
+  ],
+};
+
+// The text colours offered (the box next to them takes any other). '' = the theme's own.
+export const TEXT_COLORS = ['#ffffff', '#f3ead9', '#ffd9a0', '#bfe3ff', '#b8ffc8', '#111111'];
+
+const optionDefaults = Object.fromEntries(Object.entries(THEME_OPTIONS).flatMap(([theme, list]) => list.map((o) => [`${theme}_${o.key}`, o.default])));
+
+const DEFAULTS = {
+  theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0,
+  textColor: '', clock24: false, weekMon: false, newTaskDate: 'today', fire: true,
+  ...optionDefaults,
+};
 export const MAX_GLASS = 0.9;
 
 // The film over the background (Dim) and the frosted panels behind the text (Glass) start here; Auto readability
@@ -52,7 +93,21 @@ export function useAppearance() {
 
   const theme = THEMES.some(([id]) => id === choices.theme) ? choices.theme : DEFAULTS.theme;
   const dim = theme === 'liquid' ? 0 : DIM;
-  const glass = theme === 'liquid' ? LIQUID_GLASS : GLASS;
+  // This theme's own two settings, each checked against what it allows (anything odd falls back to the default).
+  const opts = {};
+  for (const o of THEME_OPTIONS[theme]) {
+    const value = choices[`${theme}_${o.key}`];
+    if (o.kind === 'switch') opts[o.key] = typeof value === 'boolean' ? value : o.default;
+    else if (o.kind === 'slider') opts[o.key] = Number.isFinite(Number(value)) ? Math.min(o.max, Math.max(o.min, Number(value))) : o.default;
+    else opts[o.key] = o.choices.some(([id]) => id === value) ? value : o.default;
+  }
+  const glass = theme === 'liquid' ? opts.backing / 100 : GLASS;
+  const liquidBlur = theme === 'liquid' ? opts.blur : null;
+  const textColor = /^#[0-9a-f]{6}$/i.test(choices.textColor ?? '') ? choices.textColor : '';
+  const clock24 = choices.clock24 === true;
+  const weekMon = choices.weekMon === true;
+  const newTaskDate = ['today', 'tomorrow', 'none'].includes(choices.newTaskDate) ? choices.newTaskDate : 'today';
+  const fire = choices.fire !== false;
   // (A wallpaper from an older version, like an animated one that no longer exists, falls back to none.)
   const wallpaper = typeof choices.wallpaper === 'string' && choices.wallpaper.startsWith('video:') ? choices.wallpaper : OFF;
 
@@ -64,7 +119,7 @@ export function useAppearance() {
   const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
   const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  return { theme, wallpaper, dim, glass, font, look: GLASS_LOOK, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
+  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, clock24, weekMon, newTaskDate, fire, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).
@@ -75,6 +130,56 @@ export function setAppearance(patch) {
 // Put every choice back to how it started.
 export function resetAppearance() {
   setAppearance({ ...DEFAULTS });
+}
+
+// Puts the text colour on the page. It replaces the theme's text shades (normal, soft, muted, faint) with the one colour at
+// different strengths, and tints the lines too, so the whole page follows it. '' removes it, so the theme's own colours show.
+const TEXT_COLOR_MIXES = { '--text-soft': 88, '--muted': 62, '--faint': 36, '--faint-text': 62, '--line': 14, '--line-mid': 22, '--line-hi': 34, '--track': 10 };
+export function useApplyTextColor(color) {
+  useLayoutEffect(() => {
+    const style = document.documentElement.style;
+    const names = ['--text', ...Object.keys(TEXT_COLOR_MIXES)];
+    if (!color) {
+      for (const name of names) style.removeProperty(name);
+      return;
+    }
+    style.setProperty('--text', color);
+    for (const [name, percent] of Object.entries(TEXT_COLOR_MIXES)) style.setProperty(name, `color-mix(in srgb, ${color} ${percent}%, transparent)`);
+  }, [color]);
+}
+
+// How easy `color` is to read on `background` (both #rrggbb): 1 is no difference, 21 is black on white. 4.5 is the usual minimum for text.
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+export function contrastBetween(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// Puts the theme's own two settings on the page (colours as CSS variables, on/off ones as attributes appearance.css reads).
+const mixHex = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+export function useApplyThemeOptions(theme, opts) {
+  const key = JSON.stringify(opts);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    for (const name of ['--accent', '--bg', '--dusk-glow']) root.style.removeProperty(name);
+    for (const name of ['data-lines', 'data-grain', 'data-ink', 'data-phosphor', 'data-scan']) root.removeAttribute(name);
+
+    if (theme === 'ember' || theme === 'light' || theme === 'dusk') root.style.setProperty('--accent', opts.accent);
+    if (theme === 'ember' && !opts.lines) root.setAttribute('data-lines', 'off');
+    if (theme === 'light') root.style.setProperty('--bg', mixHex('#fdfcfa', '#efe6d3', opts.warmth / 100));
+    if (theme === 'paper') {
+      if (!opts.grain) root.setAttribute('data-grain', 'off');
+      if (!opts.ink) root.setAttribute('data-ink', 'off');
+    }
+    if (theme === 'terminal') {
+      if (opts.phosphor !== 'green') root.setAttribute('data-phosphor', opts.phosphor);
+      if (!opts.scan) root.setAttribute('data-scan', 'off');
+    }
+    if (theme === 'dusk') root.style.setProperty('--dusk-glow', String(opts.glow / 100));
+  }, [theme, key]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 // Puts the theme on the page: <html data-theme="forest">. appearance.css reads that attribute.
@@ -242,15 +347,6 @@ export function useBackdropTones(imageUrl, videoUrl) {
 // `google` lists the Google Fonts the choice needs (as in a Google Fonts address, after "family=");
 // they are only downloaded when needed. The fonts that are already loaded by index.html need none.
 export const FONTS = [
-  { id: 'theme', label: 'Theme default' },
-  {
-    id: 'editorial',
-    label: 'Editorial',
-    serif: '"Instrument Serif", Georgia, serif',
-    sans: '"Geist", system-ui, sans-serif',
-    mono: '"Geist Mono", ui-monospace, monospace',
-    google: [],
-  },
   {
     id: 'instrument',
     label: 'Instrument Serif',
@@ -260,28 +356,12 @@ export const FONTS = [
     google: [],
   },
   {
-    id: 'modern',
-    label: 'Modern',
-    serif: '"Inter", system-ui, sans-serif',
-    sans: '"Inter", system-ui, sans-serif',
+    id: 'geist',
+    label: 'Geist',
+    serif: '"Geist", system-ui, sans-serif',
+    sans: '"Geist", system-ui, sans-serif',
     mono: '"Geist Mono", ui-monospace, monospace',
-    google: ['Inter:wght@400;500;600'],
-  },
-  {
-    id: 'classic',
-    label: 'Classic',
-    serif: '"Fraunces", Georgia, serif',
-    sans: '"Lora", Georgia, serif',
-    mono: '"Courier Prime", "Courier New", monospace',
-    google: ['Fraunces:opsz,wght@9..144,400;600', 'Lora:wght@400;500;600', 'Courier+Prime'],
-  },
-  {
-    id: 'rounded',
-    label: 'Rounded',
-    serif: '"Nunito", system-ui, sans-serif',
-    sans: '"Nunito", system-ui, sans-serif',
-    mono: '"Nunito", system-ui, sans-serif',
-    google: ['Nunito:wght@400;600;700'],
+    google: [],
   },
   {
     id: 'mono',

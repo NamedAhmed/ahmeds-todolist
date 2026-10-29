@@ -821,7 +821,9 @@ function AddRow({ day, today }) {
   const parsed = useMemo(() => parseTyped(text), [text]);
 
   // Which due date to use: picked by hand, else typed, else the selected calendar day, else today.
-  const due = ongoing ? null : (picked ?? parsed?.due ?? day ?? today);
+  const { newTaskDate } = useAppearance(); // Settings > Style > More > New task
+  const startDate = newTaskDate === 'tomorrow' ? addDays(today, 1) : newTaskDate === 'none' ? null : today;
+  const due = ongoing ? null : (picked ?? parsed?.due ?? day ?? startDate);
   // The time of day: chosen by hand, else typed ("friday 5pm"). Only with a date.
   const dueTime = ongoing ? null : (pickedTime !== undefined ? pickedTime : (picked ? null : parsed?.time ?? null));
 
@@ -843,7 +845,7 @@ function AddRow({ day, today }) {
 
   // The label on the date button: what the new task will get.
   let dueLabel = shortDate(due ?? today);
-  if (ongoing) dueLabel = 'No date';
+  if (ongoing || due === null) dueLabel = 'No date';
   else if (due === today) dueLabel = 'Today';
   else if (due === addDays(today, 1)) dueLabel = 'Tomorrow';
   if (dueTime && !ongoing) dueLabel += ' · ' + formatTime(dueTime);
@@ -869,7 +871,7 @@ function AddRow({ day, today }) {
         <Icon name="folder" size={16} />
       </button>
       <button type="button" className="date-pill" onClick={() => setPicking(true)} aria-label={'Due date: ' + dueLabel}>
-        <Icon name={ongoing ? 'infinity' : 'calendar'} size={15} />
+        <Icon name={ongoing || due === null ? 'infinity' : 'calendar'} size={15} />
         {dueLabel}
       </button>
       <button type="submit" className="btn-add" aria-label="Add" title="Add">

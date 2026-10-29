@@ -13,13 +13,14 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal } from './Modals.jsx';
 import Icon from './Icons.jsx';
-import { DOW, addDays, toDate, ymd } from '../lib.js';
+import { DOW, addDays, toDate, weekOrder, ymd } from '../lib.js';
+import { useAppearance } from '../appearance.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // The days to draw for one month: blanks first so the 1st lands under the right weekday.
-function monthCells(year, month) {
-  const blanks = new Date(year, month, 1).getDay();
+function monthCells(year, month, weekMon) {
+  const blanks = (new Date(year, month, 1).getDay() - (weekMon ? 1 : 0) + 7) % 7;
   const length = new Date(year, month + 1, 0).getDate();
   const cells = Array(blanks).fill(null);
   for (let day = 1; day <= length; day++) cells.push(ymd(new Date(year, month, day)));
@@ -27,6 +28,7 @@ function monthCells(year, month) {
 }
 
 export default function DatePicker({ value, today, onPick, onClose, time = null, onTime }) {
+  const { weekMon } = useAppearance();
   const start = toDate(value || today);
   const [year, setYear] = useState(start.getFullYear());
   const [month, setMonth] = useState(start.getMonth());
@@ -87,12 +89,12 @@ export default function DatePicker({ value, today, onPick, onClose, time = null,
       </div>
 
       <div className="dp-grid">
-        {DOW.map((name) => (
+        {weekOrder(weekMon).map((index) => DOW[index]).map((name) => (
           <span key={name} className="dp-dow mono">
             {name[0]}
           </span>
         ))}
-        {monthCells(year, month).map((date, index) =>
+        {monthCells(year, month, weekMon).map((date, index) =>
           date ? (
             <button
               key={date}

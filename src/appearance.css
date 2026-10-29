@@ -1401,3 +1401,184 @@ html[data-theme="dusk"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h
   font-style: italic;
   letter-spacing: 0;
 }
+
+/* Terminal > Phosphor: the same theme in another glow (Settings > Style). The green is the theme's own. */
+html[data-theme="terminal"][data-phosphor="amber"] {
+  --flame: #ffbf2b;
+  --flame-core: #fff2d2;
+  --bg: #0a0805;
+  --line: #352b12;
+  --surface: #120f08;
+  --text: #ffeab8;
+  --muted: #ae924f;
+  --faint: #584824;
+  --faint-text: #8e7846;
+  --accent: #ffc439;
+  --green: #ffc439;
+  --track: #1c170c;
+  --line-hi: #6a541f;
+  --line-mid: #4d3c16;
+  --panel-a: #100d07;
+  --panel-b: #1c170d;
+  --panel-c: #16120a;
+  --text-soft: #e6d09b;
+  --hover-fill: #ffc439;
+}
+html[data-theme="terminal"][data-phosphor="amber"] body {
+  text-shadow: 0 0 6px rgba(255, 196, 57, 0.2);
+}
+html[data-theme="terminal"][data-phosphor="cyan"] {
+  --flame: #2be6ff;
+  --flame-core: #d2faff;
+  --bg: #05090a;
+  --line: #123135;
+  --surface: #081112;
+  --text: #b8f7ff;
+  --muted: #4fa3ae;
+  --faint: #245258;
+  --faint-text: #46868e;
+  --accent: #39e8ff;
+  --green: #39e8ff;
+  --track: #0c1a1c;
+  --line-hi: #1f616a;
+  --line-mid: #16474d;
+  --panel-a: #070f10;
+  --panel-b: #0d1a1c;
+  --panel-c: #0a1516;
+  --text-soft: #9bdde6;
+  --hover-fill: #39e8ff;
+}
+html[data-theme="terminal"][data-phosphor="cyan"] body {
+  text-shadow: 0 0 6px rgba(57, 232, 255, 0.2);
+}
+html[data-theme="terminal"][data-phosphor="white"] {
+  --flame: #959595;
+  --flame-core: #e8e8e8;
+  --bg: #080808;
+  --line: #242424;
+  --surface: #0d0d0d;
+  --text: #dcdcdc;
+  --muted: #7e7e7e;
+  --faint: #3e3e3e;
+  --faint-text: #6a6a6a;
+  --accent: #9c9c9c;
+  --green: #9c9c9c;
+  --track: #141414;
+  --line-hi: #444444;
+  --line-mid: #313131;
+  --panel-a: #0c0c0c;
+  --panel-b: #141414;
+  --panel-c: #101010;
+  --text-soft: #c0c0c0;
+  --hover-fill: #9c9c9c;
+}
+html[data-theme="terminal"][data-phosphor="white"] body {
+  text-shadow: 0 0 6px rgba(156, 156, 156, 0.2);
+}
+
+/* Default > Divider lines off: no lines between and inside the panels. */
+html[data-lines="off"] {
+  --line: transparent;
+  --line-mid: transparent;
+}
+
+/* Paper > Paper grain and Ink shadows off. */
+html[data-theme="paper"][data-grain="off"] body {
+  background-image: none;
+}
+html[data-theme="paper"][data-ink="off"] {
+  --panel-shadow: none;
+}
+html[data-theme="paper"][data-ink="off"] :is(.task-form, .tile-preview, .font-choice) {
+  box-shadow: none;
+}
+
+/* Terminal > Scan lines off. */
+html[data-theme="terminal"][data-scan="off"] body::after {
+  display: none;
+}
+
+/* Dusk > Glow: a soft halo in the accent colour around each panel (0 = none). */
+html[data-theme="dusk"] .col {
+  box-shadow:
+    var(--panel-shadow),
+    0 0 calc(var(--dusk-glow, 0.4) * 56px) calc(var(--dusk-glow, 0.4) * 4px) color-mix(in srgb, var(--accent) calc(var(--dusk-glow, 0.4) * 38%), transparent);
+}
+
+/* ---------- Settings > Style: the four small panels beside the theme cards ---------- */
+.look-quad {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-content: start;
+}
+.look-quad section {
+  min-width: 0;
+}
+@media (max-width: 520px) {
+  .look-quad {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Font: four tiles with just "Aa" (the name shows on hover). */
+.look-quad .font-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.look-quad .font-choice {
+  justify-content: center;
+  padding: 10px 0;
+}
+.look-quad .font-sample {
+  font-size: 24px;
+}
+/* A theme's own two settings, and the small options: one row each. */
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.option-row {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.option-row > .mono:first-child {
+  min-width: 78px;
+  text-align: left;
+  color: var(--muted);
+}
+.option-row .slider {
+  min-width: 90px;
+}
+/* Text colour swatches */
+.text-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.text-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: var(--bw) solid var(--line-hi);
+}
+.text-swatch.picked {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text);
+}
+.theme-swatch {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+input[type="color"].color {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: var(--bw) solid var(--line-hi);
+  border-radius: 50%;
+  background: none;
+}

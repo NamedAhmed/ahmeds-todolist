@@ -11,7 +11,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { all, commit, uid, useStore } from '../store.js';
-import { DAILY_COLORS, DOW, MON, empties, quip, ruleText } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, empties, quip, ruleText, weekOrder } from '../lib.js';
+import { useAppearance } from '../appearance.js';
 import { sass, toast } from './Fire.jsx';
 
 // A CSS selector that finds everything you can Tab to inside the window.
@@ -124,6 +125,7 @@ export function Modal({ title, onClose, wide, children }) {
 // ======================================================================
 export function RemindersModal({ today, onClose }) {
   const s = useStore();
+  const { weekMon } = useAppearance();
 
   // Existing reminders: single ones by their date first, then the repeating ones, oldest first.
   const reminders = all(s, 'reminders');
@@ -256,7 +258,7 @@ export function RemindersModal({ today, onClose }) {
         {/* Weekly: pick weekdays */}
         {type === 'weekly' && (
           <div className="seg-row">
-            {DOW.map((name, index) => (
+            {weekOrder(weekMon).map((index) => [DOW[index], index]).map(([name, index]) => (
               <button
                 type="button"
                 key={name}
