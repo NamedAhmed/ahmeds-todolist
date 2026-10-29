@@ -110,7 +110,7 @@ button {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.4fr) minmax(320px, 1.2fr);
   height: 100vh;
-  height: 100dvh; /* the visible height on a phone, whatever the browser bars are doing */
+  height: calc(100dvh / var(--zoom, 1)); /* the visible height on a phone, whatever the browser bars are doing (divided by the text size, which zooms the page) */
   padding: var(--app-pad);
   column-gap: 0; /* the gaps between the columns are the resize handles (see Columns.jsx) */
 }

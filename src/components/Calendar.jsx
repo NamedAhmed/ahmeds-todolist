@@ -17,8 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
-import { useAppearance } from '../appearance.js';
-import { DAILY_COLORS, DOW, MON, weekOrder, calendarWeeks, dailiesOn, doneKey, empties, isDone, quip, reminderOccursOn, streakOf, toDate, ymd } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, quip, reminderOccursOn, streakOf, toDate, ymd } from '../lib.js';
 import { Flame, sass, toast } from './Fire.jsx';
 
 // Streak lengths that get a congratulation message.
@@ -75,8 +74,7 @@ function BigRing({ s, date, today }) {
   const dailies = dailiesOn(s, date);
   const count = dailies.length;
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
-  const { fire } = useAppearance(); // Settings > Style > More > Fire
-  const everythingDone = fire && count > 0 && doneCount === count; // "ablaze": show the flames
+  const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
 
 
   // Ring sizes: they share the space, but never get thicker than 10.
@@ -180,8 +178,7 @@ function DateStamp({ date, live }) {
     return () => clearInterval(timer);
   }, [live]);
 
-  const { clock24 } = useAppearance();
-  const time = now.toLocaleTimeString([], clock24 ? { hour: '2-digit', minute: '2-digit', hour12: false } : { hour: 'numeric', minute: '2-digit' });
+  const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const weekday = date.toLocaleDateString([], { weekday: 'long' });
 
   return (
@@ -455,8 +452,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
   const [month, setMonth] = useState(false); // false = two weeks, true = five weeks around today
 
   const shown = day ?? today;                              // the day the big ring shows
-  const { weekMon } = useAppearance();
-  const weeks = useMemo(() => calendarWeeks(today, month, weekMon), [today, month, weekMon]);
+  const weeks = useMemo(() => calendarWeeks(today, month), [today, month]);
   const marks = useMarks(s, weeks, today);
   const dailies = dailiesOn(s, shown);
   const shownDate = toDate(shown);
@@ -503,7 +499,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
       <div className="cal">
         {/* The row of letters: S M T W T F S */}
         <div className="cal-head">
-          {weekOrder(weekMon).map((index) => DOW[index]).map((name) => (
+          {DOW.map((name) => (
             <span key={name} className="mono">
               {name[0]}
             </span>

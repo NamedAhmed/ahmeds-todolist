@@ -1,7 +1,7 @@
 // Look.jsx = the tabs of Settings, one export each:
 //
-//   StyleTab       Theme, then four small panels (Font, Text colour, the theme's own two settings, a few small options),
-//                  and Background (None, the photos, and your own pictures and videos)
+//   StyleTab       Theme with its main colour, four panels (Font, Text colour, the theme's own settings, and More: text size,
+//                  corners, density and accent colour), and Background (None, the photos, and your own pictures and videos)
 //   GeneralTab     Tasks layout, Notes editor, Notifications, Keyboard, and Reset appearance
 //
 // Everything here is saved with setAppearance() so it syncs between your devices (pictures and videos stay on this device).
@@ -14,7 +14,7 @@ import Background from './Background.jsx';
 import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import { disablePush, enablePush, pushEnabled, pushSupported, sendTestPush } from '../push.js';
-import { FONTS, TEXT_COLORS, THEMES, THEME_OPTIONS, contrastBetween, loadAllFonts, resetAppearance, setAppearance, useAppearance } from '../appearance.js';
+import { ACCENT_COLORS, CORNERS, DENSITIES, FONTS, LIGHT_THEMES, MAIN_COLORS, TEXT_COLORS, TEXT_SIZES, THEMES, THEME_OPTIONS, contrastBetween, loadAllFonts, resetAppearance, setAppearance, useAppearance } from '../appearance.js';
 
 
 // ======================================================================
@@ -59,34 +59,60 @@ function FontChoice({ preset, picked }) {
 
 
 // ======================================================================
-// TEXT COLOUR
+// COLOUR ROWS
 // ======================================================================
-// The theme's own text colour, six quick colours, or any colour. A colour that is hard to read on this theme gets a note.
+// "Theme" (the theme's own), some swatches, and a box that takes any colour. Used by Text colour, Main colour and Accent.
+function ColourRow({ value, colours, onPick, label }) {
+  return (
+    <span className="text-colors">
+      <button type="button" className={'text-swatch theme-swatch' + (value ? '' : ' picked')} aria-pressed={!value} onClick={() => onPick('')}>
+        Theme
+      </button>
+      {colours.map((color) => (
+        <button
+          key={color}
+          type="button"
+          className={'text-swatch' + (value === color ? ' picked' : '')}
+          style={{ background: color }}
+          title={color}
+          aria-label={`${label} ${color}`}
+          aria-pressed={value === color}
+          onClick={() => onPick(color)}
+        />
+      ))}
+      <input type="color" className="color" aria-label={`Custom ${label.toLowerCase()}`} value={value || '#808080'} onChange={(event) => onPick(event.target.value)} />
+    </span>
+  );
+}
+
+// The colour the page is currently drawn with (a theme's variable, as #rrggbb, or '' if it is not plain).
+function pageColour(name) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : '';
+}
+
 function TextColour({ textColor }) {
-  const background = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-  const hard = textColor && /^#[0-9a-f]{6}$/i.test(background) && contrastBetween(textColor, background) < 3;
+  const background = pageColour('--bg');
+  const hard = textColor && background && contrastBetween(textColor, background) < 3;
   return (
     <section>
       <h3 className="mono">Text colour</h3>
-      <span className="text-colors">
-        <button type="button" className={'text-swatch theme-swatch' + (textColor ? '' : ' picked')} aria-pressed={!textColor} onClick={() => setAppearance({ textColor: '' })}>
-          Theme
-        </button>
-        {TEXT_COLORS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            className={'text-swatch' + (textColor === color ? ' picked' : '')}
-            style={{ background: color }}
-            title={color}
-            aria-label={`Text colour ${color}`}
-            aria-pressed={textColor === color}
-            onClick={() => setAppearance({ textColor: color })}
-          />
-        ))}
-        <input type="color" className="color" aria-label="Custom text colour" value={textColor || '#ffffff'} onChange={(event) => setAppearance({ textColor: event.target.value })} />
-      </span>
+      <ColourRow value={textColor} colours={TEXT_COLORS} onPick={(color) => setAppearance({ textColor: color })} label="Text colour" />
       {hard && <p className="hint">That colour is hard to read on this theme.</p>}
+    </section>
+  );
+}
+
+// The page's own colour, under the theme cards. The panels and fields follow it.
+function MainColour({ theme, mainColor, textColor }) {
+  const colours = MAIN_COLORS[LIGHT_THEMES.includes(theme) ? 'light' : 'dark'];
+  const text = textColor || pageColour('--text');
+  const hard = mainColor && text && contrastBetween(text, mainColor) < 3;
+  return (
+    <section>
+      <h3 className="mono">Main colour</h3>
+      <ColourRow value={mainColor} colours={colours} onPick={(color) => setAppearance({ mainColor: color })} label="Main colour" />
+      <p className="hint">{hard ? 'The text is hard to read on that colour: change the text colour too.' : 'The colour of the page. The panels and fields follow it.'}</p>
     </section>
   );
 }
@@ -104,17 +130,21 @@ function ThemeOptions({ theme, opts }) {
       <h3 className="mono">{name}</h3>
       <div className="option-list">
         {THEME_OPTIONS[theme].map((o) => (
-          <div key={o.key} className="range-row option-row">
+          <div key={o.key} className="option-row">
             <span className="mono">{o.label}</span>
-            {o.kind === 'switch' && <Switch checked={opts[o.key]} onChange={(on) => set(o.key, on)} />}
+            {o.kind === 'switch' && (
+              <span className="control-cell">
+                <Switch checked={opts[o.key]} onChange={(on) => set(o.key, on)} />
+              </span>
+            )}
             {o.kind === 'slider' && (
-              <>
+              <span className="control-cell">
                 <Slider min={o.min} max={o.max} step={o.step} value={opts[o.key]} onChange={(event) => set(o.key, Number(event.target.value))} aria-label={o.label} />
-                <span className="mono">
+                <span className="mono value">
                   {opts[o.key]}
                   {o.unit}
                 </span>
-              </>
+              </span>
             )}
             {o.kind === 'swatch' && (
               <span className="text-colors">
@@ -141,13 +171,13 @@ function ThemeOptions({ theme, opts }) {
 
 
 // ======================================================================
-// FOUR SMALL OPTIONS
+// MORE: TEXT SIZE, CORNERS, DENSITY AND ACCENT COLOUR
 // ======================================================================
 function Choice({ value, options, onPick, label }) {
   return (
     <span className="seg-row" role="group" aria-label={label}>
       {options.map(([id, text]) => (
-        <button key={String(id)} type="button" className={'chip' + (value === id ? ' solid' : '')} aria-pressed={value === id} onClick={() => onPick(id)}>
+        <button key={id} type="button" className={'chip' + (value === id ? ' solid' : '')} aria-pressed={value === id} onClick={() => onPick(id)}>
           {text}
         </button>
       ))}
@@ -155,27 +185,26 @@ function Choice({ value, options, onPick, label }) {
   );
 }
 
-function SmallOptions({ clock24, weekMon, newTaskDate, fire }) {
+function More({ textSize, corners, density, accent }) {
   return (
     <section>
       <h3 className="mono">More</h3>
       <div className="option-list">
-        <div className="range-row option-row">
-          <span className="mono">Clock</span>
-          <Choice label="Clock" value={clock24} options={[[false, '12 h'], [true, '24 h']]} onPick={(v) => setAppearance({ clock24: v })} />
+        <div className="option-row">
+          <span className="mono">Text size</span>
+          <Choice label="Text size" value={textSize} options={TEXT_SIZES} onPick={(v) => setAppearance({ textSize: v })} />
         </div>
-        <div className="range-row option-row">
-          <span className="mono">Week starts</span>
-          <Choice label="Week starts on" value={weekMon} options={[[false, 'Sun'], [true, 'Mon']]} onPick={(v) => setAppearance({ weekMon: v })} />
+        <div className="option-row">
+          <span className="mono">Corners</span>
+          <Choice label="Corner roundness" value={corners} options={CORNERS} onPick={(v) => setAppearance({ corners: v })} />
         </div>
-        <div className="range-row option-row">
-          <span className="mono">New task</span>
-          <Choice label="Date for a new task" value={newTaskDate} options={[['today', 'Today'], ['tomorrow', 'Tomorrow'], ['none', 'No date']]} onPick={(v) => setAppearance({ newTaskDate: v })} />
+        <div className="option-row">
+          <span className="mono">Density</span>
+          <Choice label="Density" value={density} options={DENSITIES} onPick={(v) => setAppearance({ density: v })} />
         </div>
-        <div className="range-row option-row">
-          <span className="mono">Fire</span>
-          <Switch checked={fire} onChange={(on) => setAppearance({ fire: on })} />
-          <span className="auto-note">when every daily is done</span>
+        <div className="option-row">
+          <span className="mono">Accent</span>
+          <ColourRow value={accent} colours={ACCENT_COLORS} onPick={(color) => setAppearance({ accent: color })} label="Accent colour" />
         </div>
       </div>
     </section>
@@ -187,7 +216,7 @@ function SmallOptions({ clock24, weekMon, newTaskDate, fire }) {
 // THE TABS
 // ======================================================================
 export function StyleTab() {
-  const { theme, font, textColor, opts, clock24, weekMon, newTaskDate, fire } = useAppearance();
+  const { theme, font, textColor, mainColor, accent, textSize, corners, density, opts } = useAppearance();
 
   // Fonts are downloaded when needed, so download them all now and every preview shows its own font.
   useEffect(() => {
@@ -197,14 +226,17 @@ export function StyleTab() {
   return (
     <div className="look">
       <div className="look-top">
-        <section>
-          <h3 className="mono">Theme</h3>
-          <div className="theme-row">
-            {THEMES.map(([id, label]) => (
-              <ThemeCard key={id} id={id} label={label} picked={theme === id} />
-            ))}
-          </div>
-        </section>
+        <div className="look-main">
+          <section>
+            <h3 className="mono">Theme</h3>
+            <div className="theme-row">
+              {THEMES.map(([id, label]) => (
+                <ThemeCard key={id} id={id} label={label} picked={theme === id} />
+              ))}
+            </div>
+          </section>
+          <MainColour theme={theme} mainColor={mainColor} textColor={textColor} />
+        </div>
 
         <div className="look-quad">
           <section>
@@ -217,7 +249,7 @@ export function StyleTab() {
           </section>
           <TextColour textColor={textColor} />
           <ThemeOptions theme={theme} opts={opts} />
-          <SmallOptions clock24={clock24} weekMon={weekMon} newTaskDate={newTaskDate} fire={fire} />
+          <More textSize={textSize} corners={corners} density={density} accent={accent} />
         </div>
       </div>
 

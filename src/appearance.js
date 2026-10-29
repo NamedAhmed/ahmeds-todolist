@@ -36,16 +36,9 @@ export const OFF = 'off';
 // EACH THEME'S OWN TWO SETTINGS (Settings > Style)
 // ======================================================================
 // kind: 'swatch' (pick a colour), 'switch' (on or off) or 'slider'. Saved as `<theme>_<key>`, so every theme remembers its own.
-const ACCENTS = [['#ff6b57', 'Coral'], ['#f0b35a', 'Amber'], ['#7ee0a1', 'Mint'], ['#6cb8ff', 'Sky'], ['#c59bff', 'Violet']];
 export const THEME_OPTIONS = {
-  ember: [
-    { key: 'accent', label: 'Accent', kind: 'swatch', choices: ACCENTS, default: '#ff6b57' },
-    { key: 'lines', label: 'Divider lines', kind: 'switch', default: true },
-  ],
-  light: [
-    { key: 'accent', label: 'Accent', kind: 'swatch', choices: [['#e5533d', 'Coral'], ['#c9831f', 'Amber'], ['#2f9e63', 'Green'], ['#2f7fd4', 'Blue'], ['#8a5cd6', 'Violet']], default: '#e5533d' },
-    { key: 'warmth', label: 'Warmth', kind: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 50 },
-  ],
+  ember: [{ key: 'lines', label: 'Divider lines', kind: 'switch', default: true }],
+  light: [{ key: 'lines', label: 'Divider lines', kind: 'switch', default: true }],
   liquid: [
     { key: 'backing', label: 'Backing', kind: 'slider', min: 0, max: 90, step: 1, unit: '%', default: 43 },
     { key: 'blur', label: 'Blur', kind: 'slider', min: 0, max: 30, step: 1, unit: 'px', default: 9 },
@@ -58,11 +51,19 @@ export const THEME_OPTIONS = {
     { key: 'phosphor', label: 'Phosphor', kind: 'swatch', choices: [['green', 'Green', '#39ff7a'], ['amber', 'Amber', '#ffb000'], ['cyan', 'Cyan', '#4dd7ff'], ['white', 'White', '#e8e2d6']], default: 'green' },
     { key: 'scan', label: 'Scan lines', kind: 'switch', default: true },
   ],
-  dusk: [
-    { key: 'accent', label: 'Accent', kind: 'swatch', choices: [['#ff9e7a', 'Peach'], ['#ff8fc7', 'Pink'], ['#5ee0d4', 'Teal'], ['#f0c860', 'Gold'], ['#b9a2ff', 'Lilac']], default: '#ff9e7a' },
-    { key: 'glow', label: 'Glow', kind: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 40 },
-  ],
+  dusk: [{ key: 'glow', label: 'Glow', kind: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 40 }],
 };
+
+// The accent colours offered ('' = the theme's own), the base colours for dark and for light themes, the text sizes,
+// corner styles and densities (Settings > Style).
+export const ACCENT_COLORS = ['#ff6b57', '#f0b35a', '#7ee0a1', '#5eb8ff', '#c59bff', '#ff8fc7'];
+export const MAIN_COLORS = {
+  dark: ['#0c0b0a', '#0b0f1a', '#0d1410', '#150d16', '#17181b', '#1a1208'],
+  light: ['#f6f2ea', '#ffffff', '#e9f1ec', '#eaf0f8', '#f4eaf0', '#f1ece0'],
+};
+export const TEXT_SIZES = [['s', 'Small', 0.92], ['m', 'Normal', 1], ['l', 'Large', 1.12]];
+export const CORNERS = [['sharp', 'Sharp'], ['normal', 'Normal'], ['round', 'Round']];
+export const DENSITIES = [['roomy', 'Roomy'], ['normal', 'Normal'], ['compact', 'Compact']];
 
 // The text colours offered (the box next to them takes any other). '' = the theme's own.
 export const TEXT_COLORS = ['#ffffff', '#f3ead9', '#ffd9a0', '#bfe3ff', '#b8ffc8', '#111111'];
@@ -71,7 +72,7 @@ const optionDefaults = Object.fromEntries(Object.entries(THEME_OPTIONS).flatMap(
 
 const DEFAULTS = {
   theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0,
-  textColor: '', clock24: false, weekMon: false, newTaskDate: 'today', fire: true,
+  textColor: '', mainColor: '', accent: '', textSize: 'm', corners: 'normal', density: 'normal',
   ...optionDefaults,
 };
 export const MAX_GLASS = 0.9;
@@ -104,10 +105,12 @@ export function useAppearance() {
   const glass = theme === 'liquid' ? opts.backing / 100 : GLASS;
   const liquidBlur = theme === 'liquid' ? opts.blur : null;
   const textColor = /^#[0-9a-f]{6}$/i.test(choices.textColor ?? '') ? choices.textColor : '';
-  const clock24 = choices.clock24 === true;
-  const weekMon = choices.weekMon === true;
-  const newTaskDate = ['today', 'tomorrow', 'none'].includes(choices.newTaskDate) ? choices.newTaskDate : 'today';
-  const fire = choices.fire !== false;
+  const hex = (value) => (/^#[0-9a-f]{6}$/i.test(value ?? '') ? value : '');
+  const mainColor = hex(choices.mainColor);
+  const accent = hex(choices.accent);
+  const textSize = TEXT_SIZES.some(([id]) => id === choices.textSize) ? choices.textSize : 'm';
+  const corners = CORNERS.some(([id]) => id === choices.corners) ? choices.corners : 'normal';
+  const density = DENSITIES.some(([id]) => id === choices.density) ? choices.density : 'normal';
   // (A wallpaper from an older version, like an animated one that no longer exists, falls back to none.)
   const wallpaper = typeof choices.wallpaper === 'string' && choices.wallpaper.startsWith('video:') ? choices.wallpaper : OFF;
 
@@ -119,7 +122,7 @@ export function useAppearance() {
   const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
   const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, clock24, weekMon, newTaskDate, fire, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
+  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, mainColor, accent, textSize, corners, density, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).
@@ -158,18 +161,15 @@ export function contrastBetween(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-// Puts the theme's own two settings on the page (colours as CSS variables, on/off ones as attributes appearance.css reads).
-const mixHex = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+// Puts the theme's own settings on the page (on/off ones as attributes appearance.css reads, sliders as CSS variables).
 export function useApplyThemeOptions(theme, opts) {
   const key = JSON.stringify(opts);
   useLayoutEffect(() => {
     const root = document.documentElement;
-    for (const name of ['--accent', '--bg', '--dusk-glow']) root.style.removeProperty(name);
+    root.style.removeProperty('--dusk-glow');
     for (const name of ['data-lines', 'data-grain', 'data-ink', 'data-phosphor', 'data-scan']) root.removeAttribute(name);
 
-    if (theme === 'ember' || theme === 'light' || theme === 'dusk') root.style.setProperty('--accent', opts.accent);
-    if (theme === 'ember' && !opts.lines) root.setAttribute('data-lines', 'off');
-    if (theme === 'light') root.style.setProperty('--bg', mixHex('#fdfcfa', '#efe6d3', opts.warmth / 100));
+    if ((theme === 'ember' || theme === 'light') && !opts.lines) root.setAttribute('data-lines', 'off');
     if (theme === 'paper') {
       if (!opts.grain) root.setAttribute('data-grain', 'off');
       if (!opts.ink) root.setAttribute('data-ink', 'off');
@@ -180,6 +180,61 @@ export function useApplyThemeOptions(theme, opts) {
     }
     if (theme === 'dusk') root.style.setProperty('--dusk-glow', String(opts.glow / 100));
   }, [theme, key]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// The look that applies to every theme: a main (page) colour, an accent colour, the text size, how round the corners
+// are, and how tight the rows are. Each is "off" (the theme's own) until chosen.
+const mixHex = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+const lightness = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return (r * 299 + g * 587 + b * 114) / 255000;
+};
+export function useApplyLook(theme, { mainColor, accent, textSize, corners, density }) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const style = root.style;
+
+    // accent
+    if (accent) style.setProperty('--accent', accent);
+    else style.removeProperty('--accent');
+
+    // main colour: the page, and the panels and fields built from it
+    const main = ['--bg', '--surface', '--panel-a', '--panel-b', '--panel-c', '--track'];
+    if (mainColor) {
+      const dark = lightness(mainColor) < 0.5;
+      const toward = dark ? '#ffffff' : '#000000';
+      const mix = (amount) => mixHex(mainColor, toward, amount);
+      style.setProperty('--bg', mainColor);
+      style.setProperty('--surface', mix(dark ? 0.05 : 0.04));
+      style.setProperty('--panel-a', mix(dark ? 0.03 : 0.02));
+      style.setProperty('--panel-b', mix(dark ? 0.08 : 0.05));
+      style.setProperty('--panel-c', mix(dark ? 0.05 : 0.035));
+      style.setProperty('--track', mix(dark ? 0.07 : 0.06));
+      root.setAttribute('data-main', '');
+    } else {
+      main.forEach((name) => style.removeProperty(name));
+      root.removeAttribute('data-main');
+    }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim() || '#0c0b0a');
+
+    // text size: the whole page is scaled (heights that depend on the window are divided by the same number in the CSS)
+    const zoom = TEXT_SIZES.find(([id]) => id === textSize)?.[2] ?? 1;
+    style.setProperty('--zoom', String(zoom));
+    style.zoom = zoom === 1 ? '' : String(zoom);
+
+    // corners: the theme's own radii, flattened, or rounder
+    const radii = ['--r-xs', '--r-sm', '--r-md', '--r-lg'];
+    radii.forEach((name) => style.removeProperty(name));
+    if (corners !== 'normal') {
+      const base = radii.map((name) => parseFloat(getComputedStyle(root).getPropertyValue(name)) || 0);
+      const round = [6, 10, 14, 20];
+      radii.forEach((name, i) => style.setProperty(name, corners === 'sharp' ? '0px' : Math.max(round[i], Math.round(base[i] * 1.6)) + 'px'));
+    }
+
+    // density: tighter or looser rows (appearance.css reads the attribute)
+    root.setAttribute('data-density', density);
+  }, [theme, mainColor, accent, textSize, corners, density]);
 }
 
 // Puts the theme on the page: <html data-theme="forest">. appearance.css reads that attribute.

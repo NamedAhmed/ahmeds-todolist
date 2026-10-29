@@ -16,6 +16,7 @@ import {
   useAppearance,
   useApplyFont,
   useApplyGlass,
+  useApplyLook,
   useApplyTextColor,
   useApplyThemeOptions,
   useApplyTheme,
@@ -25,7 +26,7 @@ import {
 } from './appearance.js';
 
 export default function Wallpaper() {
-  const { theme, wallpaper, dim, glass, liquidBlur, font, look, opts, textColor } = useAppearance();
+  const { theme, wallpaper, dim, glass, liquidBlur, font, look, opts, textColor, mainColor, accent, textSize, corners, density } = useAppearance();
   const pictureId = usePictureId();
   const pictureUrl = useMediaUrl(pictureId);
   const videoUrl = useMediaUrl(wallpaper.startsWith('video:') ? wallpaper : NO_PICTURE);
@@ -35,6 +36,7 @@ export default function Wallpaper() {
   useApplyFont(theme, font);
   useApplyGlass(theme, look);
   useApplyThemeOptions(theme, opts);
+  useApplyLook(theme, { mainColor, accent, textSize, corners, density });
   useApplyTextColor(textColor);
 
   const showsSomething = pictureUrl || videoUrl;

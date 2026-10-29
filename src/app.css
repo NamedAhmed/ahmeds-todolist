@@ -29,7 +29,7 @@
 }
 
 .app {
-  height: 100dvh;
+  height: calc(100dvh / var(--zoom, 1));
 }
 .col {
   overflow: hidden;
@@ -949,7 +949,7 @@ button.due:hover {
 }
 .modal {
   width: min(500px, 100%);
-  max-height: 88dvh;
+  max-height: calc(88dvh / var(--zoom, 1));
   overflow-y: auto;
   background: var(--surface);
   border: var(--bw) solid var(--line);
@@ -1148,7 +1148,7 @@ select.field {
   }
   .col {
     display: none;
-    min-height: calc(100dvh - var(--bar-space) - env(safe-area-inset-top));
+    min-height: calc(100dvh / var(--zoom, 1) - var(--bar-space) - env(safe-area-inset-top));
     border: 0 !important;
     overflow: visible;
   }
@@ -1384,7 +1384,7 @@ html {
 .keys {
   display: grid;
   gap: 16px;
-  max-height: calc(100dvh - 220px);
+  max-height: calc(100dvh / var(--zoom, 1) - 220px);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--line-mid) transparent;

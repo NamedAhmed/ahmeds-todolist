@@ -1226,7 +1226,7 @@ html[data-theme="terminal"] .task-form::before {
 }
 html[data-sheet] .app {
   height: calc(100vh - var(--sheet-offset, 0px) - 24px);
-  height: calc(100dvh - var(--sheet-offset, 0px) - 24px);
+  height: calc(100dvh / var(--zoom, 1) - var(--sheet-offset, 0px) - 24px);
   margin: 12px 0;
   overflow: hidden;
   border-radius: 28px;
@@ -1505,17 +1505,49 @@ html[data-theme="dusk"] .col {
     0 0 calc(var(--dusk-glow, 0.4) * 56px) calc(var(--dusk-glow, 0.4) * 4px) color-mix(in srgb, var(--accent) calc(var(--dusk-glow, 0.4) * 38%), transparent);
 }
 
-/* ---------- Settings > Style: the four small panels beside the theme cards ---------- */
+/* ---------- Settings > Style: theme + main colour on the left, four panels on the right ---------- */
+.look {
+  container-type: inline-size; /* the layout below follows the width of Settings itself, not of the window */
+}
+.look-top {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: stretch;
+}
+.look-top section {
+  height: auto;
+}
+.look-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.look-main > section:first-child {
+  flex: 1;
+}
 .look-quad {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  align-content: start;
+  align-items: stretch;
 }
-.look-quad section {
+.look-quad section,
+.look-main section {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-@media (max-width: 520px) {
+.look-quad h3,
+.look-main h3 {
+  margin: 0;
+}
+@container (max-width: 860px) {
+  .look-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container (max-width: 560px) {
   .look-quad {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1528,30 +1560,57 @@ html[data-theme="dusk"] .col {
 }
 .look-quad .font-choice {
   justify-content: center;
-  padding: 10px 0;
+  height: 46px;
+  padding: 0;
 }
 .look-quad .font-sample {
-  font-size: 24px;
+  font-size: 22px;
 }
-/* A theme's own two settings, and the small options: one row each. */
+/* One setting per row: its name, then its control. */
 .option-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 .option-row {
-  flex-wrap: wrap;
-  gap: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 .option-row > .mono:first-child {
-  min-width: 78px;
+  font-size: 11px;
   text-align: left;
   color: var(--muted);
 }
-.option-row .slider {
-  min-width: 90px;
+.control-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
-/* Text colour swatches */
+.control-cell .slider {
+  flex: 1;
+  min-width: 70px;
+}
+.control-cell .value {
+  min-width: 38px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--text-soft);
+}
+.look .seg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.look .chip {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+/* Colour swatches */
 .text-colors {
   display: flex;
   flex-wrap: wrap;
@@ -1575,10 +1634,43 @@ html[data-theme="dusk"] .col {
   color: var(--text-soft);
 }
 input[type="color"].color {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: var(--bw) solid var(--line-hi);
   border-radius: 50%;
   background: none;
+}
+
+/* Main colour set: Dusk's panels follow the chosen colour instead of their own violet. */
+html[data-theme="dusk"][data-main]:not([data-backdrop]) .col {
+  background: var(--surface);
+}
+
+/* Density (Settings > Style > More): how tight the rows are. */
+html[data-density="compact"] .task-main {
+  padding-block: 9px;
+  min-height: 40px;
+}
+html[data-density="compact"] .daily {
+  padding-block: 3px;
+}
+html[data-density="compact"] .note-item {
+  padding-block: 6px;
+}
+html[data-density="roomy"] .task-main {
+  padding-block: 20px;
+  min-height: 64px;
+}
+html[data-density="roomy"] .daily {
+  padding-block: 11px;
+}
+html[data-density="roomy"] .note-item {
+  padding-block: 14px;
+}
+
+/* The theme cards fill the card beside the right-hand panels, so there is no empty strip under them. */
+.look-main > section:first-child .theme-row {
+  flex: 1;
+  grid-auto-rows: 1fr;
 }
