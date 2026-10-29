@@ -611,7 +611,7 @@ const TaskRow = memo(
     const menu = [
       { label: 'Rename', icon: 'pencil', run: () => edit(true) },
       { label: task.due ? 'Change date' : 'Set a date', icon: 'calendar', run: () => setPicking(true) },
-      task.due && { label: 'Make ongoing', icon: 'infinity', run: () => patch('made ongoing', { due: null }) },
+      task.due && { label: 'Make ongoing', icon: 'infinity', run: () => patch('made ongoing', { due: null, due_time: null }) },
       { label: isProject ? 'Turn into a task' : 'Turn into a project', icon: isProject ? 'task' : 'folder', run: turnIntoOtherKind },
       '-',
       { label: 'Delete', icon: 'trash', danger: true, run: () => removeTask(task) },
@@ -1122,6 +1122,27 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   // ---- Selecting several tasks ----
   // Ctrl/Cmd+click a row to select it; click more rows to add them. A bar then offers Done and Delete.
   const [selected, setSelected] = useState(() => new Set());
+  // Sections folded shut in Groups mode (remembered on this device).
+  const [folded, setFolded] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('todolist:folded-groups') || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  function toggleFold(group) {
+    setFolded((previous) => {
+      const next = new Set(previous);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      try {
+        localStorage.setItem('todolist:folded-groups', JSON.stringify([...next]));
+      } catch {
+        // storage unavailable: the fold just isn't remembered
+      }
+      return next;
+    });
+  }
   const clearSelection = () => setSelected(new Set());
   function onListClickCapture(event) {
     const row = event.target.closest('li.task[data-task]');
@@ -1336,10 +1357,13 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
               <Fragment key={row.task ? row.task.id : row.reminder.r.id + row.reminder.date}>
                 {(i === 0 || groupRows[i - 1].group !== row.group) && (
                   <li className={'group-head' + (row.group === 0 ? ' late' : '')}>
-                    {GROUPS[row.group]} · {groupCount(row.group)}
+                    <button type="button" className="group-fold" aria-expanded={!folded.has(row.group)} onClick={() => toggleFold(row.group)}>
+                      <Icon name="chevronDown" size={12} style={{ transform: folded.has(row.group) ? 'rotate(-90deg)' : 'none' }} />
+                      {GROUPS[row.group]} · {groupCount(row.group)}
+                    </button>
                   </li>
                 )}
-                {row.task ? (
+                {folded.has(row.group) ? null : row.task ? (
                   <TaskRow s={s} task={row.task} today={today} sortable={sort === 'custom'} open={openIds.has(row.task.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(row.task.id)} />
                 ) : (
                   reminderRow(row.reminder)

@@ -86,20 +86,29 @@ function at(date, time) {
   return new Date(y, m - 1, d, hour, minute);
 }
 
+// 15 -> "15 minutes", 60 -> "1 hour", 1440 -> "1 day".
+const leadText = (minutes) => (minutes >= 1440 ? `${minutes / 1440} day` : minutes >= 60 ? `${minutes / 60} hour${minutes > 60 ? 's' : ''}` : `${minutes} minutes`);
+
 // Every notification due in the next DAYS_AHEAD days: [{ key, fire_at, title, body }].
 // `defaultTime` ('09:00', or '' for none) is used for tasks and reminders that have a day but no time.
-export function buildSchedule(state, defaultTime, now = new Date()) {
+// `lead` is minutes: for things with a time of their own, an extra notification that long before.
+export function buildSchedule(state, defaultTime, now = new Date(), lead = 0) {
   const today = todayStr();
   const last = addDays(today, DAYS_AHEAD);
   const notes = [];
-  const add = (kind, id, when, title, body) => {
+  const add = (kind, id, when, title, body, timed = false) => {
     if (when > now) notes.push({ key: `${kind}:${id}:${when.toISOString()}`, fire_at: when.toISOString(), title, body });
+    // The warning: only for things you gave a time (a day-only task has no moment to be warned about).
+    const early = new Date(when.getTime() - lead * 60000);
+    if (timed && lead > 0 && early > now) {
+      notes.push({ key: `${kind}-early:${id}:${when.toISOString()}`, fire_at: early.toISOString(), title, body: `In ${leadText(lead)}: ${body}` });
+    }
   };
 
   for (const task of all(state, 'tasks')) {
     if (task.done || !task.due || task.due > last) continue;
     const time = task.due_time || defaultTime;
-    if (time) add('task', task.id, at(task.due, time), task.title, task.due_time ? `Due at ${formatTime(task.due_time)}` : 'Due today');
+    if (time) add('task', task.id, at(task.due, time), task.title, task.due_time ? `Due at ${formatTime(task.due_time)}` : 'Due today', !!task.due_time);
   }
 
   for (const reminder of all(state, 'reminders')) {
@@ -107,7 +116,7 @@ export function buildSchedule(state, defaultTime, now = new Date()) {
     if (!time) continue;
     for (let day = today; day <= last; day = addDays(day, 1)) {
       if (reminderOccursOn(reminder, day, today) && !isDone(state, reminder.id, day)) {
-        add('reminder', reminder.id, at(day, time), reminder.title, reminder.time ? `Reminder for ${formatTime(reminder.time)}` : 'Reminder for today');
+        add('reminder', reminder.id, at(day, time), reminder.title, reminder.time ? `Reminder for ${formatTime(reminder.time)}` : 'Reminder for today', !!reminder.time);
       }
     }
   }
@@ -122,8 +131,9 @@ export async function syncQueue() {
   syncing = true;
   try {
     const defaultTime = getState().settings.appearance?.pushDefaultTime ?? '09:00';
+    const lead = Number(getState().settings.appearance?.pushLead) || 0;
     const batch = crypto.randomUUID();
-    const rows = buildSchedule(getState(), defaultTime).map((note) => ({ ...note, batch }));
+    const rows = buildSchedule(getState(), defaultTime, new Date(), lead).map((note) => ({ ...note, batch }));
     for (let i = 0; i < rows.length; i += 400) {
       const { error } = await supabase.from('push_queue').upsert(rows.slice(i, i + 400), { onConflict: 'user_id,key' });
       if (error) throw error;

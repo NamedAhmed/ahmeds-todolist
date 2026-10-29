@@ -223,7 +223,7 @@ export function WallpaperTab() {
 }
 
 // Settings > General > Notifications: turn push on for this device, and when to notify for tasks that only have a day.
-function Notifications({ defaultTime }) {
+function Notifications({ defaultTime, lead }) {
   const [on, setOn] = useState(pushEnabled);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -267,6 +267,19 @@ function Notifications({ defaultTime }) {
           <span className="auto-note">when to notify for things that have a day but no time (clear it for no notification)</span>
         </label>
       </div>
+      <div className="readability">
+        <label className="range-row auto-row">
+          <span className="mono">Warn me</span>
+          <select className="field" value={lead} onChange={(event) => setAppearance({ pushLead: Number(event.target.value) })} aria-label="Extra notification before the time">
+            {[[0, 'No warning'], [5, '5 minutes before'], [10, '10 minutes before'], [15, '15 minutes before'], [30, '30 minutes before'], [60, '1 hour before'], [120, '2 hours before'], [1440, '1 day before']].map(([minutes, label]) => (
+              <option key={minutes} value={minutes}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <span className="auto-note">an extra notification ahead of tasks and reminders that have a time (repeating ones too)</span>
+        </label>
+      </div>
       {message && <p className="error">{message}</p>}
       <p className="hint">
         Tasks with a due time and reminders with a time notify you then, on this device and any other you turn it on for, even with the app closed.
@@ -277,7 +290,7 @@ function Notifications({ defaultTime }) {
 }
 
 export function GeneralTab() {
-  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases, pushDefaultTime, noteEditor } = useAppearance();
+  const { fireStyle, fireColor, fireCoverage, reduceMotion, taskGroups, showRepeating, cases, pushDefaultTime, noteEditor, pushLead } = useAppearance();
   const openWindow = (name) => window.dispatchEvent(new CustomEvent('todolist:open-modal', { detail: name }));
 
   return (
@@ -356,7 +369,7 @@ export function GeneralTab() {
         </p>
       </section>
 
-      <Notifications defaultTime={pushDefaultTime} />
+      <Notifications defaultTime={pushDefaultTime} lead={pushLead} />
 
       <section>
         <h3 className="mono">Cases</h3>

@@ -24,6 +24,8 @@ const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea
 // Props: title (shown at the top), onClose (function to close it), wide (a bigger window), children (what goes inside).
 export function Modal({ title, onClose, wide, children }) {
   const box = useRef(null); // points at the window's HTML element
+  const close = useRef(onClose); // the latest onClose, so the effect below runs once per window, not on every re-draw
+  close.current = onClose;
 
   // Keyboard behaviour for accessibility:
   //  - when it opens, the cursor moves inside it
@@ -33,13 +35,14 @@ export function Modal({ title, onClose, wide, children }) {
   useEffect(() => {
     const opener = document.activeElement; // what had focus before the window opened
 
-    // Focus the first text box if there is one, otherwise the window itself.
-    const firstInput = box.current.querySelector('input, select, textarea');
+    // Focus the first text box if there is one, otherwise the window itself. (Not a time or date box: on a phone
+    // focusing one opens the phone's own picker.)
+    const firstInput = box.current.querySelector('input:not([type=time]):not([type=date]):not([type=checkbox]), select, textarea');
     (firstInput ?? box.current).focus();
 
     function onKey(event) {
       if (event.key === 'Escape') {
-        onClose();
+        close.current();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -65,7 +68,7 @@ export function Modal({ title, onClose, wide, children }) {
       window.removeEventListener('keydown', onKey);
       if (opener?.isConnected) opener.focus();
     };
-  }, [onClose]);
+  }, []);
 
   // Clicking the dark area OUTSIDE the window closes it.
   function clickBackdrop(event) {

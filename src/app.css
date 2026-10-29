@@ -2817,3 +2817,18 @@ html[data-reduce-motion] *::after {
 .md-color .mk-code { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 3px; }
 .md-color .mk-link { color: var(--accent); }
 .md-color .mk-done { opacity: 0.55; text-decoration: line-through; }
+
+/* A section header in Groups mode that folds its rows (Tasks.jsx) */
+.group-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+.group-fold .icon {
+  transition: transform 0.15s ease;
+}
