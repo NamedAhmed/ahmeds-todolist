@@ -40,6 +40,10 @@ export default function Sheet({ title, tabs, onClose, children }) {
   // The content is heavy (fonts, previews, the wallpaper gallery). Mounting it while the sheet is still sliding
   // up is what made opening choppy, so it appears once the slide has finished.
   const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), 700); // in case the slide's end is never reported (a slow or throttled device)
+    return () => clearTimeout(timer);
+  }, []);
 
   // Tell the page how tall the sheet is, so the page can make itself that much shorter.
   useEffect(() => {

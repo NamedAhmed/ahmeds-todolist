@@ -101,7 +101,7 @@ function Editor({ note }) {
         onKeyDown={onTitleKeyDown}
       />
       <div className="note-scroll" ref={blockArea}>
-        <Body key={noteEditor + revision} md={revision ? noteMd(getState().notes[note.id]) : md} onMd={onMd} />
+        <Body key={revision} md={revision ? noteMd(getState().notes[note.id]) : md} onMd={onMd} />
       </div>
       <footer className="note-foot">
         <span className="mono">{saved}</span>
@@ -177,6 +177,7 @@ function orderNotes(notes) {
 // Props: onSearch (opens the search window, Ctrl+K).
 export function Notes({ onSearch }) {
   const state = useStore(); // all the app's data
+  const { noteEditor } = useAppearance(); // switching editor opens the note again, so the new editor starts from the text as it is now
   const every = all(state, 'notes');
   const notes = orderNotes(every.filter((note) => !note.trashed));
   const trashed = every.filter((note) => note.trashed).sort((a, b) => b.trashed - a.trashed);
@@ -327,7 +328,7 @@ export function Notes({ onSearch }) {
         </DndContext>
 
         {/* The editor for the selected note, or a message if there are no notes. */}
-        {active ? <Editor key={active.id} note={active} /> : <p className="empty">{empties.notes}</p>}
+        {active ? <Editor key={active.id + ':' + noteEditor} note={active} /> : <p className="empty">{empties.notes}</p>}
       </div>
     </div>
   );
