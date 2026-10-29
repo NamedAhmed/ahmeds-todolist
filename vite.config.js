@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Port 3000 matches Supabase's default Site URL, so emailed sign-in links land back here.
-// The service worker precaches the built app so it opens offline; Google Fonts are cached on first visit.
+// The service worker precaches the built app so it opens offline. Google Fonts are NOT routed through it: a service worker
+// fetching them is blocked by the site's own security policy and the fonts then never load (the browser's own cache keeps them).
 export default defineConfig({
   plugins: [
     react(),
@@ -33,10 +34,6 @@ export default defineConfig({
           urlPattern: ({ url }) => url.pathname.startsWith('/pictures/'),
           handler: 'CacheFirst',
           options: { cacheName: 'heavy-assets', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 }, cacheableResponse: { statuses: [0, 200] } }
-        }, {
-          urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
-          handler: 'CacheFirst',
-          options: { cacheName: 'fonts', expiration: { maxEntries: 20, maxAgeSeconds: 31536000 }, cacheableResponse: { statuses: [0, 200] } }
         }]
       }
     })
