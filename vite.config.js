@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt', // a new version waits until you press Reload (see components/UpdatePrompt.jsx), so a page never meets half-old files
+      registerType: 'autoUpdate', // a new version installs by itself; main.jsx then reloads the page onto it, so nobody has to press anything
       manifest: {
         name: "Ahmed's Todolist",
         short_name: 'Todolist',
