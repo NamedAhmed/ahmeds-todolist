@@ -2,9 +2,11 @@
 //
 // The photos are free to use from Pexels (pexels.com/license) and Unsplash (unsplash.com/license).
 // "Sunset warrior" is artwork by rocksdanister, from his depth-map wallpaper (MIT licence).
-// They are the background photos that come with the Lively "Rain" wallpaper.
+// (They first came with the Lively "Rain" wallpaper.)
 //
-// To add your own picture to the built-in list: put the file in public/pictures/, then add a line here.
+// To add your own picture to the built-in list: put the file in public/pictures/, a 400px-wide copy with the same name
+// in public/pictures/thumbs/ (for the gallery), then add a line here. On a Mac:
+//   sips --resampleWidth 400 -s format jpeg -s formatOptions 70 public/pictures/NAME.jpg --out public/pictures/thumbs/NAME.jpg
 // (Pictures you add in Settings don't need this: they are kept in your browser instead.)
 
 export const PICTURES = [

@@ -12,7 +12,6 @@
 //   - Signing in uses a one-time code or link emailed to you (no password).
 
 import { useSyncExternalStore } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { applyRemote, dirtyRecords, exportJson, markAllDirty, markClean, resetAll, resolveConflicts, subscribe as onStoreChange } from './store.js';
 import { storage } from './storage.js';
 
@@ -24,15 +23,28 @@ import { storage } from './storage.js';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_KEY;
 
-// `supabase` is our connection. It is null when the keys are missing, which switches syncing off.
+// Is syncing set up in this copy of the app? (Without the keys it is off, and the app works on this device only.)
+export const syncConfigured = !!(url && key);
+
+// `supabase` is our connection. Its library is big, so it is not part of the first download: connect() fetches it
+// just after the page has appeared (see STARTUP below). Until then, and for good without the keys, `supabase` is null.
+// Code that talks to the server waits for it with `await connect()`.
 // Staying signed in: the session is saved in this browser (persistSession) and quietly renewed
 // before it runs out (autoRefreshToken), so you stay signed in until you press Sign out.
 // How long a session may last at most is set in the Supabase dashboard (Authentication > Sessions).
-export const supabase = url && key
-  ? createClient(url, key, {
+export let supabase = null;
+let connecting = null;
+export function connect() {
+  if (!syncConfigured) return Promise.resolve(null);
+  connecting ??= import('@supabase/supabase-js').then(({ createClient }) => {
+    supabase = createClient(url, key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-    })
-  : null;
+    });
+    startSyncing();
+    return supabase;
+  });
+  return connecting;
+}
 
 // Ask the browser not to clear this app's saved data (and with it the sign-in) when space runs low
 // or after a long time away. Browsers may say no; then nothing changes.
@@ -47,7 +59,7 @@ function keepStorage() {
 // status.user  = who is signed in: { id, email } or null
 // status.sync  = 'off' | 'signed-out' | 'syncing' | 'synced' | 'error'
 // status.error = the error message when sync = 'error'
-let status = { user: null, sync: supabase ? 'signed-out' : 'off', error: '' };
+let status = { user: null, sync: syncConfigured ? 'signed-out' : 'off', error: '' };
 
 // Components that want to be told when the status changes.
 const listeners = new Set();
@@ -299,6 +311,7 @@ function onUser(user) {
 // Step 1 of signing in: Supabase emails a link and a code to this address.
 // emailRedirectTo = where the link should send you back to (must be allowed in Supabase's URL settings).
 export async function sendCode(email) {
+  const supabase = await connect();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: window.location.origin },
@@ -308,6 +321,7 @@ export async function sendCode(email) {
 
 // Step 2 of signing in: check the code you typed from the email.
 export async function verifyCode(email, token) {
+  const supabase = await connect();
   const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw error;
 }
@@ -315,14 +329,15 @@ export async function verifyCode(email, token) {
 // Sign out (after one last sync so nothing is lost).
 export async function signOut() {
   await syncNow();
-  await supabase.auth.signOut();
+  await (await connect()).auth.signOut();
 }
 
 
 // ======================================================================
 // STARTUP: this runs once when the app loads
 // ======================================================================
-if (supabase) {
+// Once connected (see connect above): listen for sign-ins and sync at the right moments. Runs once.
+function startSyncing() {
   // Supabase calls this when someone signs in or out, and also when you land back on the app
   // from the link in the email.
   supabase.auth.onAuthStateChange((_event, session) => {
@@ -352,4 +367,11 @@ if (supabase) {
     syncNow();
   });
   setInterval(syncNow, 60000);
+}
+
+// Connect as soon as the browser has a free moment after the page appears (or within 1.5 seconds), so the first
+// screen never waits for the sync library.
+if (syncConfigured) {
+  const whenIdle = window.requestIdleCallback ?? ((run) => setTimeout(run, 1));
+  whenIdle(() => connect(), { timeout: 1500 });
 }

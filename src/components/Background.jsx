@@ -30,6 +30,8 @@ function NoneTile({ picked }) {
 function MediaTile({ id, label, picked, onDelete }) {
   const isVideo = id.startsWith('video:');
   const url = useMediaUrl(id);
+  // A built-in photo shows a small copy (public/pictures/thumbs/), so the gallery doesn't download every full-size photo.
+  const preview = id.startsWith('photo:') ? `/pictures/thumbs/${id.slice('photo:'.length)}.jpg` : url;
 
   return (
     <div className={'tile picture-tile' + (picked ? ' picked' : '')}>
@@ -41,7 +43,7 @@ function MediaTile({ id, label, picked, onDelete }) {
         aria-label={label}
       >
         <span className="tile-preview">
-          {url && (isVideo ? <video src={url + '#t=0.5'} muted preload="metadata" /> : <img src={url} alt="" />)}
+          {preview && (isVideo ? <video src={preview + '#t=0.5'} muted preload="metadata" /> : <img src={preview} alt="" loading="lazy" decoding="async" />)}
         </span>
         <span className="tile-label">{label}</span>
       </button>

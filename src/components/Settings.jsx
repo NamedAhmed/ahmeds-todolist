@@ -11,7 +11,7 @@
 
 import { useRef, useState } from 'react';
 import { exportJson, importJson } from '../store.js';
-import { PREVIOUS_BACKUP, sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
+import { PREVIOUS_BACKUP, sendCode, signOut, syncConfigured, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
 import { GeneralTab, StyleTab } from './Look.jsx';
@@ -49,7 +49,7 @@ function Account() {
   const [error, setError] = useState('');    // an error message to show
 
   // No Supabase keys in the settings file (.env.local): syncing is switched off.
-  if (!supabase) {
+  if (!syncConfigured) {
     return <p className="hint">Sync is off: this copy has no Supabase keys, so everything stays in this browser.</p>;
   }
 

@@ -645,6 +645,13 @@ input[type="number"] {
   position: relative;
   background: color-mix(in srgb, var(--bg) 60%, transparent);
 }
+/* Speed: a long list is mostly off screen. Rows out of view are not laid out or painted until they scroll in (their
+   height is remembered meanwhile), so typing, ticking and hovering only cost what is visible. A row whose ⋯ menu is
+   open is left out: the menu hangs below the row, and this would cut it off. */
+.task-list > li.task:not(:has(.menu-wrap.open)) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 55px;
+}
 .task-main {
   display: flex;
   align-items: center;
