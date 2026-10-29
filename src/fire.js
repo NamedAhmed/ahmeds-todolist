@@ -1,38 +1,13 @@
-// fire.js = the fire that rises around the big ring when every daily is done: its shapes and its colours.
-// (The ring itself is drawn by Calendar.jsx; the Fire section of Settings, Look.jsx, uses this for its previews.)
+// fire.js = the shape of the fire that rises around the big ring when every daily is done.
+// (The ring is drawn by Calendar.jsx and the fire by FireArt.jsx; its colours are the theme's, see appearance.css.)
 //
 // The fire is two SVG paths (a tall back layer and a short front layer) built from circle maths.
-// A STYLE says how many tongues each layer has, how tall they are and what their tips look like.
-// A COLOUR is two shades: the back layer's and the front layer's.
 
 // The big ring's outer edge is at radius 95 (see BigRing in Calendar.jsx). The fire starts a little INSIDE that,
 // so it tucks behind the ring and there is never a gap between them, however the fire moves while it sways.
 const RING_EDGE = 95;
 const OVERLAP = 4;
 export const BASE = RING_EDGE - OVERLAP;
-
-// The styles of fire. Wavy is the original: two layers of wavy tongues. The others are drawn in FireArt.jsx.
-export const FIRE_STYLES = [
-  { id: 'wavy', label: 'Wavy' },
-  { id: 'candle', label: 'Candles' },
-  { id: 'embers', label: 'Embers' },
-  { id: 'lava', label: 'Lava' },
-  { id: 'realistic', label: 'Realistic' },
-];
-
-// a = the back layer, b = the front layer (lighter). "Theme" has none: it uses the theme's own flame colours.
-// "Rainbow" starts orange and cycles through every hue (see .fire-rainbow in app.css).
-export const FIRE_COLORS = [
-  { id: 'theme', label: 'Theme', a: null, b: null },
-  { id: 'ember', label: 'Ember', a: '#ff8a3d', b: '#ffd27a' },
-  { id: 'gold', label: 'Gold', a: '#ffb400', b: '#fff1b0' },
-  { id: 'blue', label: 'Blue', a: '#3d8bff', b: '#bfe0ff' },
-  { id: 'ice', label: 'Ice', a: '#7fd6ff', b: '#ffffff' },
-  { id: 'green', label: 'Green', a: '#2fd16f', b: '#c9ffd9' },
-  { id: 'purple', label: 'Purple', a: '#9b5cff', b: '#e2ccff' },
-  { id: 'pink', label: 'Pink', a: '#ff5fa2', b: '#ffd0e6' },
-  { id: 'rainbow', label: 'Rainbow', a: '#ff5a3d', b: '#ffd27a' },
-];
 
 // Where the fire is: along the top of the ring, or all the way around it. `from` and `to` are angles in degrees
 // (-90 is the top); `box` is the area the moving effects (blur, noise) are allowed to draw in.
@@ -51,8 +26,6 @@ export function heightAt(degrees, coverage) {
 }
 
 export const DEFAULT_FIRE_COVERAGE = 'top';
-export const DEFAULT_FIRE_STYLE = 'wavy';
-export const DEFAULT_FIRE_COLOR = 'theme';
 
 // An angle (in degrees, 0 = right, -90 = top) and a distance from the ring's centre, as [x, y] in the drawing.
 export function polar(degrees, radius) {
@@ -104,10 +77,4 @@ export function wavyPaths(coverage = DEFAULT_FIRE_COVERAGE) {
     ? { back: layerPath(13, 42, 0.1, arc.id), front: layerPath(15, 22, -0.08, arc.id) }
     : { back: layerPath(6, 42, 0.1, arc.id), front: layerPath(7, 22, -0.08, arc.id) };
   return wavy[arc.id];
-}
-
-// The inline style that gives the fire its colours (nothing for "Theme", so the CSS fallback shows).
-export function fireColorStyle(colorId) {
-  const color = FIRE_COLORS.find((item) => item.id === colorId);
-  return color?.a ? { '--fire-a': color.a, '--fire-b': color.b } : undefined;
 }

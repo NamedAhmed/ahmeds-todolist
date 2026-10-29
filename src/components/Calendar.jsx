@@ -12,10 +12,7 @@
 
 import Icon from './Icons.jsx';
 import FireArt from './FireArt.jsx';
-import { fireColorStyle } from '../fire.js';
-import { useAppearance } from '../appearance.js';
-import { earnCase } from '../cases.js';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
@@ -79,13 +76,6 @@ function BigRing({ s, date, today }) {
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
 
-  // Finishing the last daily of today (not just opening the app on a finished day) drops a case, once a day.
-  const wasDone = useRef(everythingDone);
-  useEffect(() => {
-    if (everythingDone && !wasDone.current && date === today) earnCase(today);
-    wasDone.current = everythingDone;
-  }, [everythingDone, date, today]);
-  const { fireStyle, fireColor, fireCoverage } = useAppearance(); // the look of the flames (Settings > Look > Fire)
 
   // Ring sizes: they share the space, but never get thicker than 10.
   const band = 57 / Math.max(count, 3);
@@ -94,7 +84,7 @@ function BigRing({ s, date, today }) {
   const dateObject = toDate(date);
 
   return (
-    <div className={'big-ring' + (everythingDone ? ' ablaze' : '') + (fireColor === 'rainbow' ? ' fire-rainbow' : '') + (fireCoverage === 'around' ? ' fire-around' : '')} style={fireColorStyle(fireColor)}>
+    <div className={'big-ring' + (everythingDone ? ' ablaze' : '')}>
       {/* The flames, animated in and out */}
       <AnimatePresence>
         {everythingDone && (
@@ -107,7 +97,7 @@ function BigRing({ s, date, today }) {
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <FireArt style={fireStyle} coverage={fireCoverage} />
+            <FireArt />
           </motion.svg>
         )}
       </AnimatePresence>

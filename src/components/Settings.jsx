@@ -14,7 +14,7 @@ import { exportJson, importJson } from '../store.js';
 import { PREVIOUS_BACKUP, sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
-import { GeneralTab, StyleTab, WallpaperTab } from './Look.jsx';
+import { GeneralTab, StyleTab } from './Look.jsx';
 import Sheet from './Sheet.jsx';
 import { toast } from './Fire.jsx';
 import { Modal } from './Modals.jsx';
@@ -323,7 +323,6 @@ export function AccountModal({ onClose }) {
 // The tabs: [id, label].
 const TABS = [
   ['style', 'Style', 'palette'],
-  ['wallpaper', 'Wallpaper', 'image'],
   ['general', 'General', 'sliders'],
 ];
 
@@ -350,7 +349,7 @@ export function SettingsSheet({ onClose }) {
 
   return (
     <Sheet title="Settings" tabs={tabs} onClose={onClose}>
-      {tab === 'style' ? <StyleTab /> : tab === 'wallpaper' ? <WallpaperTab /> : <GeneralTab />}
+      {tab === 'style' ? <StyleTab /> : <GeneralTab />}
     </Sheet>
   );
 }

@@ -23,7 +23,6 @@ const AccountModal = lazy(() => import('./components/Settings.jsx').then((m) => 
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
 import TabBar from './components/TabBar.jsx';
-const Cases = lazy(() => import('./components/Cases.jsx'));
 const Onboarding = lazy(() => import('./components/Onboarding.jsx'));
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
@@ -119,12 +118,10 @@ export default function App() {
   useEffect(() => {
     ensureTaskCreatedDates();
   }, []);
-  const { reduceMotion } = useAppearance();
   const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
-  const [modal, setModal] = useState(() => (needsTour() ? 'tour' : null)); // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'cases' | 'keys' | 'search' | null // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'cases' | 'keys' | 'search' | null
+  const [modal, setModal] = useState(() => (needsTour() ? 'tour' : null)); // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'keys' | 'search' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
-  const [caseId, setCaseId] = useState(null); // the case the Cases menu opens on
 
 
   // ---- Effect 1: once a day, when the app opens, point out a streak that died yesterday ----
@@ -271,37 +268,19 @@ export default function App() {
   useEffect(() => startPushSync(), []);
   const pushPrompt = usePushPrompt();
 
-  // Settings can open the other windows (the shortcut list, the Cases menu): they ask here.
+  // Settings can open the other windows (the shortcut list): they ask here.
   useEffect(() => {
     const openWindow = (event) => {
-      setCaseId(null);
       setModal(event.detail);
     };
     window.addEventListener('todolist:open-modal', openWindow);
     return () => window.removeEventListener('todolist:open-modal', openWindow);
   }, []);
 
-  // A case dropped (every daily finished, or a task milestone): say so, and open it after the tick animation has played.
-  useEffect(() => {
-    let timer;
-    const dropped = (event) => {
-      toast('A case dropped!');
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        setCaseId(event.detail);
-        setModal('cases');
-      }, 900);
-    };
-    window.addEventListener('todolist:case-earned', dropped);
-    return () => {
-      window.removeEventListener('todolist:case-earned', dropped);
-      clearTimeout(timer);
-    };
-  }, []);
 
   // ---- What gets drawn on the screen ----
   return (
-    <MotionConfig reducedMotion={reduceMotion ? 'always' : 'user'}>
+    <MotionConfig reducedMotion="user">{/* animations follow the device's own "reduce motion" setting */}
       {/* The animated background and the theme. It sits behind everything. */}
       <Wallpaper />
 
@@ -343,7 +322,6 @@ export default function App() {
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
         {modal === 'settings' && <SettingsSheet key="s" onClose={() => setModal(null)} />}
         {modal === 'account' && <AccountModal key="a" onClose={() => setModal(null)} />}
-        {modal === 'cases' && <Cases key="c" initialCase={caseId} onClose={() => (setModal(null), setCaseId(null))} />}
         {modal === 'keys' && <KeysModal key="k" onClose={() => setModal(null)} />}
         {modal === 'search' && <Search key="f" onClose={() => setModal(null)} onPick={pickResult} />}
         {editingDaily && <DailyEditModal key="d" id={editingDaily} onClose={() => setEditingDaily(null)} />}
