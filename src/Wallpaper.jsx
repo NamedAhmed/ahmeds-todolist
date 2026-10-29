@@ -43,41 +43,60 @@ import { startLiquid } from './wallpapers/liquid.js';
 import { startGravity } from './wallpapers/gravity.js';
 import { startMatrix } from './wallpapers/matrix.js';
 
+// A wallpaper page runs sandboxed, so the app can't call into it: it sends messages that public/lively/bridge.js
+// (in the page) acts on. postToFrame sends one and waits for the page's answer: true if the page took it, false if it
+// wasn't ready yet (or didn't answer within a second).
+let nextMessageId = 1;
+function postToFrame(frameWindow, message) {
+  const id = nextMessageId++;
+  return new Promise((resolve) => {
+    function onAnswer(event) {
+      if (event.source !== frameWindow || event.data?.type !== 'lively-property-ack' || event.data.id !== id) return;
+      finish(!!event.data.ok);
+    }
+    function finish(ok) {
+      window.removeEventListener('message', onAnswer);
+      clearTimeout(timer);
+      resolve(ok);
+    }
+    const timer = setTimeout(() => finish(false), 1000);
+    window.addEventListener('message', onAnswer);
+    // The page has no origin of its own (it is sandboxed), so '*' is the only address that reaches it. Only settings
+    // are sent, never anything private.
+    frameWindow.postMessage({ ...message, id }, '*');
+  });
+}
+
 // Work out what to send a wallpaper for one of its settings, then send it.
 // Lively sends sliders as numbers, checkboxes as true/false, dropdowns as the chosen position (0, 1, 2...),
 // colours as text like "#ff0000", and "pick a file from a folder" settings as the file's path.
 // Returns false if the page wasn't ready for it yet (so the caller can try again), otherwise true.
 async function sendProperty(frameWindow, wallpaper, property, value) {
   if (property.type === 'label' || property.type === 'button') return true; // these have no value
-  // While the page is still loading (or if it failed to load), the browser refuses access to it. That
-  // means "not ready yet", so the caller tries again shortly.
-  try {
-    if (typeof frameWindow.livelyPropertyListener !== 'function') return false;
-  } catch {
-    return false;
-  }
 
   let sent = value;
+  let suffix = '';
   if (property.type === 'folderDropdown') {
     if (typeof value === 'string' && value.startsWith('photo:')) {
       sent = `/pictures/${value.slice('photo:'.length)}.jpg`; // one of the app's built-in photos
     } else if (typeof value === 'string' && /^(upload|video):/.test(value)) {
-      // One of YOUR pictures or videos. Wallpapers decide how to load a file from its ending, so a
-      // fake ending is added to the address (anything after a # is ignored when loading it).
+      // One of YOUR pictures or videos. It lives in this app's storage, which the page can't open, so the file
+      // itself is sent and the page gives it an address. Wallpapers decide how to load a file from its ending, so
+      // a fake ending is added to that address (anything after a # is ignored when loading it).
       const url = await resolveMediaUrl(value);
       if (!url) return true; // that file isn't on this device: leave the wallpaper's own choice
-      sent = url + (value.startsWith('video:') ? '#.webm' : '#.jpg');
+      try {
+        sent = await (await fetch(url)).blob();
+      } catch {
+        return true; // couldn't read it: leave the wallpaper's own choice
+      }
+      suffix = value.startsWith('video:') ? '#.webm' : '#.jpg';
     } else {
       sent = `${property.folder}/${value}`; // a file bundled with the wallpaper, e.g. media/photo.jpg
     }
   }
 
-  try {
-    frameWindow.livelyPropertyListener(property.name, sent);
-    return true;
-  } catch {
-    return false; // the page has not finished starting: try again shortly
-  }
+  return postToFrame(frameWindow, { type: 'lively-property', name: property.name, value: sent, suffix });
 }
 
 // The <iframe> for one Lively wallpaper, and the code that sends it its settings.
@@ -147,7 +166,8 @@ function LivelyFrame({ wallpaper }) {
       title={wallpaper.title}
       src={`/lively/${wallpaper.id}/${wallpaper.entry}`}
       tabIndex={-1}
-      sandbox="allow-scripts allow-same-origin"
+      // Scripts only: without allow-same-origin the page can't read the app's storage (the sign-in) or reach into it.
+      sandbox="allow-scripts"
       onLoad={onLoad}
     />
   );
@@ -287,9 +307,9 @@ export default function Wallpaper() {
 
   // Follow the mouse. It is used two ways:
   //   - the liquid wallpaper has a blob that chases the mouse
-  //   - a Lively wallpaper is behind everything and can't get the mouse itself, so it is passed on. The event
-  //     is sent to whatever is under the mouse INSIDE the page (for example its <canvas>), and rises up from
-  //     there, so listeners on the canvas, the document and the window all hear it.
+  //   - a Lively wallpaper is behind everything and can't get the mouse itself, so it is passed on as a message.
+  //     bridge.js in the page sends it to whatever is under the mouse there (for example its <canvas>), and it
+  //     rises up from there, so listeners on the canvas, the document and the window all hear it.
   useEffect(() => {
     let timer;
     let frame = 0; // a pending forward to the wallpaper page
@@ -303,18 +323,12 @@ export default function Wallpaper() {
         mouse.active = false; // the mouse has been still for a while
       }, 3000);
 
-      // At most once per frame: the mouse can move many times per frame, and each forward reaches into the page.
+      // At most once per frame: the mouse can move many times per frame.
       if (lively && !frame) {
         const { clientX, clientY } = event;
         frame = requestAnimationFrame(() => {
           frame = 0;
-          try {
-            const frameDocument = frameBox.current?.querySelector('iframe')?.contentDocument;
-            const target = frameDocument?.elementFromPoint(clientX, clientY) ?? frameDocument?.body;
-            target?.dispatchEvent(new MouseEvent('mousemove', { clientX, clientY, bubbles: true }));
-          } catch {
-            // the wallpaper page isn't available right now: skip this movement
-          }
+          frameBox.current?.querySelector('iframe')?.contentWindow?.postMessage({ type: 'lively-pointer', x: clientX, y: clientY }, '*');
         });
       }
     }

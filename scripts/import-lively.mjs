@@ -90,6 +90,15 @@ function copyFolder(from, to, skipFolders = []) {
 
 // Lively lists a wallpaper's settings in LivelyProperties.json as an object. Turn it into a list,
 // and for "folderDropdown" settings (pick a file from a folder) work out which files are in the folder.
+// The app talks to a wallpaper only through messages (it runs sandboxed), so each page gets public/lively/bridge.js,
+// which passes the app's settings and mouse movements on to the page. It goes first in <head>.
+const BRIDGE_TAG = '<script src="../bridge.js"></script>';
+function addBridge(pageFile) {
+  const html = fs.readFileSync(pageFile, 'utf8');
+  if (html.includes(BRIDGE_TAG)) return;
+  fs.writeFileSync(pageFile, html.replace(/<head([^>]*)>/i, (tag) => `${tag}\n    ${BRIDGE_TAG}`));
+}
+
 function readProperties(folder, id, copy) {
   const file = path.join(folder, 'LivelyProperties.json');
   if (!fs.existsSync(file)) return [];
@@ -123,6 +132,7 @@ for (const dirName of fs.readdirSync(library)) {
 
   const id = slugify(info.Title);
   copyFolder(folder, path.join(publicDir, id), SKIP_FOLDERS[id]);
+  addBridge(path.join(publicDir, id, info.FileName));
 
   // Find the licence file, so the app can link to it.
   const licenseFile = fs.readdirSync(folder).find((name) => /^licen[cs]e(\.txt|\.md)?$/i.test(name)) ?? null;

@@ -25,7 +25,7 @@ import { FONTS, MAX_DIM, MAX_GLASS, THEMES, loadAllFonts, resetAppearance, reset
 // ======================================================================
 // Each card carries its own data-theme attribute, so the CSS draws it in that theme (its colours,
 // corner shapes and fonts), whatever theme is active now.
-function ThemeCard({ id, label, picked }) {
+export function ThemeCard({ id, label, picked }) {
   return (
     <button type="button" className={'theme-card' + (picked ? ' picked' : '')} data-theme={id} onClick={() => setAppearance({ theme: id })}>
       <span className="theme-card-sample">

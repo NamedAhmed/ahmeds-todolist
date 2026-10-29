@@ -830,18 +830,7 @@ function AddRow({ day, today }) {
     const title = (parsed && !picked && !ongoing ? parsed.title : text).trim();
     if (!title) return;
 
-    // New tasks go to the TOP of the list: give them a position smaller than all the others.
-    const positions = all(getState(), 'tasks')
-      .filter((t) => !t.parent)
-      .map((t) => t.position);
-    const top = Math.min(0, ...positions);
-
-    const label = kind === 'project' ? 'project added' : 'task added';
-    smooth(() =>
-      commit(label, [
-        { t: 'tasks', id: uid(), patch: { title, due, due_time: dueTime, done: false, kind, position: top - 1, created: minuteTimestamp() } },
-      ])
-    );
+    smooth(() => createTask({ title, due, dueTime, kind }));
 
     setText('');
     setPicked(null);
@@ -961,6 +950,19 @@ function compareTasks(a, b, sort) {
 
 function minuteTimestamp() {
   return Math.round(Date.now() / 60000) * 60000;
+}
+
+// Save a new task (or project). New tasks go to the TOP of the list: they get a position smaller than all the others.
+// The Add box uses this, and so does the first-launch tour (Onboarding.jsx).
+export function createTask({ title, due, dueTime = null, kind = 'task' }) {
+  const positions = all(getState(), 'tasks')
+    .filter((t) => !t.parent)
+    .map((t) => t.position);
+  const top = Math.min(0, ...positions);
+
+  commit(kind === 'project' ? 'project added' : 'task added', [
+    { t: 'tasks', id: uid(), patch: { title, due, due_time: dueTime, done: false, kind, position: top - 1, created: minuteTimestamp() } },
+  ]);
 }
 
 // Is this task overdue? (Not counted while you're looking at one specific day.)
@@ -1420,11 +1422,10 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
         </>
         )}
 
-        {/* Nothing at all to show */}
-        {nothing && (
+        {/* Nothing to show in this view. (With no tasks at all the headline above already says so.) */}
+        {nothing && stats.total > 0 && (
           <li className="empty-row">
             <p className="empty">{filter === 'date' ? empties.day : empties[filter]}</p>
-            {filter === 'all' && <p className="hint">Tip: end a task with a day or time, like "call mum friday 5pm", and it is set for you.</p>}
           </li>
         )}
 

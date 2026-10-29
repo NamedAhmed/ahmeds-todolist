@@ -406,6 +406,20 @@ function DailyRow({ s, daily, date, today, onEdit }) {
 // ======================================================================
 // THE "ADD A DAILY" BOX
 // ======================================================================
+// Save a new daily with the next colour in the list. (The first-launch tour, Onboarding.jsx, uses this too.)
+export function createDaily(name, today) {
+  const existing = all(getState(), 'dailies');
+  const color = DAILY_COLORS[existing.length % DAILY_COLORS.length];
+
+  commit('daily added', [
+    {
+      t: 'dailies',
+      id: uid(),
+      patch: { name: name.trim(), color, position: existing.length, created: today },
+    },
+  ]);
+}
+
 function AddDaily({ s, today }) {
   const [name, setName] = useState(''); // what is typed in the box
 
@@ -414,16 +428,7 @@ function AddDaily({ s, today }) {
     event.preventDefault(); // stop the page from reloading
     if (!name.trim()) return; // ignore an empty box
 
-    const existing = all(s, 'dailies');
-    const color = DAILY_COLORS[existing.length % DAILY_COLORS.length]; // next colour in the list
-
-    commit('daily added', [
-      {
-        t: 'dailies',
-        id: uid(),
-        patch: { name: name.trim(), color, position: existing.length, created: today },
-      },
-    ]);
+    createDaily(name, today);
     setName('');
     sass('dailyAdded', [], { chance: 0.7 });
   }

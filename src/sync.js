@@ -3,7 +3,8 @@
 // How it works:
 //   - The backend is one Supabase table called `records`.
 //     Each row is one item: (user_id, tbl, id, data, deleted, updated_at).
-//   - PUSH (upload): every item marked _dirty in store.js is sent to the table.
+//   - PUSH (upload): every item marked _dirty in store.js is sent to the table, but never over a newer version that
+//     another device saved meanwhile (see push below: that becomes a "conflicted copy" instead).
 //   - PULL (download): fetch rows that changed on the server since the last pull.
 //   - REALTIME: Supabase tells us when a row changes on another device, and we pull right away.
 //   - The server stamps `updated_at` itself, so your phone's clock and your laptop's clock
@@ -12,7 +13,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { applyRemote, dirtyRecords, exportJson, markAllDirty, markClean, resetAll, subscribe as onStoreChange } from './store.js';
+import { applyRemote, dirtyRecords, exportJson, markAllDirty, markClean, resetAll, resolveConflicts, subscribe as onStoreChange } from './store.js';
 import { storage } from './storage.js';
 
 
@@ -89,6 +90,92 @@ export function onSynced(task) {
   afterSync.add(task);
 }
 
+// ---- PUSH: upload every changed item ----
+// Two devices can change the same item while one of them is offline. So an item that came from the server remembers the
+// server's stamp on it (_base), and its upload only goes through if the server still has that version ("compare and set").
+// If the server has something newer, that is a conflict: the server's version is kept, and for tasks and notes the local
+// edit is kept as a "(conflicted copy)" next to it (resolveConflicts in store.js). Nothing is silently overwritten.
+// Items the server has never seen, and settings (where the last change should simply win), are upserted as before.
+// Returns how many conflicted copies were made. `client` is the Supabase connection (a stand-in in the tests).
+export async function push(client, userId) {
+  const toRow = ({ t, rec }) => {
+    const { _dirty, _deleted, _base, id, ...data } = rec; // `data` = everything else about the item
+    return { user_id: userId, tbl: t, id, data, deleted: !!_deleted };
+  };
+  const stampsOf = (rows) => Object.fromEntries((rows ?? []).map((row) => [row.tbl + ':' + row.id, row.updated_at]));
+
+  const dirty = dirtyRecords();
+  const fresh = dirty.filter(({ t, rec }) => !rec._base || t === 'settings');
+  const known = dirty.filter((item) => !fresh.includes(item));
+
+  // A setting this device has never downloaded (say the theme picked on a new phone before signing in) is merged into
+  // the account's copy instead of replacing it: what was set here wins, everything else on the account is kept.
+  const unseen = fresh.filter(({ t, rec }) => t === 'settings' && !rec._base).map(({ rec }) => rec.id);
+  const onServer = {};
+  if (unseen.length) {
+    const { data, error } = await client.from('records').select('id,data,deleted').eq('user_id', userId).eq('tbl', 'settings').in('id', unseen);
+    if (error) throw error;
+    for (const row of data ?? []) if (!row.deleted) onServer[row.id] = row.data;
+  }
+  const withServer = (item) => {
+    const row = toRow(item);
+    return item.t === 'settings' && onServer[row.id] ? { ...row, data: { ...onServer[row.id], ...row.data } } : row;
+  };
+
+  // New items (and settings): 200 at a time. upsert = insert, or update if it exists.
+  for (let i = 0; i < fresh.length; i += 200) {
+    const chunk = fresh.slice(i, i + 200);
+    const { data, error } = await client.from('records').upsert(chunk.map(withServer)).select('tbl,id,updated_at');
+    if (error) throw error;
+    markClean(chunk, stampsOf(data));
+  }
+
+  // Items the server already has: each one only if the server still has the version this edit started from.
+  // 10 at a time, side by side.
+  const conflicts = [];
+  for (let i = 0; i < known.length; i += 10) {
+    const chunk = known.slice(i, i + 10);
+    const results = await Promise.all(
+      chunk.map((item) => {
+        const row = toRow(item);
+        return client
+          .from('records')
+          .update({ data: row.data, deleted: row.deleted })
+          .eq('user_id', userId)
+          .eq('tbl', item.t)
+          .eq('id', row.id)
+          .eq('updated_at', item.rec._base)
+          .select('tbl,id,updated_at');
+      })
+    );
+
+    const done = [];
+    const stamps = {};
+    results.forEach(({ data, error }, j) => {
+      if (error) throw error;
+      if (data?.length) {
+        done.push(chunk[j]);
+        Object.assign(stamps, stampsOf(data));
+      } else {
+        conflicts.push(chunk[j]); // the server's version is newer than the one this edit started from
+      }
+    });
+    markClean(done, stamps);
+  }
+
+  if (!conflicts.length) return 0;
+
+  // Fetch the server's versions of the clashing items, then keep both (see resolveConflicts).
+  const found = [];
+  for (const t of new Set(conflicts.map((item) => item.t))) {
+    const ids = conflicts.filter((item) => item.t === t).map((item) => item.rec.id);
+    const { data, error } = await client.from('records').select('tbl,id,data,deleted,updated_at').eq('user_id', userId).eq('tbl', t).in('id', ids);
+    if (error) throw error;
+    for (const row of data ?? []) found.push({ t, id: row.id, row });
+  }
+  return resolveConflicts(found);
+}
+
 // Upload local changes, then download remote changes.
 export async function syncNow() {
   const user = status.user;
@@ -104,22 +191,11 @@ export async function syncNow() {
   setStatus({ sync: 'syncing', error: '' });
 
   try {
-    // ---- PUSH: upload changed items, 200 at a time ----
-    const dirty = dirtyRecords();
-    for (let i = 0; i < dirty.length; i += 200) {
-      const chunk = dirty.slice(i, i + 200);
+    // ---- PUSH: upload changed items ----
+    const copies = await push(supabase, user.id);
+    if (copies) again = true; // conflicted copies were made: upload them too
 
-      // Turn each item into a row for the table.
-      const rows = chunk.map(({ t, rec }) => {
-        const { _dirty, _deleted, id, ...data } = rec; // `data` = everything else about the item
-        return { user_id: user.id, tbl: t, id, data, deleted: !!_deleted };
-      });
 
-      const { error } = await supabase.from('records').upsert(rows); // upsert = insert, or update if it exists
-      if (error) throw error;
-
-      markClean(chunk); // these are uploaded now
-    }
 
     // ---- PULL: download rows that changed since last time ----
     let cursor = storage.get(cursorKey(user.id)) || '1970-01-01T00:00:00Z';

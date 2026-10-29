@@ -219,6 +219,10 @@ function apply(changes) {
     }
 
     item._dirty = true; // "this needs uploading"
+    // _base = the server's stamp on the version this edit started from (see sync.js). It always comes from what is stored
+    // now, never from the change: an undo puts back an old copy of the item, but the server has moved on since.
+    if (previous?._base) item._base = previous._base;
+    else delete item._base;
     next[change.t] = { ...next[change.t], [change.id]: item };
   }
 
@@ -279,15 +283,22 @@ export function dirtyRecords() {
   return result;
 }
 
-// After a successful upload: remove the _dirty flag.
-// If an item was edited again while uploading, leave it dirty so it uploads next time.
-export function markClean(pushed) {
+// After a successful upload: remove the _dirty flag, and remember the server's new stamp on each item (_base).
+// `stamps` is { 'table:id': updated_at } from the server. If an item was edited again while uploading, it stays dirty so
+// it uploads next time, but still gets the new stamp: that next upload starts from this version.
+export function markClean(pushed, stamps = {}) {
   const next = { ...state };
 
   for (const { t, rec } of pushed) {
-    if (next[t][rec.id] !== rec) continue; // it changed during the upload, skip it
+    const current = next[t][rec.id];
+    const stamp = stamps[t + ':' + rec.id];
+    if (current !== rec) {
+      if (current && stamp) next[t] = { ...next[t], [rec.id]: { ...current, _base: stamp } };
+      continue;
+    }
 
     const { _dirty, ...clean } = rec; // copy without the _dirty field
+    if (stamp) clean._base = stamp;
     next[t] = { ...next[t], [rec.id]: clean };
   }
 
@@ -307,6 +318,7 @@ export function applyRemote(rows) {
     let item;
     if (row.deleted) item = { id: row.id, _deleted: true };
     else item = { ...row.data, id: row.id };
+    if (row.updated_at) item._base = row.updated_at; // the server's stamp: the next upload of this item checks it
 
     next[row.tbl] = { ...next[row.tbl], [row.id]: item };
     changed = true;
@@ -319,6 +331,38 @@ export function applyRemote(rows) {
     state = next;
     emit();
   }
+}
+
+// Uploads that clashed with a newer version on the server (another device changed or deleted the item while this one
+// was offline). `conflicts` is [{ t, id, row }], `row` being the server's version. The server's version is kept, and for
+// tasks and notes your local edit is kept too, as a new item marked "(conflicted copy)", so no work is ever lost.
+// (Dailies, ticks, reminders and the rest just take the server's version.) Returns how many copies were made.
+export const COPY_TABLES = { tasks: 'title', notes: 'title' };
+export function resolveConflicts(conflicts) {
+  const next = { ...state };
+  let copies = 0;
+
+  for (const { t, id, row } of conflicts) {
+    const local = next[t][id];
+    if (!local) continue;
+
+    const field = COPY_TABLES[t];
+    if (field && !local._deleted) {
+      const { _dirty, _base, ...edit } = local;
+      const copyId = uid();
+      const title = String(edit[field] || 'Untitled');
+      next[t] = { ...next[t], [copyId]: { ...edit, id: copyId, [field]: `${title} (conflicted copy)`, _dirty: true } };
+      copies++;
+    }
+
+    const server = row.deleted ? { id, _deleted: true } : { ...row.data, id };
+    server._base = row.updated_at;
+    next[t] = { ...next[t], [id]: server };
+  }
+
+  state = next;
+  emit();
+  return copies;
 }
 
 // Mark everything as needing upload (used the first time you sign in).
@@ -347,7 +391,7 @@ export function exportJson() {
   const out = {};
   for (const table of TABLES) {
     out[table] = all(state, table).map((item) => {
-      const { _dirty, ...clean } = item; // leave out the internal _dirty flag
+      const { _dirty, _base, ...clean } = item; // leave out the internal fields
       return clean;
     });
   }
@@ -387,7 +431,7 @@ export function importJson(text) {
     for (const item of data[table]) {
       // Only real items: an object with a text id, not already deleted.
       if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id || item._deleted) continue;
-      const { _dirty, ...clean } = item;
+      const { _dirty, _base, ...clean } = item;
       const existing = state[table][item.id];
       if (existing && !existing._deleted) replaced++;
       else added++;

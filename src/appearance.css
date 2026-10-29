@@ -785,7 +785,7 @@ html[data-backdrop] .col-foot {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: var(--z-menu-open);
   max-height: 300px;
   overflow-y: auto;
   padding: 6px;
@@ -942,7 +942,7 @@ html[data-backdrop] .col-foot {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 55;
+  z-index: var(--z-sheet);
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
@@ -1197,7 +1197,7 @@ html[data-theme="terminal"] body::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 45; /* above the page, below the Settings sheet (55), windows (60) and messages (70-80) */
+  z-index: var(--z-fx); /* above the page, below the Settings sheet, windows and messages */
   pointer-events: none;
   background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.16) 3px);
 }

@@ -4,8 +4,22 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // Port 3000 matches Supabase's default Site URL, so emailed sign-in links land back here.
 // The service worker precaches the built app so it opens offline; Google Fonts are cached on first visit.
+// The wallpaper pages run sandboxed with no origin of their own, so their own images and shaders count as another
+// site's files and need this header to be usable in WebGL (vercel.json sends the same header in production).
+function openWallpaperFiles() {
+  // (It must return nothing: Vite would run a returned function as a second step.)
+  const allow = (server) => {
+    server.middlewares.use((request, response, next) => {
+      if (/^\/(lively|pictures)\//.test(request.url)) response.setHeader('Access-Control-Allow-Origin', '*');
+      next();
+    });
+  };
+  return { name: 'open-wallpaper-files', configureServer: allow, configurePreviewServer: allow };
+}
+
 export default defineConfig({
   plugins: [
+    openWallpaperFiles(),
     react(),
     VitePWA({
       registerType: 'prompt', // a new version waits until you press Reload (see components/UpdatePrompt.jsx), so a page never meets half-old files
@@ -44,5 +58,7 @@ export default defineConfig({
       }
     })
   ],
-  server: { port: 3000, strictPort: true }
+  server: { port: 3000, strictPort: true },
+  // `npm test` (Vitest): the tests run in Node, with the bits of browser they need from src/test-setup.js.
+  test: { setupFiles: ['src/test-setup.js'] }
 });

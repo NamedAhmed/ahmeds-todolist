@@ -525,7 +525,6 @@ export const empties = {
   undated: "No tasks without due dates. Even your procrastination has a schedule.",
   all: "No tasks at all. Your procrastination must be taking the day off.",
   dailies: "No dailies. Discipline is for other people, apparently.",
-  notes: "No notes. Not one thought worth keeping.",
   day: "Nothing due this day. ig people started to learn",
   done: "Nothing finished. Shocking absolutely no one.",
   reminders: "No reminders. You'll \"just remember\". Sure you will."

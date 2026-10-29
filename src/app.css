@@ -763,7 +763,7 @@ button.due:hover {
 }
 
 .task:has(.menu-wrap.open) {
-  z-index: 30;
+  z-index: var(--z-menu-open);
 } /* lift the row so its menu sits above the rows below */
 .menu-wrap {
   position: relative;
@@ -796,7 +796,7 @@ button.due:hover {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 20;
+  z-index: var(--z-menu);
   min-width: 190px;
   padding: 6px;
   border-radius: var(--r-md);
@@ -962,7 +962,7 @@ button.due:hover {
 .scrim {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-window);
   display: grid;
   place-items: center;
   background: var(--scrim);
@@ -983,6 +983,58 @@ button.due:hover {
 .modal h3 {
   margin: 12px 0 0;
   font-weight: 400;
+}
+
+/* the first-launch tour (components/Onboarding.jsx): a row of step marks, a big line, then buttons at the bottom right */
+.tour-count {
+  display: flex;
+  gap: 6px;
+  margin: -6px 0 0;
+}
+.tour-count i {
+  width: 18px;
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  transition: background-color 0.3s ease;
+}
+.tour-count i.on {
+  background: var(--accent);
+}
+.tour-lead {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1.25;
+}
+.tour-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tour-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+/* the keyboard tip for a computer, a touch tip for a phone */
+.tour-touch {
+  display: none;
+}
+@media (hover: none) {
+  .tour-keys {
+    display: none;
+  }
+  .tour-touch {
+    display: inline;
+  }
 }
 .hint {
   margin: 0;
@@ -1045,16 +1097,19 @@ select.field {
 }
 
 /* ---------- toasts ---------- */
+.toasts,
+.toast-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
 .toasts {
   position: fixed;
   left: 50%;
   bottom: 28px;
   transform: translateX(-50%);
-  z-index: 80;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  z-index: var(--z-toast);
   pointer-events: none;
   width: max-content;
   max-width: 92vw;
@@ -1165,7 +1220,7 @@ select.field {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 15; /* under menus (20, 30) and windows; the settings sheet sits above the bar, not over it */
+    z-index: var(--z-bar); /* under menus and windows; the settings sheet sits above the bar, not over it */
     height: calc(var(--bar-h) + env(safe-area-inset-bottom));
     padding: 4px 8px env(safe-area-inset-bottom);
     gap: 2px;
@@ -1652,7 +1707,7 @@ kbd {
   position: absolute;
   left: 22px;
   top: calc(100% + 4px);
-  z-index: 10;
+  z-index: var(--z-menu);
   width: 230px;
   max-height: 260px;
   overflow-y: auto;
@@ -2677,11 +2732,8 @@ html[data-reduce-motion] *::after {
 
 /* The one-time "turn on notifications?" card (App.jsx) */
 .push-prompt {
-  position: fixed;
-  left: 50%;
-  bottom: 84px; /* above the messages (they sit at 28px) so the two never cover each other */
-  transform: translateX(-50%);
-  z-index: 70;
+  /* It sits in the messages' stack (see Toasts in Fire.jsx), above them, so the two never cover each other. */
+  pointer-events: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2696,11 +2748,6 @@ html[data-reduce-motion] *::after {
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   font-size: 14px;
-}
-@media (max-width: 900px) {
-  .push-prompt {
-    bottom: calc(var(--bar-space) + 4px);
-  }
 }
 
 /* The notes column: the list of notes beside the editor, or above it when the column is narrow. */

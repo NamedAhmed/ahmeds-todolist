@@ -55,20 +55,34 @@ function tellEveryone() {
   subs.forEach((listener) => listener());
 }
 
+// How long a message stays: long enough to read it and press Undo. The countdown stops while the mouse is over it.
+const SHOW_FOR_MS = 8000;
+const timers = new Map(); // message id -> { timer, left (ms), started }
+
+function removeToast(id) {
+  clearTimeout(timers.get(id)?.timer);
+  timers.delete(id);
+  toasts = toasts.filter((t) => t.id !== id);
+  tellEveryone();
+}
+
+function startCountdown(id, ms) {
+  timers.set(id, { timer: setTimeout(() => removeToast(id), ms), left: ms, started: Date.now() });
+}
+
 // Show a message. Pass { undoable: true } to add an Undo button.
 export function toast(text, { undoable = false } = {}) {
   const id = Math.random();
 
   // Keep at most 2 messages: the newest one plus the one before it.
+  const dropped = toasts.slice(0, -1);
+  dropped.forEach((t) => {
+    clearTimeout(timers.get(t.id)?.timer);
+    timers.delete(t.id);
+  });
   toasts = [...toasts.slice(-1), { id, text, undoable }];
   tellEveryone();
-
-  // Remove it again after a few seconds (messages with an Undo button stay a bit longer).
-  const showForMs = undoable ? 9000 : 6000; // long enough to read, and to press Undo
-  setTimeout(() => {
-    toasts = toasts.filter((t) => t.id !== id);
-    tellEveryone();
-  }, showForMs);
+  startCountdown(id, SHOW_FOR_MS);
 }
 
 // A reaction to something you did. `chance` is a number from 0 to 1:
@@ -88,7 +102,8 @@ export function doUndo() {
 }
 
 // The component that draws the messages. Put it once on the page (App.jsx does this).
-export function Toasts() {
+// `children` (the notifications card) goes in the same stack, above the messages, so the two never cover each other.
+export function Toasts({ children }) {
   // This tells React: "re-draw me whenever the toasts list changes".
   const list = useSyncExternalStore(
     (listener) => {
@@ -100,17 +115,35 @@ export function Toasts() {
 
   // Clicking Undo on a message: remove the message, then undo.
   function clickUndo(id) {
-    toasts = toasts.filter((x) => x.id !== id);
+    removeToast(id);
     doUndo();
   }
 
+  // The mouse over a message pauses its countdown; leaving starts it again with the time that was left.
+  function pause(id) {
+    const timing = timers.get(id);
+    if (!timing) return;
+    clearTimeout(timing.timer);
+    timers.set(id, { ...timing, timer: null, left: Math.max(1500, timing.left - (Date.now() - timing.started)) });
+  }
+  function resume(id) {
+    const timing = timers.get(id);
+    if (timing && !timing.timer) startCountdown(id, timing.left);
+  }
+
   return (
-    <div className="toasts" role="status">
+    <div className="toasts">
+      {children}
+      <div className="toast-list" role="status">
       <AnimatePresence>
         {list.map((t) => (
           <motion.div
             key={t.id}
             className="toast"
+            onMouseEnter={() => pause(t.id)}
+            onMouseLeave={() => resume(t.id)}
+            onFocus={() => pause(t.id)}
+            onBlur={() => resume(t.id)}
             layout
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -126,6 +159,7 @@ export function Toasts() {
           </motion.div>
         ))}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

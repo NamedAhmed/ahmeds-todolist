@@ -10,7 +10,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig } from 'motion/react';
-import { ensureTaskCreatedDates, getState, redo } from './store.js';
+import { all, ensureTaskCreatedDates, getState, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
 import Tasks, { TaskDnd } from './components/Tasks.jsx';
@@ -24,6 +24,7 @@ import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
 import TabBar from './components/TabBar.jsx';
 const Cases = lazy(() => import('./components/Cases.jsx'));
+const Onboarding = lazy(() => import('./components/Onboarding.jsx'));
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
 import { useAppearance } from './appearance.js';
@@ -59,6 +60,17 @@ function readTaskSort() {
   } catch {
     return 'due';
   }
+}
+
+// First launch: show the tour (components/Onboarding.jsx) to someone with nothing saved yet. Anyone who already has
+// tasks, dailies, notes or reminders (for example from before the tour existed) counts as having seen it.
+const TOUR_KEY = 'todolist:onboarded';
+function needsTour() {
+  if (storage.get(TOUR_KEY)) return false;
+  const s = getState();
+  const hasData = ['tasks', 'dailies', 'notes', 'reminders'].some((table) => all(s, table).length > 0);
+  if (hasData) storage.set(TOUR_KEY, '1');
+  return !hasData;
 }
 
 export default function App() {
@@ -109,9 +121,10 @@ export default function App() {
   }, []);
   const { reduceMotion } = useAppearance();
   const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
-  const [modal, setModal] = useState(null); // which pop-up is open: 'reminders' | 'settings' | 'account' | 'cases' | 'keys' | 'search' | null
+  const [modal, setModal] = useState(() => (needsTour() ? 'tour' : null)); // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'cases' | 'keys' | 'search' | null // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'cases' | 'keys' | 'search' | null
   const [tab, setTab] = useState('tasks');  // which column a phone is showing
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
+  const [caseId, setCaseId] = useState(null); // the case the Cases menu opens on
 
 
   // ---- Effect 1: once a day, when the app opens, point out a streak that died yesterday ----
@@ -215,7 +228,7 @@ export default function App() {
 
     function onKey(event) {
       // Ignore the key if you're typing in a box, or something else already handled it.
-      if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (event.target.closest?.('input, textarea, select, [contenteditable]')) return; // (closest: the target can be the page itself)
       if (event.defaultPrevented) return;
 
       // Ctrl+Z = undo, Ctrl+Shift+Z = redo (Cmd on a Mac).
@@ -269,7 +282,6 @@ export default function App() {
   }, []);
 
   // A case dropped (every daily finished, or a task milestone): say so, and open it after the tick animation has played.
-  const [caseId, setCaseId] = useState(null); // the case the Cases menu opens on
   useEffect(() => {
     let timer;
     const dropped = (event) => {
@@ -319,6 +331,15 @@ export default function App() {
       {/* Pop-up windows. Only the one named in `modal` is shown. */}
       <Suspense fallback={null}>
       <AnimatePresence>
+        {modal === 'tour' && (
+          <Onboarding
+            key="o"
+            onClose={(next) => {
+              storage.set(TOUR_KEY, '1');
+              setModal(next ?? null);
+            }}
+          />
+        )}
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
         {modal === 'settings' && <SettingsSheet key="s" onClose={() => setModal(null)} />}
         {modal === 'account' && <AccountModal key="a" onClose={() => setModal(null)} />}
@@ -329,20 +350,20 @@ export default function App() {
       </AnimatePresence>
       </Suspense>
 
-      {/* The little messages that slide in at the bottom. */}
-      {pushPrompt.show && (
-        <div className="push-prompt" role="dialog" aria-label="Notifications">
-          <span>Get a notification when a task or reminder is due?</span>
-          <button className="btn-add" onClick={pushPrompt.accept}>
-            Turn on
-          </button>
-          <button className="btn-ghost" onClick={pushPrompt.dismiss}>
-            Not now
-          </button>
-        </div>
-      )}
-
-      <Toasts />
+      {/* The little messages that slide in at the bottom, with the one-time notifications card above them. */}
+      <Toasts>
+        {pushPrompt.show && modal !== 'tour' && (
+          <div className="push-prompt" role="dialog" aria-label="Notifications">
+            <span>Get a notification when a task or reminder is due?</span>
+            <button className="btn-add" onClick={() => pushPrompt.accept().then((problem) => problem && toast(problem))}>
+              Turn on
+            </button>
+            <button className="btn-ghost" onClick={pushPrompt.dismiss}>
+              Not now
+            </button>
+          </div>
+        )}
+      </Toasts>
     </MotionConfig>
   );
 }
