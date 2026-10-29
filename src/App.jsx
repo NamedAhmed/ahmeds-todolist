@@ -8,7 +8,7 @@
 //   Modals (pop-up windows)       -> components/Modals.jsx
 //   Toasts (little messages)      -> components/Fire.jsx
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig } from 'motion/react';
 import { ensureTaskCreatedDates, getState, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
@@ -17,11 +17,13 @@ import Tasks, { TaskDnd } from './components/Tasks.jsx';
 import { Notes } from './components/Side.jsx';
 import { DailyEditModal, KeysModal, RemindersModal } from './components/Modals.jsx';
 import Search from './components/Search.jsx';
-import { AccountModal, SettingsSheet } from './components/Settings.jsx';
+// These windows are loaded the first time they open, so the first screen downloads less.
+const SettingsSheet = lazy(() => import('./components/Settings.jsx').then((m) => ({ default: m.SettingsSheet })));
+const AccountModal = lazy(() => import('./components/Settings.jsx').then((m) => ({ default: m.AccountModal })));
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
 import TabBar from './components/TabBar.jsx';
-import Cases from './components/Cases.jsx';
+const Cases = lazy(() => import('./components/Cases.jsx'));
 import { Resizer, useColumns } from './components/Columns.jsx';
 import { useSync } from './sync.js';
 import { useAppearance } from './appearance.js';
@@ -314,6 +316,7 @@ export default function App() {
       />
 
       {/* Pop-up windows. Only the one named in `modal` is shown. */}
+      <Suspense fallback={null}>
       <AnimatePresence>
         {modal === 'reminders' && <RemindersModal key="r" today={today} onClose={() => setModal(null)} />}
         {modal === 'settings' && <SettingsSheet key="s" onClose={() => setModal(null)} />}
@@ -323,6 +326,7 @@ export default function App() {
         {modal === 'search' && <Search key="f" onClose={() => setModal(null)} onPick={pickResult} />}
         {editingDaily && <DailyEditModal key="d" id={editingDaily} onClose={() => setEditingDaily(null)} />}
       </AnimatePresence>
+      </Suspense>
 
       {/* The little messages that slide in at the bottom. */}
       {pushPrompt.show && (

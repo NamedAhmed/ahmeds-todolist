@@ -8,7 +8,7 @@
 //   body      the same content as plain text, kept so older copies of the app can still show it
 //   position  where the note is in the list (you drag notes to change it)
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
@@ -20,7 +20,10 @@ import { flushNoteSaves, pendingText, queueNoteSave } from '../noteSave.js';
 import { empties, quip, shortDate, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import { newBlock } from './BlockEditor.jsx';
-import { BlocksEditor, MarkdownEditor, RichEditor } from './NoteEditors.jsx';
+import { BlocksEditor, MarkdownEditor } from './NoteEditors.jsx';
+
+// The Rich editor library is big: it is only downloaded when a note is opened in Rich.
+const RichEditor = lazy(() => import('./RichEditor.jsx'));
 import { Modal } from './Modals.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
@@ -101,7 +104,9 @@ function Editor({ note }) {
         onKeyDown={onTitleKeyDown}
       />
       <div className="note-scroll" ref={blockArea}>
-        <Body key={revision} md={revision ? noteMd(getState().notes[note.id]) : md} onMd={onMd} />
+        <Suspense fallback={<p className="hint">Loading…</p>}>
+          <Body key={revision} md={revision ? noteMd(getState().notes[note.id]) : md} onMd={onMd} />
+        </Suspense>
       </div>
       <footer className="note-foot">
         <span className="mono">{saved}</span>
