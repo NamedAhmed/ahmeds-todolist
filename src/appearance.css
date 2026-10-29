@@ -1485,3 +1485,11 @@ html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-lis
     letter-spacing: 0.04em;
   }
 }
+
+/* Phone: the Settings sheet stops at the tab bar instead of covering it. */
+@media (max-width: 900px) {
+  .sheet {
+    bottom: calc(var(--bar-h, 56px) + env(safe-area-inset-bottom));
+    padding-bottom: 0;
+  }
+}

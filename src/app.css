@@ -1099,7 +1099,8 @@ select.field {
 @media (max-width: 900px) {
   /* The page is exactly one screen tall (status bar + content + floating tab bar), so it never wobbles. */
   :root {
-    --bar-space: calc(76px + env(safe-area-inset-bottom));
+    --bar-h: 56px; /* the tab bar, without the home-indicator area */
+    --bar-space: calc(var(--bar-h) + 12px + env(safe-area-inset-bottom));
   }
   html,
   body {
@@ -1156,70 +1157,72 @@ select.field {
     display: none;
   }
 
-  /* The bar follows Apple's tab bar guidelines in Liquid Glass: it floats over the content as a capsule, the
-     content shows through it, and the selected tab is a lighter piece of glass inside it. 44pt+ touch targets. */
+  /* The tab bar is docked to the bottom edge like Apple's: icon + label per tab, the selected tab is a lighter piece of
+     glass, and the home-indicator area is part of the bar. It hides while you type (the keyboard needs the room). */
   .tabbar {
     display: flex;
     position: fixed;
-    left: 16px;
-    right: 16px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    z-index: 15; /* under menus (20, 30), windows and the settings sheet */
-    height: 64px;
-    padding: 6px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 15; /* under menus (20, 30) and windows; the settings sheet sits above the bar, not over it */
+    height: calc(var(--bar-h) + env(safe-area-inset-bottom));
+    padding: 4px 8px env(safe-area-inset-bottom);
     gap: 2px;
-    border-radius: 32px;
-    touch-action: none;
+    touch-action: none; /* a horizontal drag scrubs between tabs instead of panning the page */
     user-select: none;
     -webkit-user-select: none;
-    -webkit-touch-callout: none; /* a horizontal drag scrubs between tabs instead of panning the page */
-    background: color-mix(in srgb, var(--bg) 38%, transparent);
-    -webkit-backdrop-filter: blur(22px) saturate(1.8);
-    backdrop-filter: blur(22px) saturate(1.8);
-    border: var(--bw) solid color-mix(in srgb, var(--text) 16%, transparent);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text) 22%, transparent), /* the light catching the top edge */
-      inset 0 -1px 0 color-mix(in srgb, var(--text) 6%, transparent),
-      0 8px 28px rgba(0, 0, 0, 0.28);
+    -webkit-touch-callout: none;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: var(--bw) solid color-mix(in srgb, var(--text) 14%, transparent);
+    transition: transform 0.2s ease;
+  }
+  .tabbar[data-hidden] {
+    transform: translateY(110%);
   }
   .tabbar button {
     position: relative;
     flex: 1;
-    display: grid;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     min-width: 44px;
-    border-radius: 26px;
+    height: auto;
+    border-radius: 14px;
+    background: none;
     color: var(--muted);
-    transition:
-      color 0.2s ease,
-      background-color 0.25s ease,
-      box-shadow 0.25s ease;
+    transition: color 0.2s ease;
   }
   .tabbar button.active {
     color: var(--text);
   }
+  .tab-label {
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
   /* The lens: a lighter piece of glass behind the selected tab. It swells while you press the bar. */
   .tabbar-lens {
     position: absolute;
-    top: 6px;
-    bottom: 6px;
+    top: 4px;
+    height: calc(var(--bar-h) - 8px);
     left: 0;
-    border-radius: 26px;
+    border-radius: 14px;
     pointer-events: none;
     background: color-mix(in srgb, var(--text) 14%, transparent);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--text) 24%, transparent),
-      0 2px 10px rgba(0, 0, 0, 0.18);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 20%, transparent);
     transition: background-color 0.25s ease;
   }
   .tabbar[data-pressed] .tabbar-lens {
     background: color-mix(in srgb, var(--text) 22%, transparent);
   }
-  .tabbar button {
-    background: none;
-  }
+  /* Everything that sits at the bottom of the screen uses the same room. */
   .toasts {
-    bottom: calc(80px + env(safe-area-inset-bottom));
+    bottom: calc(var(--bar-space) + 4px);
   }
   .toast {
     font-size: 16px;
@@ -2226,7 +2229,7 @@ html[data-reduce-motion] *::after {
 }
 @media (max-width: 900px) {
   .bulk-bar {
-    margin-bottom: 84px; /* above the floating tab bar */
+    margin-bottom: var(--bar-space); /* above the tab bar */
   }
 }
 
@@ -2693,7 +2696,7 @@ html[data-reduce-motion] *::after {
 }
 @media (max-width: 900px) {
   .push-prompt {
-    bottom: calc(84px + env(safe-area-inset-bottom));
+    bottom: calc(var(--bar-space) + 4px);
   }
 }
 
@@ -2831,4 +2834,16 @@ html[data-reduce-motion] *::after {
 }
 .group-fold .icon {
   transition: transform 0.15s ease;
+}
+
+/* The screen shown if the app itself breaks (ErrorBoundary.jsx) */
+.crash {
+  max-width: 420px;
+  margin: 18vh auto 0;
+  padding: 0 24px;
+  text-align: center;
+  color: var(--text);
+}
+.crash .seg-row {
+  justify-content: center;
 }

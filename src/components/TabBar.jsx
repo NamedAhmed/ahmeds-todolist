@@ -5,6 +5,7 @@
 // the tab you ended on. A plain tap does the same thing in one step.
 //
 // Props: tabs ([id, label, icon] each), tab (the selected id), setTab, settingsOpen, openSettings.
+// It is docked to the bottom edge with a label under each icon, and slides away while a text field has focus.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'motion/react';
@@ -40,6 +41,20 @@ export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings }
   }, [restingX, x]);
 
   useLayoutEffect(settle, [settle, tab, settingsOpen]);
+
+  // Typing: the keyboard needs the room, so the bar slides away until the field loses focus.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const isField = (element) => element?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(element?.tagName ?? '');
+    const update = () => setTyping(isField(document.activeElement) && !document.activeElement.closest('.sheet'));
+    const later = () => setTimeout(update, 0); // after the focus has moved on
+    document.addEventListener('focusin', update);
+    document.addEventListener('focusout', later);
+    return () => {
+      document.removeEventListener('focusin', update);
+      document.removeEventListener('focusout', later);
+    };
+  }, []);
   useEffect(() => {
     window.addEventListener('resize', settle);
     return () => window.removeEventListener('resize', settle);
@@ -95,6 +110,7 @@ export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings }
       ref={nav}
       className="tabbar"
       data-pressed={pressed || undefined}
+      data-hidden={typing || undefined}
       aria-label="Sections"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -105,6 +121,7 @@ export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings }
       {tabs.map(([id, label, icon]) => (
         <button key={id} data-tab={id} className={tab === id && !settingsOpen ? 'active' : ''} onClick={() => choose(id)} aria-label={label} title={label}>
           <Icon name={icon} size={22} />
+          <span className="tab-label">{label}</span>
         </button>
       ))}
       <button
@@ -114,6 +131,7 @@ export default function TabBar({ tabs, tab, setTab, settingsOpen, openSettings }
         title="Settings"
       >
         <Icon name="sliders" size={22} />
+        <span className="tab-label">Settings</span>
       </button>
     </nav>
   );

@@ -13,8 +13,8 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(note.title, {
       body: note.body,
       tag: note.tag, // the same notification never shows twice
-      icon: '/icon.svg',
-      badge: '/icon.svg',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
     })
   );
 });
