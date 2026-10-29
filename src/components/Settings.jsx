@@ -291,9 +291,9 @@ function PreviousAccountBackup() {
   );
 }
 
-export function AccountModal({ onClose }) {
+// Sign-in, sync and backup. It is shown in the Account window on a computer and as a tab of the Settings page on a phone.
+function AccountPanel() {
   return (
-    <Modal title="Account" onClose={onClose}>
       <div className="look account-window">
       <section>
         <h3 className="mono">Sync</h3>
@@ -312,6 +312,13 @@ export function AccountModal({ onClose }) {
         <PreviousAccountBackup />
       </section>
       </div>
+  );
+}
+
+export function AccountModal({ onClose }) {
+  return (
+    <Modal title="Account" onClose={onClose}>
+      <AccountPanel />
     </Modal>
   );
 }
@@ -325,6 +332,36 @@ const TABS = [
   ['style', 'Style', 'palette'],
   ['general', 'General', 'sliders'],
 ];
+
+// On a phone Settings is a page of its own (a tab in the bottom bar) instead of a sheet, with Account as one more tab.
+// Props: tab ('style' | 'general' | 'account') and setTab, kept by App.jsx so other buttons can open the Account tab.
+const PAGE_TABS = [...TABS, ['account', 'Account', 'user']];
+
+export function SettingsPage({ tab, setTab }) {
+  return (
+    <section className="col col-settings" aria-label="Settings">
+      <header className="col-head">
+        <h1>Settings</h1>
+      </header>
+      <div className="tabs" role="tablist">
+        {PAGE_TABS.map(([id, label, icon]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={'tab' + (tab === id ? ' active' : '')}
+            onClick={() => setTab(id)}
+          >
+            <Icon name={icon} size={16} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="settings-page-body">{tab === 'style' ? <StyleTab /> : tab === 'general' ? <GeneralTab /> : <AccountPanel />}</div>
+    </section>
+  );
+}
 
 export function SettingsSheet({ onClose }) {
   const [tab, setTab] = useState('style');

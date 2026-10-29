@@ -20,6 +20,7 @@ import Search from './components/Search.jsx';
 // These windows are loaded the first time they open, so the first screen downloads less.
 const SettingsSheet = lazy(() => import('./components/Settings.jsx').then((m) => ({ default: m.SettingsSheet })));
 const AccountModal = lazy(() => import('./components/Settings.jsx').then((m) => ({ default: m.AccountModal })));
+const SettingsPage = lazy(() => import('./components/Settings.jsx').then((m) => ({ default: m.SettingsPage })));
 import { Toasts, doUndo, toast } from './components/Fire.jsx';
 import Icon from './components/Icons.jsx';
 import TabBar from './components/TabBar.jsx';
@@ -120,7 +121,29 @@ export default function App() {
   }, []);
   const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
   const [modal, setModal] = useState(() => (needsTour() ? 'tour' : null)); // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'keys' | 'search' | null
-  const [tab, setTab] = useState('tasks');  // which column a phone is showing
+  const [tab, setTab] = useState('tasks');  // which page a phone is showing: calendar | tasks | notes | settings
+  const [settingsTab, setSettingsTab] = useState('style'); // the tab open on the phone's Settings page: style | general | account
+
+  // On a phone Settings (and Account, which lives in it) is a page of its own; on a computer they are a sheet and a window.
+  const [isPhone, setIsPhone] = useState(() => window.matchMedia('(max-width: 900px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 900px)');
+    const change = () => setIsPhone(query.matches);
+    query.addEventListener('change', change);
+    return () => query.removeEventListener('change', change);
+  }, []);
+  const openModal = useCallback(
+    (name) => {
+      if (isPhone && (name === 'settings' || name === 'account')) {
+        if (name === 'account') setSettingsTab('account');
+        setModal(null);
+        setTab('settings');
+      } else {
+        setModal(name);
+      }
+    },
+    [isPhone]
+  );
   const [editingDaily, setEditingDaily] = useState(null); // id of the daily being edited, or null
 
 
@@ -287,7 +310,7 @@ export default function App() {
       <div className="app" data-tab={tab} ref={grid} style={{ gridTemplateColumns: columns.template }} onClick={columns.onClick}>
         {/* TaskDnd wraps Calendar and Tasks so you can drag a task onto a calendar day. */}
         <TaskDnd day={day} filter={filter} sort={sort}>
-          <Calendar today={today} day={day} setDay={setDay} open={setModal} editDaily={setEditingDaily} />
+          <Calendar today={today} day={day} setDay={setDay} open={openModal} editDaily={setEditingDaily} />
           <Resizer index={0} grid={grid} {...columns} />
           <Tasks today={today} day={day} filter={filter} setFilter={setFilter} sort={sort} setSort={setSort} onReminders={() => setModal('reminders')} />
         </TaskDnd>
@@ -296,6 +319,12 @@ export default function App() {
         <section className="col col-notes" aria-label="Notes">
           <Notes onSearch={() => setModal('search')} />
         </section>
+
+        {isPhone && tab === 'settings' && (
+          <Suspense fallback={null}>
+            <SettingsPage tab={settingsTab} setTab={setSettingsTab} />
+          </Suspense>
+        )}
       </div>
 
       {/* The bottom bar. It is only visible on a phone (see app.css). */}
@@ -303,8 +332,8 @@ export default function App() {
         tabs={TABS}
         tab={tab}
         setTab={setTab}
-        settingsOpen={modal === 'settings'}
-        openSettings={() => setModal('settings')}
+        settingsOpen={isPhone ? tab === 'settings' : modal === 'settings'}
+        openSettings={() => openModal('settings')}
       />
 
       {/* Pop-up windows. Only the one named in `modal` is shown. */}
@@ -315,7 +344,7 @@ export default function App() {
             key="o"
             onClose={(next) => {
               storage.set(TOUR_KEY, '1');
-              setModal(next ?? null);
+              next === 'settings' || next === 'account' ? openModal(next) : setModal(next ?? null);
             }}
           />
         )}

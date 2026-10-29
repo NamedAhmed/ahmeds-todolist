@@ -2565,3 +2565,31 @@ html[data-theme="paper"] input[type="time"] {
     display: inline;
   }
 }
+
+/* Settings as a page of its own (phones only: see SettingsPage in Settings.jsx). */
+.col-settings {
+  display: none;
+}
+@media (max-width: 900px) {
+  .app[data-tab="settings"] .col-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .col-settings .tabs {
+    display: flex;
+    gap: 4px;
+    margin: 0;
+    overflow-x: auto;
+  }
+  .col-settings .tab {
+    flex: 1;
+    justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .settings-page-body {
+    min-width: 0;
+  }
+}
