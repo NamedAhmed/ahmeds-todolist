@@ -1090,7 +1090,7 @@ html[data-theme="liquid"] .col-foot {
   backdrop-filter: none;
 }
 html[data-theme="liquid"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
-  font-weight: 600;
+  font-weight: 400; /* Instrument Serif has one weight: asking for bold only smears it */
   letter-spacing: -0.02em;
 }
 
@@ -1100,7 +1100,7 @@ html[data-theme="paper"] body {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.17  0 0 0 0 0.14  0 0 0 0 0.09  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 html[data-theme="paper"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
-  font-weight: 600;
+  font-weight: 400;
   font-style: normal;
   letter-spacing: -0.01em;
 }

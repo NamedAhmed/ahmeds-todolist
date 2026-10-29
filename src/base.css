@@ -579,3 +579,9 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+/* A font that has no bold must not be faked into one: the browser's fake bold smears the letters (this is what made the
+   headings look heavy in Instrument Serif, which only comes in one weight). Real weights of fonts that have them still work. */
+html {
+  font-synthesis-weight: none;
+}
