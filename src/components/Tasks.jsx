@@ -257,7 +257,8 @@ function rowKeys(event, act) {
 // A task with no date is "ongoing": it shows an infinity sign and never goes overdue.
 // Clicking either opens the date picker window (onClick).
 function DueButton({ due, time, today, done, onClick }) {
-  const info = dueInfo(due, today, time);
+  // A finished task is not late, "yesterday" or "tomorrow" any more: it just keeps the date it was due.
+  const info = done ? { text: shortDate(due) + (time ? ` · ${formatTime(time)}` : ''), cls: '' } : dueInfo(due, today, time);
 
   if (!due) {
     return (
@@ -312,7 +313,10 @@ function finishTask(task) {
 
   // Milestones beat the usual comment.
   const total = bumpTasksCompleted(1);
-  if (TASK_MILESTONES.includes(total)) {
+  // A milestone is only celebrated the first time it is reached: un-ticking and ticking again must not cheer twice.
+  const best = getState().settings[STATS_ID]?.tasksCompletedBest || 0;
+  if (total > best) saveSetting(STATS_ID, { tasksCompletedBest: total });
+  if (total > best && TASK_MILESTONES.includes(total)) {
     toast(quip('taskMilestone', total));
     return;
   }
