@@ -62,7 +62,14 @@ export const MAIN_COLORS = {
   light: ['#f6f2ea', '#ffffff', '#e9f1ec', '#eaf0f8', '#f4eaf0', '#f1ece0'],
 };
 export const TEXT_SIZES = [['s', 'Small', 0.92], ['m', 'Normal', 1], ['l', 'Large', 1.12]];
-export const CORNERS = [['sharp', 'Sharp'], ['normal', 'Normal'], ['round', 'Round']];
+// Focus: how much of the extras the app shows. 'default' is everything; 'normal' drops the eye-catching extras (the fire, the
+// late-task jabs, streak badges) and half of the jokes; 'strict' also mutes the colours and shows only what you need.
+export const FOCUS = [['strict', 'Strict'], ['normal', 'Normal'], ['default', 'Default']];
+export const FOCUS_NOTES = {
+  strict: 'Muted colours, no jokes or extras. Only what you need.',
+  normal: 'Calmer: no fire, jabs or streak badges, fewer jokes. Colours stay.',
+  default: 'Everything.',
+};
 export const DENSITIES = [['roomy', 'Roomy'], ['normal', 'Normal'], ['compact', 'Compact']];
 
 // The text colours offered (the box next to them takes any other). '' = the theme's own.
@@ -72,7 +79,7 @@ const optionDefaults = Object.fromEntries(Object.entries(THEME_OPTIONS).flatMap(
 
 const DEFAULTS = {
   theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0,
-  textColor: '', mainColor: '', accent: '', textSize: 'm', corners: 'normal', density: 'normal',
+  textColor: '', mainColor: '', accent: '', textSize: 'm', focus: 'default', density: 'normal',
   ...optionDefaults,
 };
 export const MAX_GLASS = 0.9;
@@ -109,7 +116,7 @@ export function useAppearance() {
   const mainColor = hex(choices.mainColor);
   const accent = hex(choices.accent);
   const textSize = TEXT_SIZES.some(([id]) => id === choices.textSize) ? choices.textSize : 'm';
-  const corners = CORNERS.some(([id]) => id === choices.corners) ? choices.corners : 'normal';
+  const focus = FOCUS.some(([id]) => id === choices.focus) ? choices.focus : 'default';
   const density = DENSITIES.some(([id]) => id === choices.density) ? choices.density : 'normal';
   // (A wallpaper from an older version, like an animated one that no longer exists, falls back to none.)
   const wallpaper = typeof choices.wallpaper === 'string' && choices.wallpaper.startsWith('video:') ? choices.wallpaper : OFF;
@@ -122,7 +129,7 @@ export function useAppearance() {
   const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
   const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, mainColor, accent, textSize, corners, density, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
+  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, mainColor, accent, textSize, focus, density, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).
@@ -189,13 +196,13 @@ const lightness = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return (r * 299 + g * 587 + b * 114) / 255000;
 };
-export function useApplyLook(theme, { mainColor, accent, textSize, corners, density }) {
+export function useApplyLook(theme, { mainColor, accent, textSize, focus, density }) {
   useLayoutEffect(() => {
     const root = document.documentElement;
     const style = root.style;
 
-    // accent
-    if (accent) style.setProperty('--accent', accent);
+    // accent (Strict keeps the theme's own, muted)
+    if (accent && focus !== 'strict') style.setProperty('--accent', accent);
     else style.removeProperty('--accent');
 
     // main colour: the page, and the panels and fields built from it
@@ -223,18 +230,12 @@ export function useApplyLook(theme, { mainColor, accent, textSize, corners, dens
     style.setProperty('--zoom', String(zoom));
     style.zoom = zoom === 1 ? '' : String(zoom);
 
-    // corners: the theme's own radii, flattened, or rounder
-    const radii = ['--r-xs', '--r-sm', '--r-md', '--r-lg'];
-    radii.forEach((name) => style.removeProperty(name));
-    if (corners !== 'normal') {
-      const base = radii.map((name) => parseFloat(getComputedStyle(root).getPropertyValue(name)) || 0);
-      const round = [6, 10, 14, 20];
-      radii.forEach((name, i) => style.setProperty(name, corners === 'sharp' ? '0px' : Math.max(round[i], Math.round(base[i] * 1.6)) + 'px'));
-    }
+    // focus: appearance.css hides the extras and mutes the colours for this attribute
+    root.setAttribute('data-focus', focus);
 
     // density: tighter or looser rows (appearance.css reads the attribute)
     root.setAttribute('data-density', density);
-  }, [theme, mainColor, accent, textSize, corners, density]);
+  }, [theme, mainColor, accent, textSize, focus, density]);
 }
 
 // Puts the theme on the page: <html data-theme="forest">. appearance.css reads that attribute.

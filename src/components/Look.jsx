@@ -1,6 +1,6 @@
 // Look.jsx = the tabs of Settings, one export each:
 //
-//   StyleTab       Left: Theme, Main colour and Shape (corners, density). Right: Type (font, text size, text colour) and Colour
+//   StyleTab       Left: Theme, Main colour and Shape (focus, density). Right: Type (font, text size, text colour) and Colour
 //                  (accent and the theme's own settings). Below: Background (None, the photos, your own pictures)
 //   GeneralTab     Tasks layout, Notes editor, Notifications, Keyboard, and Reset appearance
 //
@@ -14,7 +14,7 @@ import Background from './Background.jsx';
 import Slider from './Slider.jsx';
 import Switch from './Switch.jsx';
 import { disablePush, enablePush, pushEnabled, pushSupported, sendTestPush } from '../push.js';
-import { ACCENT_COLORS, CORNERS, DENSITIES, FONTS, LIGHT_THEMES, MAIN_COLORS, TEXT_COLORS, TEXT_SIZES, THEMES, THEME_OPTIONS, contrastBetween, loadAllFonts, resetAppearance, setAppearance, useAppearance } from '../appearance.js';
+import { ACCENT_COLORS, DENSITIES, FOCUS, FOCUS_NOTES, FONTS, LIGHT_THEMES, MAIN_COLORS, TEXT_COLORS, TEXT_SIZES, THEMES, THEME_OPTIONS, contrastBetween, loadAllFonts, resetAppearance, setAppearance, useAppearance } from '../appearance.js';
 
 
 // ======================================================================
@@ -195,7 +195,7 @@ function ThemeOptions({ theme, opts }) {
 
 
 // ======================================================================
-// TEXT SIZE, CORNERS, DENSITY AND ACCENT COLOUR
+// TEXT SIZE, FOCUS, DENSITY AND ACCENT COLOUR
 // ======================================================================
 function Choice({ value, options, onPick, label }) {
   return (
@@ -214,7 +214,7 @@ function Choice({ value, options, onPick, label }) {
 // THE TABS
 // ======================================================================
 export function StyleTab() {
-  const { theme, font, textColor, mainColor, accent, textSize, corners, density, opts } = useAppearance();
+  const { theme, font, textColor, mainColor, accent, textSize, focus, density, opts } = useAppearance();
 
   // Fonts are downloaded when needed, so download them all now and every preview shows its own font.
   useEffect(() => {
@@ -236,8 +236,9 @@ export function StyleTab() {
           <MainColour theme={theme} mainColor={mainColor} textColor={textColor} />
           <section>
             <h3 className="mono">Shape</h3>
-            <Row label="Corners">
-              <Choice label="Corner roundness" value={corners} options={CORNERS} onPick={(v) => setAppearance({ corners: v })} />
+            <Row label="Focus">
+              <Choice label="Focus" value={focus} options={FOCUS} onPick={(v) => setAppearance({ focus: v })} />
+              <p className="hint">{FOCUS_NOTES[focus]}</p>
             </Row>
             <Row label="Density">
               <Choice label="Density" value={density} options={DENSITIES} onPick={(v) => setAppearance({ density: v })} />

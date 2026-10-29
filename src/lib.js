@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import * as chrono from 'chrono-node'; // a library that understands "tomorrow", "next friday", etc.
-import { all } from './store.js';
+import { all, getState } from './store.js';
 
 
 // ======================================================================
@@ -508,7 +508,23 @@ export const quips = {
 
 const lastLine = {};
 /** A random line for `name`, never the one just used. Extra arguments fill in a line's blanks. */
+// In Strict focus there are no jokes: only the messages that say what happened, in plain words ('' = no message at all).
+const PLAIN = {
+  taskDeleted: 'Deleted',
+  noteDeleted: 'Note deleted',
+  reminderDeleted: 'Reminder deleted',
+  dailyArchived: 'Archived',
+  movedToDay: (day) => `Moved to ${day}`,
+  undo: 'Undone',
+  redo: 'Redone',
+  nothingToUndo: 'Nothing to undo',
+  synced: 'Signed in',
+};
 export function quip(name, ...args) {
+  if (getState().settings.appearance?.focus === 'strict') {
+    const line = PLAIN[name];
+    return typeof line === 'function' ? line(...args) : (line ?? '');
+  }
   const list = quips[name];
   let i = Math.floor(Math.random() * list.length);
   if (list.length > 1 && i === lastLine[name]) i = (i + 1) % list.length;
@@ -517,7 +533,7 @@ export function quip(name, ...args) {
   return typeof line === 'function' ? line(...args) : line;
 }
 
-export const empties = {
+const JOKING_EMPTIES = {
   tasks: "Empty list! Just like you on the inside.",
   today: "Nothing due today. You're free! Unlike Eren jaeger, AoT ref you swine",
   week: "Nothing due in the next 7 days. Enjoy this suspicious, even your not that incompetent",
@@ -529,3 +545,21 @@ export const empties = {
   done: "Nothing finished. Shocking absolutely no one.",
   reminders: "No reminders. You'll \"just remember\". Sure you will."
 };
+
+// The same messages in plain words, for Strict focus (Settings > Style).
+const PLAIN_EMPTIES = {
+  tasks: 'No tasks.',
+  today: 'Nothing due today.',
+  week: 'Nothing due in the next 7 days.',
+  month: 'Nothing due next month.',
+  undated: 'No tasks without a due date.',
+  all: 'No tasks.',
+  dailies: 'No dailies yet.',
+  notes: 'No notes yet.',
+  day: 'Nothing due this day.',
+  done: 'Nothing finished.',
+  reminders: 'No reminders.',
+};
+export const empties = new Proxy(JOKING_EMPTIES, {
+  get: (jokes, key) => (getState().settings.appearance?.focus === 'strict' ? PLAIN_EMPTIES[key] : jokes[key]),
+});

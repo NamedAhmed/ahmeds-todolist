@@ -1679,3 +1679,21 @@ html[data-density="roomy"] .daily {
 html[data-density="roomy"] .note-item {
   padding-block: 14px;
 }
+
+/* ---------- Focus (Settings > Style > Shape): fewer extras. Default shows everything. ---------- */
+/* Normal: the eye-catching extras go (the fire, late-task jabs, streak badges); the colours stay. */
+html[data-focus="normal"] :is(.jab, .ring-fire, .streak),
+html[data-focus="strict"] :is(.jab, .ring-fire, .streak) {
+  display: none;
+}
+html[data-focus="normal"] .big-ring.ablaze,
+html[data-focus="strict"] .big-ring.ablaze {
+  margin-top: 0; /* no flames, so no room kept for them */
+}
+/* Strict: also the decoration (the joke line, the script weekday and clock, hints, note dates), and the colours are muted. */
+html[data-focus="strict"] :is(.voice, .stamp-day, .stamp-time, .ring-hint, .note-item .d, .empty-row .hint) {
+  display: none;
+}
+html[data-focus="strict"] .app {
+  filter: saturate(0.3);
+}

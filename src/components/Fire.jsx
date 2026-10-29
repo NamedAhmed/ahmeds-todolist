@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Icon from './Icons.jsx';
-import { undo } from '../store.js';
+import { getState, undo } from '../store.js';
 import { quip } from '../lib.js';
 
 
@@ -72,6 +72,7 @@ function startCountdown(id, ms) {
 
 // Show a message. Pass { undoable: true } to add an Undo button.
 export function toast(text, { undoable = false } = {}) {
+  if (!text) return; // Strict focus has no message for a joke
   const id = Math.random();
 
   // Keep at most 2 messages: the newest one plus the one before it.
@@ -89,7 +90,9 @@ export function toast(text, { undoable = false } = {}) {
 // 1 = always speak, 0.5 = speak half the time. So it never becomes noise.
 // `name` picks which list of rude lines to choose from (see "quips" in lib.js).
 export function sass(name, args = [], { chance = 1, undoable = false } = {}) {
-  if (Math.random() < chance) {
+  // Normal focus says half as many jokes (Strict says none: see quip() in lib.js).
+  const half = getState().settings.appearance?.focus === 'normal' ? 0.5 : 1;
+  if (Math.random() < chance * half) {
     toast(quip(name, ...args), { undoable });
   }
 }
