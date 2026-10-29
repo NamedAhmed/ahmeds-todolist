@@ -79,7 +79,7 @@ const optionDefaults = Object.fromEntries(Object.entries(THEME_OPTIONS).flatMap(
 
 const DEFAULTS = {
   theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0,
-  textColor: '', mainColor: '', accent: '', textSize: 'm', focus: 'default', density: 'normal',
+  textColor: '', mainColor: '', accent: '', textSize: 'm', focus: 'default', density: 'normal', wallBright: 100, wallVibrance: 100,
   ...optionDefaults,
 };
 export const MAX_GLASS = 0.9;
@@ -118,6 +118,10 @@ export function useAppearance() {
   const textSize = TEXT_SIZES.some(([id]) => id === choices.textSize) ? choices.textSize : 'm';
   const focus = FOCUS.some(([id]) => id === choices.focus) ? choices.focus : 'default';
   const density = DENSITIES.some(([id]) => id === choices.density) ? choices.density : 'normal';
+  // The background picture's brightness and vibrance, in percent (100 = as it is).
+  const clampTo = (value, min, max) => (Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Number(value))) : 100);
+  const wallBright = clampTo(choices.wallBright, 40, 160);
+  const wallVibrance = clampTo(choices.wallVibrance, 0, 200);
   // (A wallpaper from an older version, like an animated one that no longer exists, falls back to none.)
   const wallpaper = typeof choices.wallpaper === 'string' && choices.wallpaper.startsWith('video:') ? choices.wallpaper : OFF;
 
@@ -129,7 +133,7 @@ export function useAppearance() {
   const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
   const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, mainColor, accent, textSize, focus, density, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
+  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, mainColor, accent, textSize, focus, density, wallBright, wallVibrance, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).

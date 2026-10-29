@@ -314,6 +314,7 @@ body {
   inset: 0;
   background-size: cover;
   background-position: center;
+  filter: var(--wall-filter, none);
 }
 
 .wallpaper-video {
@@ -322,6 +323,11 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: var(--wall-filter, none);
+}
+/* Brightness and Vibrance only mean something with a picture or video behind the page. */
+html:not([data-backdrop]) .wall-tune {
+  display: none;
 }
 /* A film in the theme's background colour over everything above. --dim is the Settings slider (0 to 0.9). */
 .wallpaper-dim {

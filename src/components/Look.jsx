@@ -214,7 +214,7 @@ function Choice({ value, options, onPick, label }) {
 // THE TABS
 // ======================================================================
 export function StyleTab() {
-  const { theme, font, textColor, mainColor, accent, textSize, focus, density, opts } = useAppearance();
+  const { theme, font, textColor, mainColor, accent, textSize, focus, density, wallBright, wallVibrance, opts } = useAppearance();
 
   // Fonts are downloaded when needed, so download them all now and every preview shows its own font.
   useEffect(() => {
@@ -268,6 +268,15 @@ export function StyleTab() {
             <Row label="Accent">
               <ColourRow value={accent} colours={ACCENT_COLORS} onPick={(color) => setAppearance({ accent: color })} label="Accent colour" />
             </Row>
+            {[['wallBright', 'Brightness', wallBright, 40, 160], ['wallVibrance', 'Vibrance', wallVibrance, 0, 200]].map(([key, label, value, min, max]) => (
+              <div key={key} className="option-row wall-tune">
+                <div className="option-head">
+                  <span className="mono">Wallpaper {label.toLowerCase()}</span>
+                  <span className="mono value">{value}%</span>
+                </div>
+                <Slider min={min} max={max} step={5} value={value} onChange={(event) => setAppearance({ [key]: Number(event.target.value) })} aria-label={`Wallpaper ${label.toLowerCase()}`} />
+              </div>
+            ))}
             <ThemeOptions theme={theme} opts={opts} />
           </section>
 

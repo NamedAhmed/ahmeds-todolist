@@ -26,7 +26,7 @@ import {
 } from './appearance.js';
 
 export default function Wallpaper() {
-  const { theme, wallpaper, dim, glass, liquidBlur, font, look, opts, textColor, mainColor, accent, textSize, focus, density } = useAppearance();
+  const { theme, wallpaper, dim, glass, liquidBlur, font, look, opts, textColor, mainColor, accent, textSize, focus, density, wallBright, wallVibrance } = useAppearance();
   const pictureId = usePictureId();
   const pictureUrl = useMediaUrl(pictureId);
   const videoUrl = useMediaUrl(wallpaper.startsWith('video:') ? wallpaper : NO_PICTURE);
@@ -44,7 +44,9 @@ export default function Wallpaper() {
   // What is behind the text: the picture or video is measured. (Until it has been, or if it can't be, it is treated as
   // an unknown, bright one, so the text is readable meanwhile.)
   const measured = useBackdropTones(videoUrl ? null : pictureUrl, videoUrl);
-  const tones = measured ?? UNKNOWN_TONES;
+  // Brightness changes what is behind the text, so Auto readability sees the picture as you see it.
+  const shown = measured ? { dark: Math.min(1, measured.dark * wallBright / 100), light: Math.min(1, measured.light * wallBright / 100) } : null;
+  const tones = shown ?? UNKNOWN_TONES;
   const isLightTheme = LIGHT_THEMES.includes(theme);
 
   // Tell the page's CSS whether something is behind the columns, how strong the Dim film is, and how frosted to
@@ -70,10 +72,11 @@ export default function Wallpaper() {
     }
 
     frameBox.current.style.setProperty('--dim', dimNow);
+    frameBox.current.style.setProperty('--wall-filter', `brightness(${wallBright}%) saturate(${wallVibrance}%)`);
     root.style.setProperty('--dim-soft', dimNow * 0.5); // the same Dim, at half strength, for selections, the add box and the daily circles
     root.style.setProperty('--glass', Math.ceil(strength * 100) + '%'); // rounded up, so Auto never falls just short
     root.style.setProperty('--glass-blur', (liquidBlur ?? Math.round(strength * 20)) + 'px'); // more glass = a stronger blur too (Liquid has its own Blur setting)
-  }, [showsSomething, videoUrl, glass, liquidBlur, dim, tones, theme, isLightTheme]);
+  }, [showsSomething, videoUrl, glass, liquidBlur, dim, tones, theme, isLightTheme, wallBright, wallVibrance]);
 
   return (
     <div className="wallpaper" aria-hidden="true" ref={frameBox}>
