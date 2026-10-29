@@ -2455,7 +2455,7 @@ a {
 }
 /* iOS zooms the whole page when you focus a field smaller than 16px (and does not zoom back out in an installed app). */
 @media (max-width: 900px) {
-  input,
+  input:not(#note-title), /* the note title is already 32px: this rule only lifts small fields, it must never shrink one */
   textarea,
   select,
   [contenteditable],
