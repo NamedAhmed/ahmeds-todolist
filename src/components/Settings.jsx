@@ -11,7 +11,7 @@
 
 import { useRef, useState } from 'react';
 import { exportJson, importJson } from '../store.js';
-import { sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
+import { PREVIOUS_BACKUP, sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
 import { GeneralTab, StyleTab, WallpaperTab } from './Look.jsx';
@@ -253,6 +253,32 @@ function RestoreBackup() {
   );
 }
 
+// If another account used this device before you signed in, its data was cleared from the screen but a copy was kept.
+function PreviousAccountBackup() {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(PREVIOUS_BACKUP);
+  } catch {
+    // storage blocked: nothing to offer
+  }
+  if (!saved) return null;
+  function download() {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([saved], { type: 'application/json' }));
+    link.download = 'todolist-previous-account-backup.json';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+  return (
+    <p className="hint">
+      Another account used this device before you. A copy of its data was kept here.{' '}
+      <button type="button" className="link-button" onClick={download}>
+        Download it
+      </button>
+    </p>
+  );
+}
+
 export function AccountModal({ onClose }) {
   return (
     <Modal title="Account" onClose={onClose}>
@@ -271,6 +297,7 @@ export function AccountModal({ onClose }) {
           <RestoreBackup />
         </div>
         <p className="hint">Ctrl+Z undoes anything. Ctrl+Shift+Z brings it back, in case you regret your regret.</p>
+        <PreviousAccountBackup />
       </section>
       </div>
     </Modal>

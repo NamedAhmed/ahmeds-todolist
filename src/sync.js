@@ -12,7 +12,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { applyRemote, dirtyRecords, markAllDirty, markClean, resetAll, subscribe as onStoreChange } from './store.js';
+import { applyRemote, dirtyRecords, exportJson, markAllDirty, markClean, resetAll, subscribe as onStoreChange } from './store.js';
 
 
 // ======================================================================
@@ -185,6 +185,8 @@ function stopListening() {
 }
 
 
+export const PREVIOUS_BACKUP = 'todolist:backup-before-account-switch';
+
 // Called when Supabase tells us who is signed in (or that nobody is).
 function onUser(user) {
   if (!user) {
@@ -197,7 +199,13 @@ function onUser(user) {
   const owner = localStorage.getItem(OWNER); // the account this browser's data belongs to
 
   if (owner && owner !== user.id) {
-    // A DIFFERENT account was using this browser: wipe its data so the two never mix.
+    // A DIFFERENT account was using this browser: its data is cleared so the two never mix. A copy of it is kept on this
+    // device first (Settings > Account offers it as a download), so edits it had not synced yet are never simply gone.
+    try {
+      localStorage.setItem(PREVIOUS_BACKUP, exportJson());
+    } catch {
+      // storage full or blocked: nothing more can be kept
+    }
     resetAll();
   } else if (!owner) {
     // First sign-in ever: whatever you made before signing in now belongs to this account.
