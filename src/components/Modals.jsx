@@ -22,6 +22,10 @@ const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea
 // THE WINDOW FRAME
 // ======================================================================
 // Props: title (shown at the top), onClose (function to close it), wide (a bigger window), children (what goes inside).
+// The windows that are open, topmost last: Escape closes only the topmost, and while any is open the page behind it is
+// `inert` (a screen reader and the Tab key stay inside the window).
+const openWindows = [];
+
 export function Modal({ title, onClose, wide, children }) {
   const box = useRef(null); // points at the window's HTML element
   const close = useRef(onClose); // the latest onClose, so the effect below runs once per window, not on every re-draw
@@ -34,6 +38,9 @@ export function Modal({ title, onClose, wide, children }) {
   //  - when it closes, the cursor goes back to where it was before
   useEffect(() => {
     const opener = document.activeElement; // what had focus before the window opened
+    const me = {};
+    openWindows.push(me);
+    document.querySelector('.app')?.setAttribute('inert', '');
 
     // Focus the first text box if there is one, otherwise the window itself. (Not a time or date box: on a phone
     // focusing one opens the phone's own picker.)
@@ -42,6 +49,8 @@ export function Modal({ title, onClose, wide, children }) {
 
     function onKey(event) {
       if (event.key === 'Escape') {
+        if (openWindows[openWindows.length - 1] !== me) return; // a window above this one gets the key
+        event.preventDefault();
         close.current();
         return;
       }
@@ -66,6 +75,8 @@ export function Modal({ title, onClose, wide, children }) {
     // Cleanup when the window closes.
     return () => {
       window.removeEventListener('keydown', onKey);
+      openWindows.splice(openWindows.indexOf(me), 1);
+      if (!openWindows.length) document.querySelector('.app')?.removeAttribute('inert');
       if (opener?.isConnected) opener.focus();
     };
   }, []);

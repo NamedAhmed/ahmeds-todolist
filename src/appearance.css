@@ -31,6 +31,7 @@
   --text: #efe9df;
   --muted: #8a847a;
   --faint: #4a453e;
+  --faint-text: #827e79; /* faint, but readable as text (4.5:1) */
   --accent: #ff6b57;
   --blue: #6cb8ff;
   --green: #7ee0a1;
@@ -72,6 +73,7 @@
   --text: #231f1a;
   --muted: #766e63;
   --faint: #b3aa9b;
+  --faint-text: #6e6b64; /* faint, but readable as text (4.5:1) */
   --accent: #e5533d;
   --blue: #2f7fd1;
   --green: #2e9e63;
@@ -115,6 +117,7 @@
   --text: #ffffff;
   --muted: rgba(255, 255, 255, 0.64);
   --faint: rgba(255, 255, 255, 0.36);
+  --faint-text: rgba(255, 255, 255, 0.6); /* faint, but readable as text (4.5:1) */
   --accent: #5eb8ff;
   --blue: #7cc7ff;
   --green: #5ee0a0;
@@ -156,6 +159,7 @@
   --text: #2b2418;
   --muted: #6f624a;
   --faint: #a99a79;
+  --faint-text: #696254; /* faint, but readable as text (4.5:1) */
   --accent: #b4412c;
   --blue: #2f5d8a;
   --green: #4f7a3a;
@@ -198,6 +202,7 @@
   --text: #b8ffc8;
   --muted: #4fae6a;
   --faint: #24582f;
+  --faint-text: #468e56; /* faint, but readable as text (4.5:1) */
   --accent: #39ff7a;
   --blue: #4dd7ff;
   --green: #39ff7a;
@@ -1267,7 +1272,7 @@ html[data-theme="terminal"] .task-form::before {
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .tile-group a {
   color: var(--text-soft);
@@ -1443,6 +1448,7 @@ html[data-theme="ember"][data-backdrop] {
   /* text that is meant to be quiet still has to be readable over a picture */
   --muted: rgba(239, 233, 223, 0.72);
   --faint: rgba(239, 233, 223, 0.46);
+  --faint-text: rgba(239, 233, 223, 0.62); /* faint, but readable as text (4.5:1) */
 }
 html[data-theme="ember"][data-backdrop] .col {
   border: 1px solid rgba(255, 255, 255, 0.14);

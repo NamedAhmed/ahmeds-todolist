@@ -167,7 +167,7 @@ input[type="number"] {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .day {
   position: relative;
@@ -318,7 +318,7 @@ input[type="number"] {
   min-width: 1ch;
 }
 .streak.cold {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .daily-add input,
 .sub-add {
@@ -487,7 +487,7 @@ input[type="number"] {
 .dp-dow {
   text-align: center;
   font-size: 10px;
-  color: var(--faint);
+  color: var(--faint-text);
   padding-bottom: 2px;
 }
 .dp-day {
@@ -591,7 +591,7 @@ input[type="number"] {
 .stamp-time::after {
   content: "–";
   margin: 0 5px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .stamp-day {
   margin: 2px 0 1px;
@@ -683,7 +683,7 @@ input[type="number"] {
   outline: var(--bw) solid var(--line-mid);
 }
 .grip {
-  color: var(--faint);
+  color: var(--faint-text);
   font-size: 13px;
   letter-spacing: -3px;
   width: 12px;
@@ -755,7 +755,7 @@ button.due:hover {
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--faint-text);
   white-space: nowrap;
 }
 .count {
@@ -845,7 +845,7 @@ button.due:hover {
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .done-head button:hover {
   color: var(--muted);
@@ -1246,12 +1246,15 @@ button:not(:disabled):active {
 }
 /* keyboard focus only: a soft coral ring, never white */
 :focus-visible {
-  outline: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-input:focus-visible,
-textarea:focus-visible,
-[contenteditable]:focus-visible {
+/* These fields already show focus another way (the pill's border, the caret in the page): no ring on top. */
+.task-form input:focus-visible,
+#note-title:focus-visible,
+.rich:focus-visible,
+.block-text:focus-visible,
+.md-text:focus-visible {
   outline: none;
 }
 
@@ -1327,7 +1330,7 @@ html {
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--faint-text);
   animation: row-in 0.12s var(--ease) backwards;
 }
 .group-head.late {
@@ -1367,7 +1370,7 @@ html {
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--faint-text);
   font-weight: 400;
 }
 .keys dl {
@@ -1504,7 +1507,7 @@ kbd {
   font-size: 12px;
   line-height: 1;
   letter-spacing: -2px;
-  color: var(--faint);
+  color: var(--faint-text);
   opacity: 0;
   cursor: grab;
   touch-action: none;
@@ -1534,7 +1537,7 @@ kbd {
   border: 0;
   border-radius: var(--r-xs);
   background: transparent;
-  color: var(--faint);
+  color: var(--faint-text);
   cursor: pointer;
   transition:
     color 0.15s ease,
@@ -1563,7 +1566,7 @@ kbd {
 /* A hint in an empty block. Plain text shows it only while you are in it. */
 .block-text:empty::before {
   content: attr(data-placeholder);
-  color: var(--faint);
+  color: var(--faint-text);
   pointer-events: none;
 }
 .block-p .block-text:empty:not(:focus)::before {
@@ -1601,7 +1604,7 @@ kbd {
   cursor: pointer;
 }
 .block.checked .block-text {
-  color: var(--faint);
+  color: var(--faint-text);
   text-decoration: line-through;
 }
 
@@ -2129,7 +2132,7 @@ html[data-theme="liquid"] .slash-menu {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .search-item {
   display: flex;
@@ -2161,7 +2164,7 @@ html[data-theme="liquid"] .slash-menu {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--faint);
+  color: var(--faint-text);
   font-size: 13px;
 }
 .search-item.done .search-label {
@@ -2171,7 +2174,7 @@ html[data-theme="liquid"] .slash-menu {
 .search-tag {
   margin-left: auto;
   font-size: 11px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .search-empty {
   margin: 0;
@@ -2654,7 +2657,7 @@ html[data-reduce-motion] *::after {
   content: "Write here. # heading, - list, [ ] to-do, > quote";
   float: left;
   height: 0;
-  color: var(--faint);
+  color: var(--faint-text);
   pointer-events: none;
 }
 .rich ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
@@ -2806,7 +2809,7 @@ html[data-reduce-motion] *::after {
   background: transparent;
 }
 .md-editor .md-text::placeholder {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .md-editor .md-text::selection {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
@@ -2814,7 +2817,7 @@ html[data-reduce-motion] *::after {
 .md-color b { color: var(--text); font-weight: 700; }
 .md-color i { font-style: italic; color: var(--text); }
 .md-color s { text-decoration: line-through; opacity: 0.7; }
-.md-color .mk-mark { color: var(--faint); }
+.md-color .mk-mark { color: var(--faint-text); }
 .md-color .mk-h { color: var(--text); font-weight: 700; }
 .md-color .mk-q { color: var(--muted); font-style: italic; }
 .md-color .mk-code { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 3px; }
@@ -2956,5 +2959,15 @@ html[data-theme="paper"] input[type="time"] {
   .col-head {
     flex-wrap: wrap;
     gap: 4px 12px;
+  }
+}
+
+/* The word "Account" beside its icon, where there is room (a phone's footer). */
+.foot-label {
+  display: none;
+}
+@media (max-width: 900px) {
+  .foot-label {
+    display: inline;
   }
 }

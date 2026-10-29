@@ -611,7 +611,7 @@ const TaskRow = memo(
     const menu = [
       { label: 'Rename', icon: 'pencil', run: () => edit(true) },
       { label: task.due ? 'Change date' : 'Set a date', icon: 'calendar', run: () => setPicking(true) },
-      task.due && { label: 'Make ongoing', icon: 'infinity', run: () => patch('made ongoing', { due: null, due_time: null }) },
+      task.due && { label: 'No due date', icon: 'infinity', run: () => patch('made ongoing', { due: null, due_time: null }) },
       { label: isProject ? 'Turn into a task' : 'Turn into a project', icon: isProject ? 'task' : 'folder', run: turnIntoOtherKind },
       '-',
       { label: 'Delete', icon: 'trash', danger: true, run: () => removeTask(task) },
@@ -645,7 +645,7 @@ const TaskRow = memo(
             tabIndex={-1}
             className={'check' + (isProject ? ' square' : '')}
             aria-pressed={done}
-            aria-label={(done ? 'Mark not done: ' : 'Mark done: ') + task.title}
+            aria-label={'Done: ' + task.title}
             onClick={toggle}
           >
             <CheckIcon />
@@ -1113,7 +1113,7 @@ const SORT_LABELS = {
   added: 'Date Added',
 };
 
-export default function Tasks({ today, day, filter, setFilter, sort, setSort }) {
+export default function Tasks({ today, day, filter, setFilter, sort, setSort, onReminders }) {
   const s = useStore();
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
@@ -1313,6 +1313,11 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
       <header className="col-head">
         <h1>Tasks</h1>
         <div className="task-controls">
+          {onReminders && (
+            <button className="day-toggle" onClick={onReminders} aria-label="Reminders" title="Reminders (repeating and one-off)">
+              <Icon name="repeat" size={14} />
+            </button>
+          )}
           <button
             className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
             aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}
@@ -1418,6 +1423,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
         {nothing && (
           <li className="empty-row">
             <p className="empty">{filter === 'date' ? empties.day : empties[filter]}</p>
+            {filter === 'all' && <p className="hint">Tip: end a task with a day or time, like "call mum friday 5pm", and it is set for you.</p>}
           </li>
         )}
 

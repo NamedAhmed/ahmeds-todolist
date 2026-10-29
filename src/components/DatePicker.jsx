@@ -95,7 +95,7 @@ export default function DatePicker({ value, today, onPick, onClose, time = null,
               type="button"
               className={'dp-day' + (date === value ? ' on' : '') + (date === today ? ' today' : '')}
               onClick={() => pick(date)}
-              aria-label={date}
+              aria-label={toDate(date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               aria-pressed={date === value}
             >
               {toDate(date).getDate()}

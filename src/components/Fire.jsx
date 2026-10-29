@@ -64,7 +64,7 @@ export function toast(text, { undoable = false } = {}) {
   tellEveryone();
 
   // Remove it again after a few seconds (messages with an Undo button stay a bit longer).
-  const showForMs = undoable ? 6000 : 4200;
+  const showForMs = undoable ? 9000 : 6000; // long enough to read, and to press Undo
   setTimeout(() => {
     toasts = toasts.filter((t) => t.id !== id);
     tellEveryone();

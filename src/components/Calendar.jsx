@@ -564,6 +564,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
         <button className="btn-ghost foot-right" onClick={() => open('account')} aria-label="Account and backup" title="Account and backup">
           <i className={'sync-dot ' + sync.sync} />
           <Icon name="user" size={16} />
+          <span className="foot-label">Account</span>
         </button>
         <button className="btn-ghost settings-button" onClick={() => open('settings')} aria-label="Settings" title="Settings">
           <Icon name="sliders" size={16} />

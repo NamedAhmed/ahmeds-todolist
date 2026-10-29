@@ -19,6 +19,7 @@
   --text: #efe9df;
   --muted: #8a847a;
   --faint: #4a453e;
+  --faint-text: #827e79; /* faint, but readable as text (4.5:1) */
   --accent: #ff6b57;
   --blue: #6cb8ff;
   --green: #7ee0a1;
@@ -85,7 +86,7 @@ button {
   outline-offset: 2px;
 }
 ::placeholder {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .mono {
   font-family: var(--mono);
@@ -160,7 +161,7 @@ button {
   place-items: center;
   font-family: var(--serif);
   font-size: 72px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .soon {
   margin: 0;
@@ -168,7 +169,7 @@ button {
   font-family: var(--serif);
   font-style: italic;
   font-size: 20px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 
 /* tasks */
@@ -315,7 +316,7 @@ button {
   transition: transform 0.2s var(--ease);
 }
 .task.done .task-title {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .task.done .task-title::after {
   transform: scaleX(1);
@@ -335,7 +336,7 @@ button {
   color: var(--accent);
 }
 .task.done .due {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 
 .del {
@@ -345,7 +346,7 @@ button {
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
-  color: var(--faint);
+  color: var(--faint-text);
   font-size: 18px;
   line-height: 1;
   opacity: 0;
@@ -365,7 +366,7 @@ button {
 
 .empty {
   margin: 0;
-  color: var(--faint);
+  color: var(--faint-text);
   font-family: var(--serif);
   font-style: italic;
   font-size: 20px;
@@ -440,7 +441,7 @@ button {
 .note-item .d {
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .note-item.active .t {
   color: var(--text);
