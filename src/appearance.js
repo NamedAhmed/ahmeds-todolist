@@ -197,6 +197,9 @@ export function resetAppearance() {
 export function useApplyTheme(theme) {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
+    // The browser's own bar (and the iPhone status bar) takes the theme's background instead of staying black.
+    const colour = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (colour) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colour);
   }, [theme]);
 }
 

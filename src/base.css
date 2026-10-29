@@ -100,6 +100,7 @@ button {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.4fr) minmax(320px, 1.2fr);
   height: 100vh;
+  height: 100dvh; /* the visible height on a phone, whatever the browser bars are doing */
   padding: var(--app-pad);
   column-gap: 0; /* the gaps between the columns are the resize handles (see Columns.jsx) */
 }
@@ -561,4 +562,10 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text) 40%, transparent);
   background-clip: padding-box;
+}
+
+/* A landscape iPhone has the notch at the side: keep the page out of it. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }

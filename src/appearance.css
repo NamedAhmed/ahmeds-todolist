@@ -1301,6 +1301,7 @@ html[data-theme="terminal"] .task-form::before {
 }
 html[data-sheet] .app {
   height: calc(100vh - var(--sheet-offset, 0px) - 24px);
+  height: calc(100dvh - var(--sheet-offset, 0px) - 24px);
   margin: 12px 0;
   overflow: hidden;
   border-radius: 28px;

@@ -2847,3 +2847,114 @@ html[data-reduce-motion] *::after {
 .crash .seg-row {
   justify-content: center;
 }
+
+/* ---------- phones: no zoom on focus, bigger touch targets, no grey tap flash ---------- */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  -webkit-touch-callout: none;
+}
+/* iOS zooms the whole page when you focus a field smaller than 16px (and does not zoom back out in an installed app). */
+@media (max-width: 900px) {
+  input,
+  textarea,
+  select,
+  [contenteditable],
+  .rich,
+  .md-text,
+  .block-text {
+    font-size: 16px !important;
+  }
+}
+@media (pointer: coarse) {
+  .btn-ghost,
+  .btn-add,
+  .chip,
+  .tab,
+  .date-pill,
+  .kind-switch,
+  .day-toggle,
+  .rich-tool,
+  .dp-day,
+  .del,
+  .more,
+  .field,
+  .note-item {
+    min-height: 44px;
+  }
+  .btn-ghost,
+  .chip,
+  .more,
+  .del,
+  .rich-tool {
+    min-width: 44px;
+  }
+  /* Round check circles stay small to look at but get a 44px target around them. */
+  .check,
+  .daily-check {
+    position: relative;
+  }
+  .check::after,
+  .daily-check::after {
+    content: '';
+    position: absolute;
+    inset: -12px;
+  }
+  .daily {
+    min-height: 44px;
+  }
+  .target input,
+  .reminder-time {
+    height: 44px;
+  }
+}
+
+/* ---------- fields that were clipped or the wrong colour ---------- */
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark; /* the phone's own date/time controls follow the theme, not the system: no white box */
+}
+html[data-theme="light"] input[type="date"],
+html[data-theme="light"] input[type="time"],
+html[data-theme="paper"] input[type="date"],
+html[data-theme="paper"] input[type="time"] {
+  color-scheme: light;
+}
+.target input[type="date"] {
+  width: 150px;
+}
+.target input[type="time"] {
+  width: 118px;
+}
+.reminder-time {
+  width: 8.2em;
+}
+.dp-time input {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  border: var(--bw) solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+/* A narrow column: the add-task text box gets a whole line, the buttons sit under it (as on a phone). */
+@media (max-width: 1280px) {
+  .task-form {
+    flex-wrap: wrap;
+    border-radius: var(--r-md);
+    padding: 8px 8px 8px 16px;
+  }
+  #task-title {
+    flex: 1 0 100%;
+  }
+  .task-form .btn-add {
+    margin-left: auto;
+  }
+  .col-head {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+}
