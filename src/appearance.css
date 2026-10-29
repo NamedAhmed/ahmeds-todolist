@@ -1687,16 +1687,27 @@ html[data-density="roomy"] .note-item {
 }
 
 /* ---------- Focus (Settings > Style > Shape): fewer extras. Default shows everything. ---------- */
-/* Normal: the eye-catching extras go (the fire, late-task jabs, streak badges); the colours stay. */
-html[data-focus="normal"] :is(.jab, .ring-fire, .streak),
+/* Normal: the eye-catching extras go (late-task jabs, streak badges); the colours stay. */
+html[data-focus="normal"] :is(.jab, .streak),
 html[data-focus="strict"] :is(.jab, .ring-fire, .streak) {
   display: none;
 }
-html[data-focus="normal"] .big-ring.ablaze,
 html[data-focus="strict"] .big-ring.ablaze {
   margin-top: 0; /* no flames, so no room kept for them */
 }
 /* Strict: also the decoration (the joke line, the script weekday and clock, hints, note dates). The colours stay as they are. */
 html[data-focus="strict"] :is(.voice, .stamp-day, .stamp-time, .ring-hint, .note-item .d, .empty-row .hint) {
   display: none;
+}
+
+/* Liquid > the flames are glass: see-through tongues in the picture's colours, a bright specular edge and a soft coloured glow. */
+html[data-theme="liquid"] .ring-fire {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--flame) 55%, transparent));
+  mix-blend-mode: screen;
+}
+html[data-theme="liquid"] .ring-fire path {
+  fill-opacity: 0.55;
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 0.7;
+  stroke-opacity: 0.8;
 }

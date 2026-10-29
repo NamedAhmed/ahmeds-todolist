@@ -62,12 +62,12 @@ export const MAIN_COLORS = {
   light: ['#f6f2ea', '#ffffff', '#e9f1ec', '#eaf0f8', '#f4eaf0', '#f1ece0'],
 };
 export const TEXT_SIZES = [['s', 'Small', 0.92], ['m', 'Normal', 1], ['l', 'Large', 1.12]];
-// Focus: how much of the extras the app shows. 'default' is everything; 'normal' drops the eye-catching extras (the fire, the
+// Focus: how much of the extras the app shows. 'default' is everything; 'normal' drops the eye-catching extras (the
 // late-task jabs, streak badges) and half of the jokes; 'strict' also drops the jokes and the decoration.
 export const FOCUS = [['strict', 'Strict'], ['normal', 'Normal'], ['default', 'Default']];
 export const FOCUS_NOTES = {
   strict: 'No jokes or decoration. Only what you need.',
-  normal: 'Calmer: no fire, jabs or streak badges, fewer jokes. Colours stay.',
+  normal: 'Calmer: no jabs or streak badges, fewer jokes. Colours stay.',
   default: 'Everything.',
 };
 export const DENSITIES = [['roomy', 'Roomy'], ['normal', 'Normal'], ['compact', 'Compact']];
@@ -352,8 +352,33 @@ export function backingNeeded(tones, text, muted, bg) {
   return high;
 }
 
+// The picture's own colour, for the Liquid theme's flames: the average of its pixels weighted by how vivid they are (so a grey
+// sky doesn't wash out a red sunset), pushed to a fire-bright { flame, core } pair of hex colours. null for a grey picture.
+function flameColours(pixels) {
+  let r = 0, g = 0, b = 0, total = 0;
+  for (const [pr, pg, pb] of pixels) {
+    const vivid = (Math.max(pr, pg, pb) - Math.min(pr, pg, pb)) ** 2;
+    r += pr * vivid; g += pg * vivid; b += pb * vivid; total += vivid;
+  }
+  if (total < 0.5) return null;
+  const [h, s] = rgbToHsl(r / total, g / total, b / total);
+  return { flame: hslToHex(h, Math.max(s, 0.65), 0.55), core: hslToHex(h, Math.max(s, 0.65), 0.88) };
+}
+function rgbToHsl(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, l = (max + min) / 2;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function hslToHex(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h / 60) % 6];
+  return '#' + [r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+}
+
 // The darkest and brightest parts of the picture or video behind the page, as { dark, light } (0 = black, 1 = white),
-// or null if there is none or it can't be measured. The picture is shrunk to a tiny 24 x 24 copy (which also blurs it,
+// plus its flame colours { flame, core } (see flameColours), or null if there is none or it can't be measured. The picture is shrunk to a tiny 24 x 24 copy (which also blurs it,
 // like the frosted panels do, so a tiny glint doesn't count), and its darkest and brightest pixels are what count:
 // text can land anywhere, so it has to be readable over both.
 export function useBackdropTones(imageUrl, videoUrl) {
@@ -375,8 +400,13 @@ export function useBackdropTones(imageUrl, videoUrl) {
         ctx.drawImage(source, 0, 0, 24, 24);
         const { data } = ctx.getImageData(0, 0, 24, 24);
         const pixels = [];
-        for (let i = 0; i < data.length; i += 4) pixels.push(toLooks(lightOf(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255)));
-        setTones({ dark: Math.min(...pixels), light: Math.max(...pixels) });
+        const colours = [];
+        for (let i = 0; i < data.length; i += 4) {
+          const rgb = [data[i] / 255, data[i + 1] / 255, data[i + 2] / 255];
+          colours.push(rgb);
+          pixels.push(toLooks(lightOf(...rgb)));
+        }
+        setTones({ dark: Math.min(...pixels), light: Math.max(...pixels), fire: flameColours(colours) });
       } catch {
         // the pixels can't be read: leave it unmeasured
       }

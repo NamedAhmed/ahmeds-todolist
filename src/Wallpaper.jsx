@@ -47,6 +47,19 @@ export default function Wallpaper() {
   // Brightness changes what is behind the text, so Auto readability sees the picture as you see it.
   const shown = measured ? { dark: Math.min(1, measured.dark * wallBright / 100), light: Math.min(1, measured.light * wallBright / 100) } : null;
   const tones = shown ?? UNKNOWN_TONES;
+
+  // Liquid's flames take the picture's colours (the other themes keep their own, set in appearance.css).
+  const fire = theme === 'liquid' ? measured?.fire : null;
+  useEffect(() => {
+    const style = document.documentElement.style;
+    if (fire) {
+      style.setProperty('--flame', fire.flame);
+      style.setProperty('--flame-core', fire.core);
+    } else {
+      style.removeProperty('--flame');
+      style.removeProperty('--flame-core');
+    }
+  }, [fire]);
   const isLightTheme = LIGHT_THEMES.includes(theme);
 
   // Tell the page's CSS whether something is behind the columns, how strong the Dim film is, and how frosted to
