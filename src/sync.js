@@ -13,6 +13,7 @@
 import { useSyncExternalStore } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { applyRemote, dirtyRecords, exportJson, markAllDirty, markClean, resetAll, subscribe as onStoreChange } from './store.js';
+import { storage } from './storage.js';
 
 
 // ======================================================================
@@ -121,7 +122,7 @@ export async function syncNow() {
     }
 
     // ---- PULL: download rows that changed since last time ----
-    let cursor = localStorage.getItem(cursorKey(user.id)) || '1970-01-01T00:00:00Z';
+    let cursor = storage.get(cursorKey(user.id)) || '1970-01-01T00:00:00Z';
 
     while (true) {
       const { data, error } = await supabase
@@ -136,7 +137,7 @@ export async function syncNow() {
 
       applyRemote(data);
       cursor = data[data.length - 1].updated_at;
-      localStorage.setItem(cursorKey(user.id), cursor);
+      storage.set(cursorKey(user.id), cursor);
 
       if (data.length < 500) break; // that was the last page
     }
@@ -196,13 +197,13 @@ function onUser(user) {
   }
   if (status.user?.id === user.id) return; // same person as before, nothing to do
 
-  const owner = localStorage.getItem(OWNER); // the account this browser's data belongs to
+  const owner = storage.get(OWNER); // the account this browser's data belongs to
 
   if (owner && owner !== user.id) {
     // A DIFFERENT account was using this browser: its data is cleared so the two never mix. A copy of it is kept on this
     // device first (Settings > Account offers it as a download), so edits it had not synced yet are never simply gone.
     try {
-      localStorage.setItem(PREVIOUS_BACKUP, exportJson());
+      storage.set(PREVIOUS_BACKUP, exportJson());
     } catch {
       // storage full or blocked: nothing more can be kept
     }
@@ -212,7 +213,7 @@ function onUser(user) {
     markAllDirty();
   }
 
-  localStorage.setItem(OWNER, user.id);
+  storage.set(OWNER, user.id);
   keepStorage();
   setStatus({ user: { id: user.id, email: user.email } });
   listen(user.id);

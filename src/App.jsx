@@ -29,6 +29,7 @@ import { useSync } from './sync.js';
 import { useAppearance } from './appearance.js';
 import { startPushSync, usePushPrompt } from './push.js';
 import Wallpaper from './Wallpaper.jsx';
+import { storage } from './storage.js';
 
 // The three views in the bottom bar on a phone: [internal name, label shown, icon]. (Settings is the fourth button there.)
 const TABS = [
@@ -43,9 +44,9 @@ const TASK_SORTS = ['custom', 'due', 'added'];
 // Which task filter was left on last time? (Storage can be blocked, e.g. in a private window.)
 function readTaskFilter() {
   try {
-    const saved = localStorage.getItem('todolist:task-filter');
+    const saved = storage.get('todolist:task-filter');
     if (TASK_FILTERS.includes(saved)) return saved;
-    return localStorage.getItem('todolist:today-only') === '1' ? 'today' : 'all';
+    return storage.get('todolist:today-only') === '1' ? 'today' : 'all';
   } catch {
     return 'all';
   }
@@ -53,7 +54,7 @@ function readTaskFilter() {
 
 function readTaskSort() {
   try {
-    const saved = localStorage.getItem('todolist:task-sort');
+    const saved = storage.get('todolist:task-sort');
     return TASK_SORTS.includes(saved) ? saved : 'due';
   } catch {
     return 'due';
@@ -90,15 +91,15 @@ export default function App() {
   useEffect(() => {
     try {
       const savedFilter = filter === 'date' ? 'all' : filter;
-      localStorage.setItem('todolist:task-filter', savedFilter);
-      localStorage.setItem('todolist:today-only', savedFilter === 'today' ? '1' : '0');
+      storage.set('todolist:task-filter', savedFilter);
+      storage.set('todolist:today-only', savedFilter === 'today' ? '1' : '0');
     } catch {
       // storage unavailable: the choice just isn't remembered
     }
   }, [filter]);
   useEffect(() => {
     try {
-      localStorage.setItem('todolist:task-sort', sort);
+      storage.set('todolist:task-sort', sort);
     } catch {
       // storage unavailable: the choice just isn't remembered
     }
@@ -116,8 +117,8 @@ export default function App() {
   // ---- Effect 1: once a day, when the app opens, point out a streak that died yesterday ----
   useEffect(() => {
     // We remember the last day we did this, so it only happens once per day.
-    if (localStorage.getItem('todolist:roasted') === today) return;
-    localStorage.setItem('todolist:roasted', today);
+    if (storage.get('todolist:roasted') === today) return;
+    storage.set('todolist:roasted', today);
 
     const deadStreak = brokenStreaks(getState(), today)[0]; // the biggest broken streak, if any
     if (deadStreak) {

@@ -14,6 +14,7 @@ import { all, getState, subscribe } from './store.js';
 import { useEffect, useState } from 'react';
 import { supabase, useSync } from './sync.js';
 import { addDays, formatTime, isDone, reminderOccursOn, todayStr } from './lib.js';
+import { storage } from './storage.js';
 
 const FLAG = 'todolist:push'; // is push switched on for THIS device?
 const DAYS_AHEAD = 30;
@@ -21,7 +22,7 @@ const DAYS_AHEAD = 30;
 export const pushSupported = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 export const pushEnabled = () => {
   try {
-    return localStorage.getItem(FLAG) === '1' && pushSupported() && Notification.permission === 'granted';
+    return storage.get(FLAG) === '1' && pushSupported() && Notification.permission === 'granted';
   } catch {
     return false;
   }
@@ -61,13 +62,13 @@ export async function enablePush() {
   const { error } = await supabase.from('push_subscriptions').upsert({ endpoint, p256dh: keys.p256dh, auth: keys.auth }, { onConflict: 'endpoint' });
   if (error) return error.message;
 
-  localStorage.setItem(FLAG, '1');
+  storage.set(FLAG, '1');
   await syncQueue();
   return '';
 }
 
 export async function disablePush() {
-  localStorage.setItem(FLAG, '0');
+  storage.set(FLAG, '0');
   const registration = await navigator.serviceWorker?.ready;
   const subscription = await registration?.pushManager.getSubscription();
   if (subscription) {
@@ -168,10 +169,10 @@ export function usePushPrompt() {
     if (!user || !supabase || !pushSupported()) return;
     let off = false;
     try {
-      off = localStorage.getItem(FLAG) === '0';
+      off = storage.get(FLAG) === '0';
       if (off) return;
-      if (Notification.permission === 'granted' && localStorage.getItem(FLAG) !== '1') enablePush(); // already allowed here: just subscribe
-      else if (Notification.permission === 'default' && !localStorage.getItem(ASKED)) setShow(true);
+      if (Notification.permission === 'granted' && storage.get(FLAG) !== '1') enablePush(); // already allowed here: just subscribe
+      else if (Notification.permission === 'default' && !storage.get(ASKED)) setShow(true);
     } catch {
       // storage unavailable: no prompt
     }
@@ -181,12 +182,12 @@ export function usePushPrompt() {
     show,
     accept: async () => {
       setShow(false);
-      localStorage.setItem(ASKED, '1');
+      storage.set(ASKED, '1');
       await enablePush();
     },
     dismiss: () => {
       setShow(false);
-      localStorage.setItem(ASKED, '1'); // asked once; Settings > General > Notifications is still there
+      storage.set(ASKED, '1'); // asked once; Settings > General > Notifications is still there
     },
   };
 }

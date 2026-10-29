@@ -33,6 +33,7 @@ import Icon from './Icons.jsx';
 import DatePicker from './DatePicker.jsx';
 import { earnCase } from '../cases.js';
 import { useAppearance } from '../appearance.js';
+import { storage } from '../storage.js';
 
 
 // ======================================================================
@@ -1125,7 +1126,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
   // Sections folded shut in Groups mode (remembered on this device).
   const [folded, setFolded] = useState(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem('todolist:folded-groups') || '[]'));
+      return new Set(JSON.parse(storage.get('todolist:folded-groups') || '[]'));
     } catch {
       return new Set();
     }
@@ -1136,7 +1137,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
       if (next.has(group)) next.delete(group);
       else next.add(group);
       try {
-        localStorage.setItem('todolist:folded-groups', JSON.stringify([...next]));
+        storage.set('todolist:folded-groups', JSON.stringify([...next]));
       } catch {
         // storage unavailable: the fold just isn't remembered
       }
