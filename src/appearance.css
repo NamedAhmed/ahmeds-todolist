@@ -1505,112 +1505,107 @@ html[data-theme="dusk"] .col {
     0 0 calc(var(--dusk-glow, 0.4) * 56px) calc(var(--dusk-glow, 0.4) * 4px) color-mix(in srgb, var(--accent) calc(var(--dusk-glow, 0.4) * 38%), transparent);
 }
 
-/* ---------- Settings > Style: theme + main colour on the left, four panels on the right ---------- */
+/* ---------- Settings > Style: theme + main colour on the left, Type / Colour / Shape on the right ---------- */
 .look {
-  container-type: inline-size; /* the layout below follows the width of Settings itself, not of the window */
+  container-type: inline-size; /* the layout follows the width of Settings itself, not of the window */
 }
+/* One gap everywhere (between the columns and between the cards), and one padding inside every card. */
 .look-top {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   align-items: stretch;
+  gap: 16px;
 }
-.look-top section {
+.look-main,
+.look-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.look-side > section:last-child {
+  flex: 1; /* the last card of the right column reaches the bottom of the left one */
+}
+.look-main section,
+.look-side section {
   height: auto;
-}
-.look-main {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-.look-main > section:first-child {
-  flex: 1;
-}
-.look-quad {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  align-items: stretch;
-}
-.look-quad section,
-.look-main section {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  padding: 20px;
 }
-.look-quad h3,
-.look-main h3 {
+.look-main h3,
+.look-side h3 {
   margin: 0;
 }
-@container (max-width: 860px) {
+@container (max-width: 760px) {
   .look-top {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-@container (max-width: 560px) {
-  .look-quad {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 /* Font: four tiles with just "Aa" (the name shows on hover). */
-.look-quad .font-row {
+.look-side .font-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
-.look-quad .font-choice {
+.look-side .font-choice {
   justify-content: center;
   height: 46px;
   padding: 0;
 }
-.look-quad .font-sample {
+.look-side .font-sample {
   font-size: 22px;
 }
-/* One setting per row: its name, then its control. */
-.option-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+/* One setting: its name (and a slider's value) on a line, its control underneath. */
 .option-row {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
 }
-.option-row > .mono:first-child {
+.option-row.inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.option-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.option-row .mono {
   font-size: 11px;
-  text-align: left;
   color: var(--muted);
 }
-.control-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-}
-.control-cell .slider {
-  flex: 1;
-  min-width: 70px;
-}
-.control-cell .value {
-  min-width: 38px;
-  font-size: 12px;
-  text-align: right;
+.option-row .value {
   color: var(--text-soft);
+}
+.theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: var(--bw) solid var(--line);
+}
+.theme-options-title {
+  font-size: 11px;
+  color: var(--faint-text);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 .look .seg-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 .look .chip {
-  height: 30px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 14px;
   font-size: 12px;
 }
-/* Colour swatches */
+/* Colour swatches: one tidy row, then wrapping neatly. The rainbow "+" takes any colour. */
 .text-colors {
   display: flex;
   flex-wrap: wrap;
@@ -1618,8 +1613,9 @@ html[data-theme="dusk"] .col {
   gap: 8px;
 }
 .text-swatch {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
+  flex: none;
   border-radius: 50%;
   border: var(--bw) solid var(--line-hi);
 }
@@ -1633,13 +1629,28 @@ html[data-theme="dusk"] .col {
   font-size: 12px;
   color: var(--text-soft);
 }
-input[type="color"].color {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: var(--bw) solid var(--line-hi);
-  border-radius: 50%;
-  background: none;
+.theme-swatch.picked {
+  box-shadow: none;
+  border-color: var(--text);
+}
+.text-swatch.custom {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  background: conic-gradient(#ff6b57, #f0b35a, #7ee0a1, #5eb8ff, #c59bff, #ff8fc7, #ff6b57);
+  color: #000;
+  font-size: 15px;
+  line-height: 1;
+}
+.text-swatch.custom input {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  opacity: 0;
+  cursor: pointer;
 }
 
 /* Main colour set: Dusk's panels follow the chosen colour instead of their own violet. */
@@ -1667,10 +1678,4 @@ html[data-density="roomy"] .daily {
 }
 html[data-density="roomy"] .note-item {
   padding-block: 14px;
-}
-
-/* The theme cards fill the card beside the right-hand panels, so there is no empty strip under them. */
-.look-main > section:first-child .theme-row {
-  flex: 1;
-  grid-auto-rows: 1fr;
 }

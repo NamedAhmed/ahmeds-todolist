@@ -1,7 +1,7 @@
 // Look.jsx = the tabs of Settings, one export each:
 //
-//   StyleTab       Theme with its main colour, four panels (Font, Text colour, the theme's own settings, and More: text size,
-//                  corners, density and accent colour), and Background (None, the photos, and your own pictures and videos)
+//   StyleTab       Left: Theme, Main colour and Shape (corners, density). Right: Type (font, text size, text colour) and Colour
+//                  (accent and the theme's own settings). Below: Background (None, the photos, your own pictures)
 //   GeneralTab     Tasks layout, Notes editor, Notifications, Keyboard, and Reset appearance
 //
 // Everything here is saved with setAppearance() so it syncs between your devices (pictures and videos stay on this device).
@@ -59,10 +59,24 @@ function FontChoice({ preset, picked }) {
 
 
 // ======================================================================
-// COLOUR ROWS
+// ROWS AND COLOUR ROWS
 // ======================================================================
-// "Theme" (the theme's own), some swatches, and a box that takes any colour. Used by Text colour, Main colour and Accent.
+// One setting: its name (and, for a slider, its value) on a line, then its control underneath.
+function Row({ label, value, children }) {
+  return (
+    <div className="option-row">
+      <div className="option-head">
+        <span className="mono">{label}</span>
+        {value != null && <span className="mono value">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// "Theme" (the theme's own), some swatches, and a rainbow "+" that takes any colour. Used by Text colour, Main colour and Accent.
 function ColourRow({ value, colours, onPick, label }) {
+  const custom = value && !colours.includes(value);
   return (
     <span className="text-colors">
       <button type="button" className={'text-swatch theme-swatch' + (value ? '' : ' picked')} aria-pressed={!value} onClick={() => onPick('')}>
@@ -80,7 +94,10 @@ function ColourRow({ value, colours, onPick, label }) {
           onClick={() => onPick(color)}
         />
       ))}
-      <input type="color" className="color" aria-label={`Custom ${label.toLowerCase()}`} value={value || '#808080'} onChange={(event) => onPick(event.target.value)} />
+      <label className={'text-swatch custom' + (custom ? ' picked' : '')} title="Pick any colour" style={custom ? { background: value } : undefined}>
+        {!custom && <span aria-hidden="true">+</span>}
+        <input type="color" aria-label={`Custom ${label.toLowerCase()}`} value={value || '#808080'} onChange={(event) => onPick(event.target.value)} />
+      </label>
     </span>
   );
 }
@@ -95,11 +112,12 @@ function TextColour({ textColor }) {
   const background = pageColour('--bg');
   const hard = textColor && background && contrastBetween(textColor, background) < 3;
   return (
-    <section>
-      <h3 className="mono">Text colour</h3>
-      <ColourRow value={textColor} colours={TEXT_COLORS} onPick={(color) => setAppearance({ textColor: color })} label="Text colour" />
+    <>
+      <Row label="Text colour">
+        <ColourRow value={textColor} colours={TEXT_COLORS} onPick={(color) => setAppearance({ textColor: color })} label="Text colour" />
+      </Row>
       {hard && <p className="hint">That colour is hard to read on this theme.</p>}
-    </section>
+    </>
   );
 }
 
@@ -119,34 +137,40 @@ function MainColour({ theme, mainColor, textColor }) {
 
 
 // ======================================================================
-// THE THEME'S OWN TWO SETTINGS
+// THE THEME'S OWN SETTINGS
 // ======================================================================
-// Every theme has two (see THEME_OPTIONS in appearance.js): a colour, an on/off switch or a slider.
+// Every theme has one or two (see THEME_OPTIONS in appearance.js): a colour, an on/off switch or a slider.
 function ThemeOptions({ theme, opts }) {
   const name = THEMES.find(([id]) => id === theme)?.[1];
   const set = (key, value) => setAppearance({ [`${theme}_${key}`]: value });
   return (
-    <section>
-      <h3 className="mono">{name}</h3>
-      <div className="option-list">
-        {THEME_OPTIONS[theme].map((o) => (
-          <div key={o.key} className="option-row">
-            <span className="mono">{o.label}</span>
-            {o.kind === 'switch' && (
-              <span className="control-cell">
-                <Switch checked={opts[o.key]} onChange={(on) => set(o.key, on)} />
-              </span>
-            )}
-            {o.kind === 'slider' && (
-              <span className="control-cell">
-                <Slider min={o.min} max={o.max} step={o.step} value={opts[o.key]} onChange={(event) => set(o.key, Number(event.target.value))} aria-label={o.label} />
+    <div className="theme-options">
+      <span className="mono theme-options-title">{name} theme</span>
+      {THEME_OPTIONS[theme].map((o) => (
+        <div key={o.key} className={o.kind === 'switch' ? 'option-row inline' : 'option-row'}>
+          {o.kind === 'switch' && (
+            <>
+              <span className="mono">{o.label}</span>
+              <Switch checked={opts[o.key]} onChange={(on) => set(o.key, on)} aria-label={o.label} />
+            </>
+          )}
+          {o.kind === 'slider' && (
+            <>
+              <div className="option-head">
+                <span className="mono">{o.label}</span>
                 <span className="mono value">
                   {opts[o.key]}
                   {o.unit}
                 </span>
-              </span>
-            )}
-            {o.kind === 'swatch' && (
+              </div>
+              <Slider min={o.min} max={o.max} step={o.step} value={opts[o.key]} onChange={(event) => set(o.key, Number(event.target.value))} aria-label={o.label} />
+            </>
+          )}
+          {o.kind === 'swatch' && (
+            <>
+              <div className="option-head">
+                <span className="mono">{o.label}</span>
+              </div>
               <span className="text-colors">
                 {o.choices.map(([id, label, colour]) => (
                   <button
@@ -161,17 +185,17 @@ function ThemeOptions({ theme, opts }) {
                   />
                 ))}
               </span>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
 
 // ======================================================================
-// MORE: TEXT SIZE, CORNERS, DENSITY AND ACCENT COLOUR
+// TEXT SIZE, CORNERS, DENSITY AND ACCENT COLOUR
 // ======================================================================
 function Choice({ value, options, onPick, label }) {
   return (
@@ -182,32 +206,6 @@ function Choice({ value, options, onPick, label }) {
         </button>
       ))}
     </span>
-  );
-}
-
-function More({ textSize, corners, density, accent }) {
-  return (
-    <section>
-      <h3 className="mono">More</h3>
-      <div className="option-list">
-        <div className="option-row">
-          <span className="mono">Text size</span>
-          <Choice label="Text size" value={textSize} options={TEXT_SIZES} onPick={(v) => setAppearance({ textSize: v })} />
-        </div>
-        <div className="option-row">
-          <span className="mono">Corners</span>
-          <Choice label="Corner roundness" value={corners} options={CORNERS} onPick={(v) => setAppearance({ corners: v })} />
-        </div>
-        <div className="option-row">
-          <span className="mono">Density</span>
-          <Choice label="Density" value={density} options={DENSITIES} onPick={(v) => setAppearance({ density: v })} />
-        </div>
-        <div className="option-row">
-          <span className="mono">Accent</span>
-          <ColourRow value={accent} colours={ACCENT_COLORS} onPick={(color) => setAppearance({ accent: color })} label="Accent colour" />
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -236,20 +234,42 @@ export function StyleTab() {
             </div>
           </section>
           <MainColour theme={theme} mainColor={mainColor} textColor={textColor} />
+          <section>
+            <h3 className="mono">Shape</h3>
+            <Row label="Corners">
+              <Choice label="Corner roundness" value={corners} options={CORNERS} onPick={(v) => setAppearance({ corners: v })} />
+            </Row>
+            <Row label="Density">
+              <Choice label="Density" value={density} options={DENSITIES} onPick={(v) => setAppearance({ density: v })} />
+            </Row>
+          </section>
         </div>
 
-        <div className="look-quad">
+        {/* Grouped by topic: the theme, its page colour and the shape of things on the left; type and colour on the right. */}
+        <div className="look-side">
           <section>
-            <h3 className="mono">Font</h3>
-            <div className="font-row">
-              {FONTS.map((preset) => (
-                <FontChoice key={preset.id} preset={preset} picked={font === preset.id} />
-              ))}
-            </div>
+            <h3 className="mono">Type</h3>
+            <Row label="Font">
+              <div className="font-row">
+                {FONTS.map((preset) => (
+                  <FontChoice key={preset.id} preset={preset} picked={font === preset.id} />
+                ))}
+              </div>
+            </Row>
+            <Row label="Text size">
+              <Choice label="Text size" value={textSize} options={TEXT_SIZES} onPick={(v) => setAppearance({ textSize: v })} />
+            </Row>
+            <TextColour textColor={textColor} />
           </section>
-          <TextColour textColor={textColor} />
-          <ThemeOptions theme={theme} opts={opts} />
-          <More textSize={textSize} corners={corners} density={density} accent={accent} />
+
+          <section>
+            <h3 className="mono">Colour</h3>
+            <Row label="Accent">
+              <ColourRow value={accent} colours={ACCENT_COLORS} onPick={(color) => setAppearance({ accent: color })} label="Accent colour" />
+            </Row>
+            <ThemeOptions theme={theme} opts={opts} />
+          </section>
+
         </div>
       </div>
 
