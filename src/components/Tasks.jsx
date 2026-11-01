@@ -1298,24 +1298,25 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
     return <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />;
   }
 
-  // Everything after the overdue part: the open tasks, each preceded by the reminders due on or before its day
-  // (a task with no day comes after all of them).
-  const upcomingRows = [];
-  const waiting = [...dueReminders].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  const flushReminders = (until) => {
-    while (waiting.length && (!until || waiting[0].date <= until)) upcomingRows.push(reminderRow(waiting.shift()));
-  };
-  open.forEach((t, i) => {
-    if (i >= lateCount) {
-      if (lateTotal > 0 && i === lateCount) upcomingRows.push(<li key="coming-up" className="group-head">Coming up</li>);
-      flushReminders(t.due);
-    }
-    upcomingRows.push(
-      <TaskRow key={t.id} s={s} task={t} today={today} sortable={sort === 'custom'} open={openIds.has(t.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(t.id)} />
-    );
-  });
-  if (lateTotal > 0 && lateCount === open.length) upcomingRows.push(<li key="coming-up" className="group-head">Coming up</li>);
-  flushReminders(null);
+  // The open tasks with the reminders slotted in by date, not pinned on top: each reminder goes before the first task
+  // due on or after its day (a task with no day comes after them all). Overdue and upcoming are woven separately.
+  function weave(tasks, due) {
+    const rows = [];
+    const waiting = [...due].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const flush = (until) => {
+      while (waiting.length && (!until || waiting[0].date <= until)) rows.push(reminderRow(waiting.shift()));
+    };
+    tasks.forEach((t) => {
+      flush(t.due);
+      rows.push(
+        <TaskRow key={t.id} s={s} task={t} today={today} sortable={sort === 'custom'} open={openIds.has(t.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(t.id)} />
+      );
+    });
+    flush(null);
+    return rows;
+  }
+  const lateRows = weave(open.slice(0, lateCount), lateReminders);
+  const upcomingRows = weave(open.slice(lateCount), dueReminders);
 
   // "Group tasks by date": one list in sections, reminders first inside each section.
   const grouped = taskGroups && filter === 'all';
@@ -1404,11 +1405,12 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
         <>
         {/* 1. Overdue things first */}
         {lateTotal > 0 && <li className="group-head late">Overdue · {lateTotal}</li>}
-        {lateReminders.map(reminderRow)}
 
         {/* 2. The open tasks (drag to reorder), with the reminders slotted in by their date instead of pinned on top.
             "Coming up" is inserted after the overdue ones. */}
         <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {lateRows}
+          {lateTotal > 0 && <li className="group-head">Coming up</li>}
           {upcomingRows}
         </SortableContext>
         </>
