@@ -1298,6 +1298,25 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
     return <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />;
   }
 
+  // Everything after the overdue part: the open tasks, each preceded by the reminders due on or before its day
+  // (a task with no day comes after all of them).
+  const upcomingRows = [];
+  const waiting = [...dueReminders].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const flushReminders = (until) => {
+    while (waiting.length && (!until || waiting[0].date <= until)) upcomingRows.push(reminderRow(waiting.shift()));
+  };
+  open.forEach((t, i) => {
+    if (i >= lateCount) {
+      if (lateTotal > 0 && i === lateCount) upcomingRows.push(<li key="coming-up" className="group-head">Coming up</li>);
+      flushReminders(t.due);
+    }
+    upcomingRows.push(
+      <TaskRow key={t.id} s={s} task={t} today={today} sortable={sort === 'custom'} open={openIds.has(t.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(t.id)} />
+    );
+  });
+  if (lateTotal > 0 && lateCount === open.length) upcomingRows.push(<li key="coming-up" className="group-head">Coming up</li>);
+  flushReminders(null);
+
   // "Group tasks by date": one list in sections, reminders first inside each section.
   const grouped = taskGroups && filter === 'all';
   const groupRows = grouped
@@ -1387,39 +1406,10 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
         {lateTotal > 0 && <li className="group-head late">Overdue · {lateTotal}</li>}
         {lateReminders.map(reminderRow)}
 
-        {/* 2. With nothing overdue, reminders come first */}
-        {lateTotal === 0 && dueReminders.map(reminderRow)}
-
-        {/* 3. The open tasks (drag to reorder). "Coming up" is inserted after the overdue ones. */}
+        {/* 2. The open tasks (drag to reorder), with the reminders slotted in by their date instead of pinned on top.
+            "Coming up" is inserted after the overdue ones. */}
         <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          {open.map((t, i) => (
-            <Fragment key={t.id}>
-              {lateTotal > 0 && i === lateCount && (
-                <>
-                  <li className="group-head">Coming up</li>
-                  {dueReminders.map(reminderRow)}
-                </>
-              )}
-              <TaskRow
-                s={s}
-                task={t}
-                today={today}
-                sortable={sort === 'custom'}
-                open={openIds.has(t.id)}
-                onToggleOpen={toggleOpen}
-                onMove={moveRow}
-                selected={selected.has(t.id)}
-              />
-            </Fragment>
-          ))}
-
-          {/* Everything open was overdue, so "Coming up" goes at the end */}
-          {lateTotal > 0 && lateCount === open.length && (
-            <>
-              <li className="group-head">Coming up</li>
-              {dueReminders.map(reminderRow)}
-            </>
-          )}
+          {upcomingRows}
         </SortableContext>
         </>
         )}
