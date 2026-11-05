@@ -343,7 +343,8 @@ function reopenTask(task) {
 // Delete a task and all its steps. The toast has an Undo button.
 function removeTask(task) {
   const steps = subtasksOf(getState(), task.id);
-  const changes = [task, ...steps].map((t) => ({ t: 'tasks', id: t.id, set: null })); // set: null = delete
+  const trashed = Date.now();
+  const changes = [task, ...steps].map((t) => ({ t: 'tasks', id: t.id, patch: { trashed, trash_group: task.id } }));
   smooth(() => commit('task deleted', changes));
   toast(quip('taskDeleted'), { undoable: true });
 }
@@ -367,7 +368,10 @@ function finishTasks(tasks) {
 }
 
 function removeTasks(tasks) {
-  const changes = tasks.flatMap((task) => [task, ...subtasksOf(getState(), task.id)]).map((t) => ({ t: 'tasks', id: t.id, set: null }));
+  const trashed = Date.now();
+  const changes = tasks.flatMap((task) =>
+    [task, ...subtasksOf(getState(), task.id)].map((t) => ({ t: 'tasks', id: t.id, patch: { trashed, trash_group: task.id } }))
+  );
   smooth(() => commit('tasks deleted', changes));
   toast(`${tasks.length} tasks gone.`, { undoable: true });
 }
@@ -423,7 +427,7 @@ function Subtask({ sub }) {
         <button
           className="del"
           aria-label={`Delete ${sub.title}`}
-          onClick={() => commit('step deleted', [{ t: 'tasks', id: sub.id, set: null }])}
+          onClick={() => commit('step deleted', [{ t: 'tasks', id: sub.id, patch: { trashed: Date.now() } }])}
         >
           <Icon name="x" size={14} />
         </button>

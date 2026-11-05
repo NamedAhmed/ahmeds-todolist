@@ -110,9 +110,25 @@ export function uid() {
   return crypto.randomUUID();
 }
 
-// All the items in a table that haven't been deleted, as a list.
+// Active items in a table. Recoverable items stay in the store, but don't appear in the app's normal lists.
 export function all(currentState, table) {
+  return allIncludingTrashed(currentState, table).filter((item) => !item.trashed);
+}
+
+// All records that haven't been permanently deleted, including Recently Deleted items.
+export function allIncludingTrashed(currentState, table) {
   return Object.values(currentState[table]).filter((item) => !item._deleted);
+}
+
+export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+function trashedTimestamp(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 const MINUTE_MS = 60000;
@@ -238,6 +254,48 @@ export function commit(label, changes) {
   if (undoStack.length > 200) undoStack.shift(); // only remember the last 200 actions
   redoStack.length = 0;                          // a new change wipes the redo list
   emit();
+}
+
+// Permanently remove records without creating an Undo that could bring them back.
+export function deletePermanently(changes) {
+  const deletions = changes.filter((change) => change.set === null);
+  if (!deletions.length) return;
+
+  const keys = new Set(deletions.map(({ t, id }) => `${t}:${id}`));
+  for (const stack of [undoStack, redoStack]) {
+    for (const action of stack) {
+      action.changes = action.changes.filter(({ t, id }) => !keys.has(`${t}:${id}`));
+    }
+    const remaining = stack.filter((action) => action.changes.length > 0);
+    stack.length = 0;
+    stack.push(...remaining);
+  }
+
+  apply(deletions);
+  emit();
+}
+
+// Expire recoverable items after 30 days, and remove their completion history too.
+// Expiry is permanent and is synced like any other deletion.
+export function purgeExpiredTrash(now = Date.now()) {
+  const expired = [];
+  for (const table of ['tasks', 'dailies', 'reminders', 'notes']) {
+    for (const item of allIncludingTrashed(state, table)) {
+      const removedAt = trashedTimestamp(item.trashed);
+      if (removedAt !== null && removedAt <= now - TRASH_RETENTION_MS) expired.push({ t: table, id: item.id });
+    }
+  }
+  if (!expired.length) return 0;
+
+  const expiredDailiesAndReminders = new Set(
+    expired.filter(({ t }) => t === 'dailies' || t === 'reminders').map(({ id }) => id)
+  );
+  const changes = expired.map(({ t, id }) => ({ t, id, set: null }));
+  for (const completion of allIncludingTrashed(state, 'completions')) {
+    if (expiredDailiesAndReminders.has(completion.ref)) changes.push({ t: 'completions', id: completion.id, set: null });
+  }
+  deletePermanently(changes);
+  return expired.length;
 }
 
 // Save a preference (theme, wallpaper...) in the `settings` table. Unlike commit(), this is NOT
@@ -390,7 +448,7 @@ export function resetAll() {
 export function exportJson() {
   const out = {};
   for (const table of TABLES) {
-    out[table] = all(state, table).map((item) => {
+    out[table] = allIncludingTrashed(state, table).map((item) => {
       const { _dirty, _base, ...clean } = item; // leave out the internal fields
       return clean;
     });

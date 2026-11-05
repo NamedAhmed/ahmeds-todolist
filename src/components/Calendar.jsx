@@ -348,10 +348,10 @@ function DailyRow({ s, daily, date, today, onEdit }) {
   if (streak >= 30) flameSize = 18;
   else if (streak >= 7) flameSize = 16;
 
-  // The × button: hide this daily from now on (it keeps its history in the past).
-  function archive() {
-    commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]);
-    toast(quip('dailyArchived'), { undoable: true });
+  // Keep the daily and its completion history recoverable for 30 days.
+  function trash() {
+    commit('daily trashed', [{ t: 'dailies', id: daily.id, patch: { trashed: Date.now() } }]);
+    toast(`“${daily.name}” moved to Recently Deleted.`, { undoable: true });
   }
 
   return (
@@ -385,7 +385,7 @@ function DailyRow({ s, daily, date, today, onEdit }) {
         </motion.b>
       </span>
 
-      <button className="del" aria-label={`Archive ${daily.name}`} onClick={archive}>
+      <button className="del" aria-label={`Move ${daily.name} to Recently Deleted`} title="Move to Recently Deleted" onClick={trash}>
         ×
       </button>
     </motion.li>

@@ -71,7 +71,7 @@ function Editor({ note }) {
     blockArea.current?.querySelector('.block-text, .rich, textarea')?.focus();
   }
 
-  // A note is never deleted from here: it goes to the Trash, where it can be restored.
+  // A note stays recoverable in Recently Deleted for 30 days.
   function trashNote() {
     flushNoteSaves();
     commit('note trashed', [{ t: 'notes', id: note.id, patch: { trashed: Date.now() } }]);
@@ -115,7 +115,7 @@ function Editor({ note }) {
             History
           </button>
         )}
-        <button className="btn-ghost danger" type="button" onClick={trashNote} aria-label="Move note to the Trash" title="Move note to the Trash">
+        <button className="btn-ghost danger" type="button" onClick={trashNote} aria-label="Move note to Recently Deleted" title="Move note to Recently Deleted">
           <Icon name="trash" size={16} />
         </button>
       </footer>
@@ -183,10 +183,7 @@ function orderNotes(notes) {
 export function Notes({ onSearch }) {
   const state = useStore(); // all the app's data
   const { noteEditor } = useAppearance(); // switching editor opens the note again, so the new editor starts from the text as it is now
-  const every = all(state, 'notes');
-  const notes = orderNotes(every.filter((note) => !note.trashed));
-  const trashed = every.filter((note) => note.trashed).sort((a, b) => b.trashed - a.trashed);
-  const [showTrash, setShowTrash] = useState(false);
+  const notes = orderNotes(all(state, 'notes'));
 
   // Which note is selected. If none is chosen yet, we show the first one.
   const [activeId, setActiveId] = useState(null);
@@ -208,16 +205,10 @@ export function Notes({ onSearch }) {
   function trashPicked() {
     flushNoteSaves();
     commit('notes trashed', [...picked].map((id) => ({ t: 'notes', id, patch: { trashed: Date.now() } })));
-    toast(`${picked.size} notes in the Trash.`, { undoable: true });
+    toast(`${picked.size} notes moved to Recently Deleted.`, { undoable: true });
     clearPicked();
   }
 
-  // The Trash: a note comes back whole, or is deleted for good (only here, and only after asking).
-  const restoreNote = (id) => commit('note restored', [{ t: 'notes', id, patch: { trashed: null } }]);
-  function deleteForever(note) {
-    if (!window.confirm(`Delete "${note.title || 'Untitled'}" for good? This can't be undone.`)) return;
-    commit('note deleted', [{ t: 'notes', id: note.id, set: null }]); // set: null = delete
-  }
 
   // A note picked in the search (see App.jsx).
   useEffect(() => {
@@ -293,31 +284,12 @@ export function Notes({ onSearch }) {
               ))}
             </ul>
           </SortableContext>
-          {trashed.length > 0 && (
-            <button type="button" className={'note-trash-toggle mono' + (showTrash ? ' on' : '')} onClick={() => setShowTrash(!showTrash)} aria-expanded={showTrash}>
-              <Icon name="trash" size={13} /> Trash ({trashed.length})
-            </button>
-          )}
-          {showTrash && trashed.length > 0 && (
-            <ul className="note-trash">
-              {trashed.map((note) => (
-                <li key={note.id}>
-                  <span className="t">{note.title || 'Untitled'}</span>
-                  <button type="button" className="btn-ghost" onClick={() => restoreNote(note.id)}>
-                    Restore
-                  </button>
-                  <button type="button" className="btn-ghost danger" onClick={() => deleteForever(note)} aria-label="Delete for good" title="Delete for good">
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+
           {picked.size > 0 && (
             <div className="bulk-bar" role="toolbar" aria-label="Selected notes">
               <span className="mono">{picked.size} selected</span>
               <button className="btn-ghost danger" type="button" onClick={trashPicked}>
-                Trash
+                Move to Recently Deleted
               </button>
             </div>
           )}

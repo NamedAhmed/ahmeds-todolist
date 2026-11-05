@@ -14,7 +14,7 @@
 //                  before this system keeps showing the right thing
 //   legacy_blocks  the note's `blocks` exactly as they were before this system first touched it. Written once, never changed
 //   versions       up to 10 earlier copies of `md`: [{ at, md }], for "History" in the note's footer
-//   trashed        a time, when the note is in the Trash. Nothing is ever deleted without going through the Trash first
+//   trashed        a time, when the note is in Recently Deleted. Nothing is deleted without passing through it first
 //
 // Nothing in this file deletes or overwrites a note's data: it only converts.
 //
