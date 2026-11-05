@@ -22,8 +22,14 @@ const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea
 // THE WINDOW FRAME
 // ======================================================================
 // Props: title (shown at the top), onClose (function to close it), wide (a bigger window), children (what goes inside).
+// The windows that are open, topmost last: Escape closes only the topmost, and while any is open the page behind it is
+// `inert` (a screen reader and the Tab key stay inside the window).
+const openWindows = [];
+
 export function Modal({ title, onClose, wide, children }) {
   const box = useRef(null); // points at the window's HTML element
+  const close = useRef(onClose); // the latest onClose, so the effect below runs once per window, not on every re-draw
+  close.current = onClose;
 
   // Keyboard behaviour for accessibility:
   //  - when it opens, the cursor moves inside it
@@ -32,14 +38,20 @@ export function Modal({ title, onClose, wide, children }) {
   //  - when it closes, the cursor goes back to where it was before
   useEffect(() => {
     const opener = document.activeElement; // what had focus before the window opened
+    const me = {};
+    openWindows.push(me);
+    document.querySelector('.app')?.setAttribute('inert', '');
 
-    // Focus the first text box if there is one, otherwise the window itself.
-    const firstInput = box.current.querySelector('input, select, textarea');
+    // Focus the first text box if there is one, otherwise the window itself. (Not a time or date box: on a phone
+    // focusing one opens the phone's own picker.)
+    const firstInput = box.current.querySelector('input:not([type=time]):not([type=date]):not([type=checkbox]), select, textarea');
     (firstInput ?? box.current).focus();
 
     function onKey(event) {
       if (event.key === 'Escape') {
-        onClose();
+        if (openWindows[openWindows.length - 1] !== me) return; // a window above this one gets the key
+        event.preventDefault();
+        close.current();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -63,9 +75,11 @@ export function Modal({ title, onClose, wide, children }) {
     // Cleanup when the window closes.
     return () => {
       window.removeEventListener('keydown', onKey);
+      openWindows.splice(openWindows.indexOf(me), 1);
+      if (!openWindows.length) document.querySelector('.app')?.removeAttribute('inert');
       if (opener?.isConnected) opener.focus();
     };
-  }, [onClose]);
+  }, []);
 
   // Clicking the dark area OUTSIDE the window closes it.
   function clickBackdrop(event) {
@@ -111,13 +125,20 @@ export function Modal({ title, onClose, wide, children }) {
 export function RemindersModal({ today, onClose }) {
   const s = useStore();
 
-  // Existing reminders, oldest first.
+  // Existing reminders: single ones by their date first, then the repeating ones, oldest first.
   const reminders = all(s, 'reminders');
-  reminders.sort((a, b) => (a.created < b.created ? -1 : 1));
+  reminders.sort((a, b) => {
+    const once = (r) => (r.rule.type === 'once' ? 0 : 1);
+    if (once(a) !== once(b)) return once(a) - once(b);
+    if (once(a) === 0) return a.rule.date < b.rule.date ? -1 : 1;
+    return a.created < b.created ? -1 : 1;
+  });
 
   // What is currently typed/selected in the "add reminder" form.
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('weekly');              // 'weekly' | 'monthly' | 'yearly'
+  const [type, setType] = useState('once');                // 'once' | 'weekly' | 'monthly' | 'yearly'
+  const [date, setDate] = useState(today);                 // once: which day
+  const [time, setTime] = useState('');                    // the time of day to be notified at ('' = no time)
   const [days, setDays] = useState([new Date().getDay()]); // weekly: which weekdays (0 = Sunday)
   const [day, setDay] = useState(1);                       // monthly / yearly: day of the month
   const [month, setMonth] = useState(new Date().getMonth()); // yearly: which month (0 = January)
@@ -127,23 +148,29 @@ export function RemindersModal({ today, onClose }) {
     event.preventDefault();
     if (!title.trim()) return;
     if (type === 'weekly' && days.length === 0) return; // weekly needs at least one weekday
+    if (type === 'once' && !date) return;
 
-    // Build the "rule" that says when it repeats (see occursOn in lib.js).
+    // Build the "rule" that says when it happens (see occursOn in lib.js).
     let rule;
-    if (type === 'weekly') rule = { type, days: [...days].sort() };
+    if (type === 'once') rule = { type, date };
+    else if (type === 'weekly') rule = { type, days: [...days].sort() };
     else if (type === 'monthly') rule = { type, day };
     else rule = { type, month, day };
 
     commit('reminder added', [
-      { t: 'reminders', id: uid(), patch: { title: title.trim(), rule, created: today } },
+      { t: 'reminders', id: uid(), patch: { title: title.trim(), rule, time: time || null, created: today } },
     ]);
     setTitle('');
     sass('reminderAdded', [], { chance: 0.6 });
   }
 
   function deleteReminder(reminder) {
-    commit('reminder deleted', [{ t: 'reminders', id: reminder.id, set: null }]);
+    commit('reminder deleted', [{ t: 'reminders', id: reminder.id, patch: { trashed: Date.now() } }]);
     toast(quip('reminderDeleted'), { undoable: true });
+  }
+
+  function setReminderTime(reminder, value) {
+    commit('reminder time changed', [{ t: 'reminders', id: reminder.id, patch: { time: value || null } }]);
   }
 
   // Click a weekday button: add it to the list, or remove it if it was already chosen.
@@ -161,16 +188,26 @@ export function RemindersModal({ today, onClose }) {
   return (
     <Modal title="Reminders" onClose={onClose}>
       <p className="hint">
-        Repeating tasks. They show up in the list on their day and come back after you tick them. Forever. Like laundry.
+        A reminder shows up in the list on its day, and notifies you at its time if you gave it one (turn notifications on in Settings). A single one happens once; a repeating one comes back after you tick it. Forever. Like laundry.
       </p>
 
       {/* The existing reminders */}
       <ul className="plain-list">
         {reminders.map((reminder) => (
           <li key={reminder.id}>
-            <span className="repeat">↻</span>
+            <span className="repeat" title={reminder.rule.type === 'once' ? 'Happens once' : 'Repeats'}>
+              {reminder.rule.type === 'once' ? '•' : '↻'}
+            </span>
             <span className="grow">{reminder.title}</span>
             <span className="mono">{ruleText(reminder.rule)}</span>
+            <input
+              className="reminder-time"
+              type="time"
+              value={reminder.time || ''}
+              onChange={(event) => setReminderTime(reminder, event.target.value)}
+              aria-label={`Time for ${reminder.title}`}
+              title="Time of day to be notified"
+            />
             <button
               className="del show"
               aria-label={`Delete ${reminder.title}`}
@@ -193,19 +230,28 @@ export function RemindersModal({ today, onClose }) {
           aria-label="Reminder"
         />
 
-        {/* Choose weekly / monthly / yearly */}
-        <div className="seg-row">
-          {['weekly', 'monthly', 'yearly'].map((kind) => (
+        {/* Choose once / weekly / monthly / yearly */}
+        <div className="seg-row" role="group" aria-label="How often">
+          {[['once', 'Just once'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([kind, label]) => (
             <button
               type="button"
               key={kind}
               className={'chip' + (type === kind ? ' solid' : '')}
               onClick={() => setType(kind)}
             >
-              {kind}
+              {label}
             </button>
           ))}
         </div>
+
+        {/* Once: pick the day */}
+        {type === 'once' && (
+          <div className="seg-row">
+            <label className="target">
+              on <input type="date" min={today} value={date} onChange={(event) => setDate(event.target.value)} />
+            </label>
+          </div>
+        )}
 
         {/* Weekly: pick weekdays */}
         {type === 'weekly' && (
@@ -224,7 +270,7 @@ export function RemindersModal({ today, onClose }) {
         )}
 
         {/* Monthly / yearly: pick a day (and a month for yearly) */}
-        {type !== 'weekly' && (
+        {(type === 'monthly' || type === 'yearly') && (
           <div className="seg-row">
             {type === 'yearly' && (
               <select
@@ -245,6 +291,18 @@ export function RemindersModal({ today, onClose }) {
             </label>
           </div>
         )}
+
+        {/* The time of day to be notified at (optional) */}
+        <div className="seg-row">
+          <label className="target">
+            notify me at <input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+          </label>
+          {time && (
+            <button type="button" className="btn-ghost" onClick={() => setTime('')}>
+              No time
+            </button>
+          )}
+        </div>
 
         <div className="seg-row">
           <button className="btn-add" type="submit">
@@ -338,6 +396,7 @@ const KEYS = [
       ['l', 'Task list'],
       ['o', 'Notes'],
       ['r', 'Reminders'],
+      ['Ctrl K', 'Search everything'],
       ['Ctrl Z', 'Undo (Shift: redo)'],
       ['?', 'This list'],
     ],

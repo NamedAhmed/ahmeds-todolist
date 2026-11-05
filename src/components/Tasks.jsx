@@ -25,13 +25,14 @@ import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { all, commit, getState, uid, useStore } from '../store.js';
-import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { all, commit, getState, saveSetting, uid, useStore } from '../store.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, formatTime, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
-import { DailyStrip } from './Calendar.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
 import DatePicker from './DatePicker.jsx';
+import { useAppearance } from '../appearance.js';
+import { storage } from '../storage.js';
 
 
 // ======================================================================
@@ -255,8 +256,9 @@ function rowKeys(event, act) {
 // The due date label on a row. Clicking it opens the date picker.
 // A task with no date is "ongoing": it shows an infinity sign and never goes overdue.
 // Clicking either opens the date picker window (onClick).
-function DueButton({ due, today, done, onClick }) {
-  const info = dueInfo(due, today);
+function DueButton({ due, time, today, done, onClick }) {
+  // A finished task is not late, "yesterday" or "tomorrow" any more: it just keeps the date it was due.
+  const info = done ? { text: shortDate(due) + (time ? ` · ${formatTime(time)}` : ''), cls: '' } : dueInfo(due, today, time);
 
   if (!due) {
     return (
@@ -283,6 +285,17 @@ function DueButton({ due, today, done, onClick }) {
 // FINISHING, REOPENING AND DELETING TASKS
 // ======================================================================
 
+// How many tasks have ever been finished, kept in the synced `settings` table as { tasksCompleted }.
+// A finished task can be deleted later, so this is a running total rather than a count of what's in the list.
+const STATS_ID = 'stats';
+const TASK_MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+
+function bumpTasksCompleted(by) {
+  const total = Math.max(0, (getState().settings[STATS_ID]?.tasksCompleted || 0) + by);
+  saveSetting(STATS_ID, { tasksCompleted: total });
+  return total;
+}
+
 // Mark a task as done. The tiny delay (140ms) lets the tick animation start first.
 function finishTask(task) {
   const changes = [{ t: 'tasks', id: task.id, patch: { done: true, done_at: Date.now() } }];
@@ -297,6 +310,16 @@ function finishTask(task) {
   }
 
   setTimeout(() => smooth(() => commit('task finished', changes)), 140);
+
+  // Milestones beat the usual comment.
+  const total = bumpTasksCompleted(1);
+  // A milestone is only celebrated the first time it is reached: un-ticking and ticking again must not cheer twice.
+  const best = getState().settings[STATS_ID]?.tasksCompletedBest || 0;
+  if (total > best) saveSetting(STATS_ID, { tasksCompletedBest: total });
+  if (total > best && TASK_MILESTONES.includes(total)) {
+    toast(quip('taskMilestone', total));
+    return;
+  }
 
   // A rude comment. Better ones for projects and for tasks that were very late.
   if (task.kind === 'project') {
@@ -313,15 +336,44 @@ function finishTask(task) {
 // Un-finish a task.
 function reopenTask(task) {
   smooth(() => commit('task reopened', [{ t: 'tasks', id: task.id, patch: { done: false, done_at: null } }]));
+  bumpTasksCompleted(-1); // it will be counted again when it is finished again
   sass('reopened', [], { chance: 0.5 });
 }
 
 // Delete a task and all its steps. The toast has an Undo button.
 function removeTask(task) {
   const steps = subtasksOf(getState(), task.id);
-  const changes = [task, ...steps].map((t) => ({ t: 'tasks', id: t.id, set: null })); // set: null = delete
+  const trashed = Date.now();
+  const changes = [task, ...steps].map((t) => ({ t: 'tasks', id: t.id, patch: { trashed, trash_group: task.id } }));
   smooth(() => commit('task deleted', changes));
   toast(quip('taskDeleted'), { undoable: true });
+}
+
+// The same for several tasks at once (the selection bar): one change, so one Undo brings them all back.
+function finishTasks(tasks) {
+  const now = Date.now();
+  const changes = [];
+  for (const task of tasks.filter((t) => !t.done)) {
+    changes.push({ t: 'tasks', id: task.id, patch: { done: true, done_at: now } });
+    if (task.kind === 'project') {
+      for (const step of subtasksOf(getState(), task.id)) {
+        if (!step.done) changes.push({ t: 'tasks', id: step.id, patch: { done: true, done_at: now } });
+      }
+    }
+  }
+  if (!changes.length) return;
+  smooth(() => commit('tasks finished', changes));
+  bumpTasksCompleted(tasks.filter((t) => !t.done).length);
+  toast(`${tasks.length} tasks finished. Look at you go.`, { undoable: true });
+}
+
+function removeTasks(tasks) {
+  const trashed = Date.now();
+  const changes = tasks.flatMap((task) =>
+    [task, ...subtasksOf(getState(), task.id)].map((t) => ({ t: 'tasks', id: t.id, patch: { trashed, trash_group: task.id } }))
+  );
+  smooth(() => commit('tasks deleted', changes));
+  toast(`${tasks.length} tasks gone.`, { undoable: true });
 }
 
 
@@ -375,7 +427,7 @@ function Subtask({ sub }) {
         <button
           className="del"
           aria-label={`Delete ${sub.title}`}
-          onClick={() => commit('step deleted', [{ t: 'tasks', id: sub.id, set: null }])}
+          onClick={() => commit('step deleted', [{ t: 'tasks', id: sub.id, patch: { trashed: Date.now() } }])}
         >
           <Icon name="x" size={14} />
         </button>
@@ -471,7 +523,7 @@ function ProjectBody({ s, task }) {
 //   onMove         function to move the row up/down (Alt+arrows)
 //   sortable       can this row be dragged? (finished tasks can't)
 const TaskRow = memo(
-  function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable }) {
+  function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable, selected }) {
     // Drag-and-drop helpers from the dnd-kit library.
     const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
       id: task.id,
@@ -566,7 +618,7 @@ const TaskRow = memo(
     const menu = [
       { label: 'Rename', icon: 'pencil', run: () => edit(true) },
       { label: task.due ? 'Change date' : 'Set a date', icon: 'calendar', run: () => setPicking(true) },
-      task.due && { label: 'Make ongoing', icon: 'infinity', run: () => patch('made ongoing', { due: null }) },
+      task.due && { label: 'No due date', icon: 'infinity', run: () => patch('made ongoing', { due: null, due_time: null }) },
       { label: isProject ? 'Turn into a task' : 'Turn into a project', icon: isProject ? 'task' : 'folder', run: turnIntoOtherKind },
       '-',
       { label: 'Delete', icon: 'trash', danger: true, run: () => removeTask(task) },
@@ -578,7 +630,7 @@ const TaskRow = memo(
       transition,
     };
 
-    const className = ['task', done && 'done', isProject && 'project', isDragging && 'dragging'].filter(Boolean).join(' ');
+    const className = ['task', done && 'done', isProject && 'project', isDragging && 'dragging', selected && 'selected'].filter(Boolean).join(' ');
 
     return (
       <li
@@ -600,7 +652,7 @@ const TaskRow = memo(
             tabIndex={-1}
             className={'check' + (isProject ? ' square' : '')}
             aria-pressed={done}
-            aria-label={(done ? 'Mark not done: ' : 'Mark done: ') + task.title}
+            aria-label={'Done: ' + task.title}
             onClick={toggle}
           >
             <CheckIcon />
@@ -632,13 +684,15 @@ const TaskRow = memo(
                 {steps.filter((step) => step.done).length}/{steps.length}
               </span>
             )}
-            <DueButton due={task.due} today={today} done={done} onClick={() => setPicking(true)} />
+            <DueButton due={task.due} time={task.due_time} today={today} done={done} onClick={() => setPicking(true)} />
             <AnimatePresence>
               {picking && (
                 <DatePicker
                   value={task.due || null}
                   today={today}
-                  onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', { due: date })}
+                  onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', date ? { due: date } : { due: null, due_time: null })}
+                  time={task.due_time || null}
+                  onTime={(time) => patch('due time changed', { due_time: time })}
                   onClose={() => setPicking(false)}
                 />
               )}
@@ -682,6 +736,7 @@ const TaskRow = memo(
     before.today === after.today &&
     before.open === after.open &&
     before.sortable === after.sortable &&
+    before.selected === after.selected &&
     before.onMove === after.onMove &&
     (before.task.kind !== 'project' || before.s.tasks === after.s.tasks)
 );
@@ -695,7 +750,7 @@ const TaskRow = memo(
 function ReminderRow({ reminder, date, today }) {
   const [closing, setClosing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const info = dueInfo(date, today);
+  const info = dueInfo(date, today, reminder.time);
 
   // Tick it (skipped = false) or skip it (skipped = true). Either way it's saved as a "completion".
   function finish(skipped) {
@@ -741,7 +796,7 @@ function ReminderRow({ reminder, date, today }) {
         <span className="task-title">{reminder.title}</span>
         <span className="row-end">
           <span className="tag" title={ruleText(reminder.rule)}>
-            <Icon name="repeat" size={12} /> {ruleText(reminder.rule)}
+            <Icon name={reminder.rule.type === 'once' ? 'calendar' : 'repeat'} size={12} /> {ruleText(reminder.rule)}
           </span>
           <span className={'due ' + info.cls}>{info.text}</span>
           <RowMenu items={[{ label: 'Skip this one', icon: 'x', run: () => finish(true) }]} open={menuOpen} onOpenChange={setMenuOpen} />
@@ -764,12 +819,15 @@ function AddRow({ day, today }) {
   const [picked, setPicked] = useState(null); // a date chosen by hand (beats a typed one)
   const [ongoing, setOngoing] = useState(false); // no due date: it just stays in the list
   const [picking, setPicking] = useState(false); // is the date picker window open?
+  const [pickedTime, setPickedTime] = useState(undefined); // a time of day chosen by hand (null = none); undefined = not chosen
 
   // Look for a date at the end of what is typed. (useMemo = only redo this when the text changes.)
   const parsed = useMemo(() => parseTyped(text), [text]);
 
   // Which due date to use: picked by hand, else typed, else the selected calendar day, else today.
   const due = ongoing ? null : (picked ?? parsed?.due ?? day ?? today);
+  // The time of day: chosen by hand, else typed ("friday 5pm"). Only with a date.
+  const dueTime = ongoing ? null : (pickedTime !== undefined ? pickedTime : (picked ? null : parsed?.time ?? null));
 
   function submit(event) {
     event.preventDefault();
@@ -778,21 +836,11 @@ function AddRow({ day, today }) {
     const title = (parsed && !picked && !ongoing ? parsed.title : text).trim();
     if (!title) return;
 
-    // New tasks go to the TOP of the list: give them a position smaller than all the others.
-    const positions = all(getState(), 'tasks')
-      .filter((t) => !t.parent)
-      .map((t) => t.position);
-    const top = Math.min(0, ...positions);
-
-    const label = kind === 'project' ? 'project added' : 'task added';
-    smooth(() =>
-      commit(label, [
-        { t: 'tasks', id: uid(), patch: { title, due, done: false, kind, position: top - 1, created: minuteTimestamp() } },
-      ])
-    );
+    smooth(() => createTask({ title, due, dueTime, kind }));
 
     setText('');
     setPicked(null);
+    setPickedTime(undefined);
     setOngoing(false);
     sass(kind === 'project' ? 'projectAdded' : 'taskAdded', [], { chance: 0.4 });
   }
@@ -802,6 +850,7 @@ function AddRow({ day, today }) {
   if (ongoing) dueLabel = 'No date';
   else if (due === today) dueLabel = 'Today';
   else if (due === addDays(today, 1)) dueLabel = 'Tomorrow';
+  if (dueTime && !ongoing) dueLabel += ' · ' + formatTime(dueTime);
 
   return (
     <form className="task-form" onSubmit={submit} autoComplete="off">
@@ -836,6 +885,8 @@ function AddRow({ day, today }) {
           <DatePicker
             value={ongoing ? null : due}
             today={today}
+            time={dueTime}
+            onTime={setPickedTime}
             onPick={(date) => {
               setOngoing(date === null);
               setPicked(date);
@@ -907,6 +958,19 @@ function minuteTimestamp() {
   return Math.round(Date.now() / 60000) * 60000;
 }
 
+// Save a new task (or project). New tasks go to the TOP of the list: they get a position smaller than all the others.
+// The Add box uses this, and so does the first-launch tour (Onboarding.jsx).
+export function createTask({ title, due, dueTime = null, kind = 'task' }) {
+  const positions = all(getState(), 'tasks')
+    .filter((t) => !t.parent)
+    .map((t) => t.position);
+  const top = Math.min(0, ...positions);
+
+  commit(kind === 'project' ? 'project added' : 'task added', [
+    { t: 'tasks', id: uid(), patch: { title, due, due_time: dueTime, done: false, kind, position: top - 1, created: minuteTimestamp() } },
+  ]);
+}
+
 // Is this task overdue? (Not counted while you're looking at one specific day.)
 function isLate(task, day, today) {
   return !day && !!task.due && task.due < today;
@@ -965,7 +1029,7 @@ class RowTouchSensor extends TouchSensor {
 
 // The card that floats under the pointer while a task is dragged.
 function TaskCard({ task }) {
-  const info = dueInfo(task.due, todayStr());
+  const info = dueInfo(task.due, todayStr(), task.due_time);
   return (
     <div className="drag-card">
       <span className="drag-mark">
@@ -1040,6 +1104,17 @@ const FILTER_LABELS = {
   undated: 'No Due Date',
   all: 'All Tasks',
 };
+// The sections of "Group tasks by date" (Settings > General), in order.
+const GROUPS = ['Overdue', 'Today', 'Next 7 days', 'Next month', 'Later', 'No due date'];
+function groupOf(due, today, day) {
+  if (!due) return 5;
+  if (!day && due < today) return 0;
+  if (due <= today) return 1;
+  if (due <= addDays(today, 7)) return 2;
+  if (due <= oneMonthFrom(today)) return 3;
+  return 4;
+}
+
 const SORT_ORDER = ['custom', 'due', 'added'];
 const SORT_LABELS = {
   custom: 'Custom',
@@ -1047,10 +1122,73 @@ const SORT_LABELS = {
   added: 'Date Added',
 };
 
-export default function Tasks({ today, day, filter, setFilter, sort, setSort }) {
+export default function Tasks({ today, day, filter, setFilter, sort, setSort, onReminders }) {
   const s = useStore();
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
+  const { taskGroups, showRepeating } = useAppearance();
+
+  // ---- Selecting several tasks ----
+  // Ctrl/Cmd+click a row to select it; click more rows to add them. A bar then offers Done and Delete.
+  const [selected, setSelected] = useState(() => new Set());
+  // Sections folded shut in Groups mode (remembered on this device).
+  const [folded, setFolded] = useState(() => {
+    try {
+      return new Set(JSON.parse(storage.get('todolist:folded-groups') || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  function toggleFold(group) {
+    setFolded((previous) => {
+      const next = new Set(previous);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      try {
+        storage.set('todolist:folded-groups', JSON.stringify([...next]));
+      } catch {
+        // storage unavailable: the fold just isn't remembered
+      }
+      return next;
+    });
+  }
+  const clearSelection = () => setSelected(new Set());
+  function onListClickCapture(event) {
+    const row = event.target.closest('li.task[data-task]');
+    if (!row || !(selected.size || event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    event.stopPropagation(); // the click only selects; it does not tick, rename or unfold anything
+    const id = row.dataset.task;
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  useEffect(() => {
+    if (!selected.size) return;
+    const onKey = (event) => event.key === 'Escape' && clearSelection();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected.size]);
+
+  // A task picked in the search (see App.jsx): show it (finished tasks too), scroll to it, focus it and flash it.
+  useEffect(() => {
+    function reveal(event) {
+      if (getState().tasks[event.detail]?.done) setShowDone(true);
+      setTimeout(() => {
+        const row = document.querySelector(`[data-task="${event.detail}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: 'center' });
+        row.focus({ preventScroll: true });
+        row.classList.add('found');
+        setTimeout(() => row.classList.remove('found'), 1500);
+      }, 60);
+    }
+    window.addEventListener('todolist:reveal-task', reveal);
+    return () => window.removeEventListener('todolist:reveal-task', reveal);
+  }, []);
 
   // ---- Work out what to show ----
 
@@ -1091,7 +1229,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
   }
 
   // Reminders to show: { reminder, date } pairs.
-  const reminders = all(s, 'reminders')
+  const reminders = (showRepeating ? all(s, 'reminders') : [])
     .map((reminder) => {
       let date = null;
       if (filter === 'date' && day) {
@@ -1164,6 +1302,38 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
     return <ReminderRow key={r.id + date} reminder={r} date={date} today={today} />;
   }
 
+  // The open tasks with the reminders slotted in by date, not pinned on top: each reminder goes before the first task
+  // due on or after its day (a task with no day comes after them all). Overdue and upcoming are woven separately.
+  function weave(tasks, due) {
+    const rows = [];
+    const waiting = [...due].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const flush = (until) => {
+      while (waiting.length && (!until || waiting[0].date <= until)) rows.push(reminderRow(waiting.shift()));
+    };
+    tasks.forEach((t) => {
+      flush(t.due);
+      rows.push(
+        <TaskRow key={t.id} s={s} task={t} today={today} sortable={sort === 'custom'} open={openIds.has(t.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(t.id)} />
+      );
+    });
+    flush(null);
+    return rows;
+  }
+  const lateRows = weave(open.slice(0, lateCount), lateReminders);
+  const upcomingRows = weave(open.slice(lateCount), dueReminders);
+
+  // "Group tasks by date": one list in sections, reminders first inside each section.
+  const grouped = taskGroups && filter === 'all';
+  const groupRows = grouped
+    ? [
+        ...reminders.map((item) => ({ group: groupOf(item.date, today, day), reminder: item })),
+        ...open.map((task) => ({ group: groupOf(task.due, today, day), task })),
+      ]
+        .map((row, order) => ({ ...row, order }))
+        .sort((a, b) => a.group - b.group || a.order - b.order)
+    : [];
+  const groupCount = (group) => groupRows.filter((row) => row.group === group).length;
+
   const finishedShown = showDone || filter !== 'all'; // filtered views show matching finished tasks
   const nothing = open.length === 0 && reminders.length === 0 && done.length === 0;
 
@@ -1172,6 +1342,11 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
       <header className="col-head">
         <h1>Tasks</h1>
         <div className="task-controls">
+          {onReminders && (
+            <button className="day-toggle" onClick={onReminders} aria-label="Reminders" title="Reminders (repeating and one-off)">
+              <Icon name="repeat" size={14} />
+            </button>
+          )}
           <button
             className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
             aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}
@@ -1183,8 +1358,8 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
           >
             {SORT_LABELS[sort]}
           </button>
-          <span className="task-controls-separator" aria-hidden="true">•</span>
-          <button
+          {!(taskGroups && filter === 'all') && <span className="task-controls-separator" aria-hidden="true">•</span>}
+          {!(taskGroups && filter === 'all') && <button
             className={'day-toggle' + (filter !== 'all' ? ' on' : '')}
             aria-pressed={filter !== 'all'}
             aria-label={`Task filter: ${filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}. Click to change.`}
@@ -1199,7 +1374,7 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
             }}
           >
             {filter === 'date' && day ? `${shortDate(day)} Only` : FILTER_LABELS[filter]}
-          </button>
+          </button>}
         </div>
 
       </header>
@@ -1207,51 +1382,46 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
       {/* The rude headline */}
       <p className="voice">{line}</p>
 
-      <DailyStrip today={today} />
-
       <AddRow day={day} today={today} />
 
-      <ul className="task-list">
+      <ul className="task-list" onClickCapture={onListClickCapture}>
+        {grouped ? (
+          <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            {groupRows.map((row, i) => (
+              <Fragment key={row.task ? row.task.id : row.reminder.r.id + row.reminder.date}>
+                {(i === 0 || groupRows[i - 1].group !== row.group) && (
+                  <li className={'group-head' + (row.group === 0 ? ' late' : '')}>
+                    <button type="button" className="group-fold" aria-expanded={!folded.has(row.group)} onClick={() => toggleFold(row.group)}>
+                      <Icon name="chevronDown" size={12} style={{ transform: folded.has(row.group) ? 'rotate(-90deg)' : 'none' }} />
+                      {GROUPS[row.group]} · {groupCount(row.group)}
+                    </button>
+                  </li>
+                )}
+                {folded.has(row.group) ? null : row.task ? (
+                  <TaskRow s={s} task={row.task} today={today} sortable={sort === 'custom'} open={openIds.has(row.task.id)} onToggleOpen={toggleOpen} onMove={moveRow} selected={selected.has(row.task.id)} />
+                ) : (
+                  reminderRow(row.reminder)
+                )}
+              </Fragment>
+            ))}
+          </SortableContext>
+        ) : (
+        <>
         {/* 1. Overdue things first */}
         {lateTotal > 0 && <li className="group-head late">Overdue · {lateTotal}</li>}
-        {lateReminders.map(reminderRow)}
 
-        {/* 2. With nothing overdue, reminders come first */}
-        {lateTotal === 0 && dueReminders.map(reminderRow)}
-
-        {/* 3. The open tasks (drag to reorder). "Coming up" is inserted after the overdue ones. */}
+        {/* 2. The open tasks (drag to reorder), with the reminders slotted in by their date instead of pinned on top.
+            "Coming up" is inserted after the overdue ones. */}
         <SortableContext items={open.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          {open.map((t, i) => (
-            <Fragment key={t.id}>
-              {lateTotal > 0 && i === lateCount && (
-                <>
-                  <li className="group-head">Coming up</li>
-                  {dueReminders.map(reminderRow)}
-                </>
-              )}
-              <TaskRow
-                s={s}
-                task={t}
-                today={today}
-                sortable={sort === 'custom'}
-                open={openIds.has(t.id)}
-                onToggleOpen={toggleOpen}
-                onMove={moveRow}
-              />
-            </Fragment>
-          ))}
-
-          {/* Everything open was overdue, so "Coming up" goes at the end */}
-          {lateTotal > 0 && lateCount === open.length && (
-            <>
-              <li className="group-head">Coming up</li>
-              {dueReminders.map(reminderRow)}
-            </>
-          )}
+          {lateRows}
+          {lateTotal > 0 && <li className="group-head">Coming up</li>}
+          {upcomingRows}
         </SortableContext>
+        </>
+        )}
 
-        {/* Nothing at all to show */}
-        {nothing && (
+        {/* Nothing to show in this view. (With no tasks at all the headline above already says so.) */}
+        {nothing && stats.total > 0 && (
           <li className="empty-row">
             <p className="empty">{filter === 'date' ? empties.day : empties[filter]}</p>
           </li>
@@ -1282,9 +1452,34 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort }) 
               open={openIds.has(t.id)}
               onToggleOpen={toggleOpen}
               onMove={moveRow}
+              selected={selected.has(t.id)}
             />
           ))}
       </ul>
+
+      {selected.size > 0 && (
+        <div className="bulk-bar" role="toolbar" aria-label="Selected tasks">
+          <span className="mono">{selected.size} selected</span>
+          <button
+            className="btn-ghost"
+            onClick={() => {
+              finishTasks(top.filter((t) => selected.has(t.id)));
+              clearSelection();
+            }}
+          >
+            Done
+          </button>
+          <button
+            className="btn-ghost danger"
+            onClick={() => {
+              removeTasks(top.filter((t) => selected.has(t.id)));
+              clearSelection();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </section>
   );
 }

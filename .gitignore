@@ -4,3 +4,12 @@ node_modules/
 dist/
 .env*.local
 .vercel
+
+# local-only
+.env
+*.log
+.DS_Store
+.claude/
+graphify-out/
+screenshots/
+supabase/.temp/

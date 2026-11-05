@@ -4,9 +4,15 @@
 //   - Type "/" on an empty line to pick what a block should be (heading, list, to-do...).
 //   - Or type a shortcut at the start of a line:  # , ## , ### , - , 1. , [] , > , ```  (each followed by a space).
 //   - Bold, italic, underline and strikethrough: Ctrl+B, Ctrl+I, Ctrl+U (no toolbar: everything else is in the "/" menu).
-//   - Enter makes a new block (a list carries on; an empty list item turns back into text).
+//   - Enter starts a new line inside the block (an empty list item turns back into text). Shift+Enter makes a new
+//     block (a list carries on).
 //   - Backspace at the start of a block turns it into text, or joins it to the block above.
+//   - Select across blocks by dragging, Shift+click or Shift+arrows: the blocks tint, Backspace/Delete/Ctrl+X remove
+//     the selected text (the blocks it touches join up), and Tab / Shift+Tab indent the selected list items.
 //   - Drag a block by its handle (⋮⋮, on the left) to move it. Arrow keys move between blocks.
+//   - Pick whole blocks: click a handle (Shift+click for a range, Ctrl/Cmd+click to add one), press Esc in a block, or
+//     drag a box over blocks from the empty space beside or under them. Then Delete, Copy or Indent them from the bar
+//     (or with Backspace, Ctrl+C, Tab); Shift+arrows grow the pick and Esc lets go.
 //
 // A block looks like { id, type, html, checked }. `type` is one of BLOCK_TYPES below. `html` is the text with
 // its bold/italic/etc. as HTML. The parent (Side.jsx) owns the list and saves it; this file only edits it.
@@ -218,7 +224,7 @@ function placeCaret(element, at) {
 // ======================================================================
 const PLACEHOLDERS = { h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', bullet: 'List', number: 'List', todo: 'To-do', quote: 'Quote', code: 'Code' };
 
-function BlockRow({ block, number, menu, actions, hasChildren }) {
+function BlockRow({ block, number, menu, actions, hasChildren, selected, chosen }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const text = useRef(null);
   const indent = LIST_TYPES.includes(block.type) ? Math.max(0, Number(block.indent) || 0) : 0;
@@ -234,10 +240,20 @@ function BlockRow({ block, number, menu, actions, hasChildren }) {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition, marginLeft: `${indent * 24}px` }}
-      className={`block block-${block.type}${block.checked ? ' checked' : ''}${isDragging ? ' dragging' : ''}`}
+      className={`block block-${block.type}${block.checked ? ' checked' : ''}${isDragging ? ' dragging' : ''}${selected ? ' selected' : ''}${chosen ? ' chosen' : ''}`}
       data-block={block.id}
     >
-      <button type="button" className="block-grip" aria-label="Drag to move this block" tabIndex={-1} {...attributes} {...listeners}>
+      <button
+        type="button"
+        className="block-grip"
+        aria-label="Drag to move this block, click to pick it"
+        aria-pressed={chosen}
+        title="Drag to move, click to pick"
+        tabIndex={-1}
+        {...attributes}
+        {...listeners}
+        onClick={(event) => actions.pick(block.id, event)}
+      >
         <Icon name="grip" size={14} />
       </button>
 
@@ -280,6 +296,8 @@ function BlockRow({ block, number, menu, actions, hasChildren }) {
         onInput={(event) => actions.input(block, event.currentTarget)}
         onKeyDown={(event) => actions.key(block, event)}
         onPaste={(event) => actions.paste(block, event)}
+        onCut={(event) => actions.cut(event)}
+        onFocus={actions.clearChosen}
       />
 
       {menu?.id === block.id && matching.length > 0 && (
@@ -316,6 +334,14 @@ export default function BlockEditor({ blocks, onChange }) {
   const pendingFocus = useRef(null);    // where to put the cursor after the next change: { id, at }
   const [menu, setMenu] = useState(null); // the "/" menu: { id, query, index } or null
   const [dragId, setDragId] = useState(null); // the block being dragged, or null
+  const root = useRef(null);
+  const [selected, setSelected] = useState(() => new Set()); // blocks touched by a selection that spans several blocks
+  const latest = useRef(blocks);
+  latest.current = blocks;
+  const [chosen, setChosen] = useState(() => new Set()); // whole blocks that are picked (handle click, Esc, or a box)
+  const anchor = useRef(null);        // the block a Shift+click or Shift+arrow range grows from
+  const justDragged = useRef(false);  // a handle drag must not also count as a click
+  const [box, setBox] = useState(null); // the box being dragged over blocks: { x, y, w, h } inside the editor
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -335,6 +361,179 @@ export default function BlockEditor({ blocks, onChange }) {
 
   function focusAfterChange(id, at) {
     pendingFocus.current = { id, at };
+  }
+
+  // The ids of the visible blocks a selection touches, in order, when it spans more than one (else an empty list).
+  function selectedIdsNow() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount || selection.isCollapsed || !root.current?.contains(selection.getRangeAt(0).commonAncestorContainer)) return [];
+    const range = selection.getRangeAt(0);
+    const ids = blockRows(latest.current)
+      .filter((row) => !row.hidden)
+      .map((row) => row.block.id)
+      .filter((id) => elements.current[id] && range.intersectsNode(elements.current[id]));
+    return ids.length > 1 ? ids : [];
+  }
+
+  // ---- Picking whole blocks ----
+  const visibleIds = () => blockRows(latest.current).filter((row) => !row.hidden).map((row) => row.block.id);
+  const clearChosen = () => setChosen((previous) => (previous.size ? new Set() : previous));
+
+  // Click a handle: pick that block. Shift: everything from the last pick to here. Ctrl/Cmd (or already picking): add or remove it.
+  function pick(id, event) {
+    if (justDragged.current) return;
+    const ids = visibleIds();
+    window.getSelection().removeAllRanges();
+    if (event.shiftKey && anchor.current && ids.includes(anchor.current)) {
+      const [from, to] = [ids.indexOf(anchor.current), ids.indexOf(id)].sort((a, b) => a - b);
+      setChosen(new Set(ids.slice(from, to + 1)));
+      return;
+    }
+    anchor.current = id;
+    setChosen((previous) => {
+      const next = new Set(event.ctrlKey || event.metaKey || previous.size > 1 ? previous : []);
+      if (previous.has(id) && next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // The picked blocks, in order (and the ones inside a collapsed list that go with them).
+  const pickedBlocks = () => latest.current.filter((b) => chosen.has(b.id));
+
+  function removeChosen() {
+    const keep = blocks.filter((b) => !chosen.has(b.id));
+    const next = keep.length ? keep : [newBlock()];
+    const at = Math.min(blocks.findIndex((b) => chosen.has(b.id)), next.length - 1);
+    setChosen(new Set());
+    onChange(next);
+    focusAfterChange(next[Math.max(0, at)].id, 'start');
+  }
+
+  function indentChosen(delta) {
+    onChange(blocks.map((b) => (chosen.has(b.id) && LIST_TYPES.includes(b.type) ? { ...b, indent: Math.max(0, (Number(b.indent) || 0) + delta) } : b)));
+  }
+
+  function copyChosen() {
+    const text = blocksToText(pickedBlocks());
+    navigator.clipboard?.writeText(text).catch(() => {});
+  }
+
+  // While blocks are picked the keyboard works on them (unless you are typing in a block or a field).
+  useEffect(() => {
+    if (!chosen.size) return;
+    function onKey(event) {
+      const typing = document.activeElement?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '');
+      if (typing) return;
+      const ids = visibleIds();
+      if (event.key === 'Escape') {
+        setChosen(new Set());
+      } else if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault();
+        removeChosen();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        copyChosen();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        setChosen(new Set(ids));
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        indentChosen(event.shiftKey ? -1 : 1);
+      } else if (event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        // Grow the pick by one block above the first picked or below the last picked.
+        event.preventDefault();
+        const picked = ids.filter((id) => chosen.has(id));
+        const edge = event.key === 'ArrowUp' ? ids.indexOf(picked[0]) - 1 : ids.indexOf(picked[picked.length - 1]) + 1;
+        if (ids[edge]) setChosen(new Set([...chosen, ids[edge]]));
+      } else {
+        return;
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  // Drag a box over blocks from the empty space beside or under them (mouse only; on a touch screen the page scrolls).
+  function startBox(event) {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || event.target.closest('.block-text, .block-grip, input, button, .slash-menu')) return;
+    const area = root.current.getBoundingClientRect();
+    const start = { x: event.clientX, y: event.clientY };
+    const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+    const before = additive ? chosen : new Set();
+    let moved = false;
+    window.getSelection().removeAllRanges();
+
+    function move(e) {
+      if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 4) return;
+      moved = true;
+      const left = Math.min(start.x, e.clientX);
+      const top = Math.min(start.y, e.clientY);
+      const right = Math.max(start.x, e.clientX);
+      const bottom = Math.max(start.y, e.clientY);
+      setBox({ x: left - area.left, y: top - area.top, w: right - left, h: bottom - top });
+      const hit = new Set(before);
+      for (const id of visibleIds()) {
+        const r = root.current.querySelector(`[data-block="${id}"]`)?.getBoundingClientRect();
+        if (r && r.left < right && r.right > left && r.top < bottom && r.bottom > top) hit.add(id);
+      }
+      setChosen(hit);
+    }
+    function end() {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      setBox(null);
+      if (!moved && !additive) setChosen(new Set()); // a plain click on empty space lets go
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+  }
+
+  // Tint the blocks while a selection spans several of them.
+  useEffect(() => {
+    function onSelectionChange() {
+      const ids = selectedIdsNow();
+      setSelected((previous) => (previous.size === ids.length && ids.every((id) => previous.has(id)) ? previous : new Set(ids)));
+    }
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+  }, []);
+
+  // The part of a block's HTML before the selection starts, or after it ends (empty if the selection reaches past that block).
+  function edgeHtml(element, range, side) {
+    const part = document.createRange();
+    part.selectNodeContents(element);
+    if (side === 'before') {
+      if (!element.contains(range.startContainer)) return '';
+      part.setEnd(range.startContainer, range.startOffset);
+    } else {
+      if (!element.contains(range.endContainer)) return '';
+      part.setStart(range.endContainer, range.endOffset);
+    }
+    const box = document.createElement('div');
+    box.appendChild(part.cloneContents());
+    return box.innerHTML;
+  }
+
+  // Delete what is selected across several blocks: the text before it in the first block and the text after it in
+  // the last block are joined, and the blocks in between disappear.
+  function deleteSelection(ids) {
+    const range = window.getSelection().getRangeAt(0);
+    const first = ids[0];
+    const head = edgeHtml(elements.current[first], range, 'before');
+    const tail = edgeHtml(elements.current[ids[ids.length - 1]], range, 'after');
+    const gone = new Set(ids.slice(1));
+    onChange(blocks.filter((b) => !gone.has(b.id)).map((b) => (b.id === first ? { ...b, html: head + tail } : b)));
+    focusAfterChange(first, htmlToText(head).length);
+  }
+
+  // Ctrl+X over several blocks: put the text on the clipboard, then delete it.
+  function cut(event) {
+    const ids = selectedIdsNow();
+    if (!ids.length) return;
+    event.preventDefault();
+    event.clipboardData.setData('text/plain', window.getSelection().toString());
+    deleteSelection(ids);
   }
 
   const update = (id, patch) => onChange(blocks.map((block) => (block.id === id ? { ...block, ...patch } : block)));
@@ -383,6 +582,22 @@ export default function BlockEditor({ blocks, onChange }) {
     const element = elements.current[block.id];
     if (event.nativeEvent.isComposing) return;
 
+    // Several blocks are selected: Backspace / Delete / Enter remove the selection, Tab indents the list items in it.
+    const picked = selectedIdsNow();
+    if (picked.length && !event.ctrlKey && !event.metaKey) {
+      if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Enter') {
+        event.preventDefault();
+        deleteSelection(picked);
+        return;
+      }
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        const delta = event.shiftKey ? -1 : 1;
+        onChange(blocks.map((b) => (picked.includes(b.id) && LIST_TYPES.includes(b.type) ? { ...b, indent: Math.max(0, (Number(b.indent) || 0) + delta) } : b)));
+        return;
+      }
+    }
+
     // The "/" menu is open: the keys drive it.
     if (menu?.id === block.id) {
       const items = menuItems(menu.query);
@@ -405,6 +620,15 @@ export default function BlockEditor({ blocks, onChange }) {
       }
     }
 
+    // Esc in a block: pick the whole block (the keyboard then works on picked blocks).
+    if (event.key === 'Escape' && !event.defaultPrevented) {
+      event.preventDefault();
+      anchor.current = block.id;
+      element.blur();
+      setChosen(new Set([block.id]));
+      return;
+    }
+
     // Tab indents list items; Shift+Tab outdents them.
     if (event.key === 'Tab' && LIST_TYPES.includes(block.type)) {
       event.preventDefault();
@@ -413,31 +637,26 @@ export default function BlockEditor({ blocks, onChange }) {
       return;
     }
 
-    // Enter: a new block.
-    if (event.key === 'Enter' && !event.shiftKey) {
+    // Enter: a new line inside the block (an empty list item ends the list). Shift+Enter: a new block.
+    if (event.key === 'Enter') {
       event.preventDefault();
-      if (block.type === 'code') {
-        document.execCommand('insertText', false, '\n'); // inside code, Enter is a new line
+      const isEmpty = htmlToText(block.html).trim() === '';
+      if (!event.shiftKey) {
+        if (REPEATS.includes(block.type) && isEmpty) {
+          update(block.id, { type: 'p', indent: 0 }); // an empty list item ends the list
+          focusAfterChange(block.id, 'start');
+        } else if (block.type === 'code') {
+          document.execCommand('insertText', false, '\n');
+        } else {
+          document.execCommand('insertLineBreak');
+        }
         return;
       }
       const [before, after] = splitAtCaret(element);
-      const isEmpty = htmlToText(block.html).trim() === '';
-      if (REPEATS.includes(block.type) && isEmpty) {
-        update(block.id, { type: 'p', indent: 0 }); // an empty list item ends the list
-        focusAfterChange(block.id, 'start');
-        return;
-      }
       const repeats = REPEATS.includes(block.type);
       const created = { ...newBlock(repeats ? block.type : 'p', after), ...(repeats ? { indent: block.indent ?? 0 } : {}) };
       onChange([...blocks.slice(0, index), { ...block, html: before }, created, ...blocks.slice(index + 1)]);
       focusAfterChange(created.id, 'start');
-      return;
-    }
-
-    // Shift+Enter: a line break inside the block.
-    if (event.key === 'Enter' && event.shiftKey) {
-      event.preventDefault();
-      document.execCommand('insertLineBreak');
       return;
     }
 
@@ -493,6 +712,8 @@ export default function BlockEditor({ blocks, onChange }) {
   // ---- dragging a block to a new place
   function onDragEnd({ active, over }) {
     setDragId(null);
+    justDragged.current = true; // the click that ends a drag must not pick the block
+    setTimeout(() => (justDragged.current = false), 0);
     if (!over || active.id === over.id) return;
     const from = blocks.findIndex((b) => b.id === active.id);
     const to = blocks.findIndex((b) => b.id === over.id);
@@ -513,10 +734,10 @@ export default function BlockEditor({ blocks, onChange }) {
 
   const dragged = blocks.find((block) => block.id === dragId);
 
-  const actions = { update, input, key, paste, choose, menuItems, toggleCollapse, register: (id, node) => (elements.current[id] = node) };
+  const actions = { update, input, key, paste, cut, pick, clearChosen, choose, menuItems, toggleCollapse, register: (id, node) => (elements.current[id] = node) };
 
   return (
-    <div className="blocks">
+    <div className="blocks" ref={root} onPointerDown={startBox}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -526,7 +747,7 @@ export default function BlockEditor({ blocks, onChange }) {
       >
         <SortableContext items={visibleRows.map(({ block }) => block.id)} strategy={verticalListSortingStrategy}>
           {visibleRows.map(({ block, index, hasChildren }) => (
-            <BlockRow key={block.id} block={block} number={numbers[index]} menu={menu} actions={actions} hasChildren={hasChildren} />
+            <BlockRow key={block.id} block={block} number={numbers[index]} menu={menu} actions={actions} hasChildren={hasChildren} selected={selected.has(block.id)} chosen={chosen.has(block.id)} />
           ))}
         </SortableContext>
         <DragLayer>
@@ -537,6 +758,29 @@ export default function BlockEditor({ blocks, onChange }) {
           )}
         </DragLayer>
       </DndContext>
+
+      {box && <div className="block-box" style={{ left: box.x, top: box.y, width: box.w, height: box.h }} aria-hidden="true" />}
+
+      {chosen.size > 0 && (
+        <div className="block-bar" role="toolbar" aria-label="Picked blocks">
+          <span className="mono">{chosen.size} {chosen.size === 1 ? 'block' : 'blocks'}</span>
+          <button type="button" className="btn-ghost" onClick={copyChosen}>
+            Copy
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => indentChosen(1)} title="Indent list items (Tab)">
+            Indent
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => indentChosen(-1)} title="Outdent list items (Shift+Tab)">
+            Outdent
+          </button>
+          <button type="button" className="btn-ghost danger" onClick={removeChosen}>
+            Delete
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => setChosen(new Set())} aria-label="Let go" title="Let go (Esc)">
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,16 +1,15 @@
-// appearance.js = the look of the app: the theme, the animated wallpaper, and the background picture.
+// appearance.js = the look of the app: the theme, the font, and what is behind the page (a photo, or a picture or
+// video you added).
 //
-//   - theme, wallpaper, dim and each wallpaper's settings are saved with saveSetting() (store.js),
-//     so they sync between your devices.
+//   - the choices are saved with saveSetting() (store.js), so they sync between your devices.
 //   - the pictures and videos you add are too big to sync. They live in this browser only, in
-//     IndexedDB (a small database inside the browser). Which picture is chosen is kept in localStorage.
+//     IndexedDB (a small database inside the browser). Which picture is chosen syncs like the other choices.
 //
-// The wallpapers are Lively Wallpaper web pages, copied into public/lively/ by scripts/import-lively.mjs.
-// Their list is src/wallpapers/catalog.json. The colours of each theme live in appearance.css.
+// Readability over a background is automatic (see AUTO READABILITY). The colours of each theme live in appearance.css.
 
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import { getState, saveSetting, useStore } from './store.js';
-import catalog from './wallpapers/catalog.json';
+import { getState, saveSetting, subscribe, useStore } from './store.js';
+import { onSynced } from './sync.js';
 
 // Each theme: [id used in appearance.css, name shown in Settings].
 // ("ember" is the original look; it is shown as "Default".) A theme is more than colours: it also sets
@@ -21,119 +20,79 @@ export const THEMES = [
   ['liquid', 'Liquid'],
   ['paper', 'Paper'],
   ['terminal', 'Terminal'],
+  ['dusk', 'Dusk'],
 ];
 
 
 // ======================================================================
 // THE WALLPAPER CHOICE
 // ======================================================================
-// A wallpaper is chosen by an id:
-//   'off'              no wallpaper
-//   'liquid'           the built-in liquid wallpaper
-//   'matrix'           the built-in falling-code wallpaper
-//   'gravity'          the built-in particles-and-gravity-points wallpaper
-//   'lively:rain'      a Lively wallpaper from the catalog (here, the one with id "rain")
+// What plays over the background picture:
+//   'off'              nothing (just the picture, or no picture)
 //   'video:<id>'       a video you added
 export const OFF = 'off';
-export const LIQUID = 'liquid'; // the built-in liquid wallpaper (src/wallpapers/liquid.js)
-export const MATRIX = 'matrix'; // the built-in falling-code wallpaper (src/wallpapers/matrix.js)
-export const GRAVITY = 'gravity'; // the built-in gravity wallpaper (src/wallpapers/gravity.js)
-export const LIVELY = catalog; // [{ id, title, desc, author, entry, thumbnail, preview, properties, ... }]
 
-// Find a catalog entry from a wallpaper id like 'lively:rain'. Returns undefined if there isn't one.
-export function findLively(wallpaperId) {
-  if (!wallpaperId.startsWith('lively:')) return undefined;
-  return LIVELY.find((wallpaper) => wallpaper.id === wallpaperId.slice('lively:'.length));
-}
-
-// The built-in Liquid wallpaper described like a catalog entry, so it gets the same settings card as the others.
-export const LIQUID_INFO = {
-  id: 'liquid',
-  title: 'Liquid',
-  author: 'Built in',
-  desc: 'Glowing liquid blobs that drift and merge.',
-  seeThrough: true,
-  properties: [
-    { name: 'speed', type: 'slider', text: 'Speed', min: 0.2, max: 3, step: 0.1, value: 1 },
-    { name: 'blobs', type: 'slider', text: 'Blobs', min: 3, max: 12, step: 1, value: 7 },
-    { name: 'size', type: 'slider', text: 'Blob size', min: 0.5, max: 1.8, step: 0.1, value: 1 },
-    { name: 'colors', type: 'dropdown', text: 'Colours', items: ['Theme', 'Aurora', 'Sunset', 'Ocean', 'Mono'], value: 0 },
-    { name: 'mouse', type: 'checkbox', text: 'Follows the mouse', value: true },
+// ======================================================================
+// EACH THEME'S OWN TWO SETTINGS (Settings > Style)
+// ======================================================================
+// kind: 'swatch' (pick a colour), 'switch' (on or off) or 'slider'. Saved as `<theme>_<key>`, so every theme remembers its own.
+export const THEME_OPTIONS = {
+  ember: [{ key: 'lines', label: 'Divider lines', kind: 'switch', default: true }],
+  light: [{ key: 'lines', label: 'Divider lines', kind: 'switch', default: true }],
+  liquid: [
+    { key: 'backing', label: 'Backing', kind: 'slider', min: 0, max: 90, step: 1, unit: '%', default: 43 },
+    { key: 'blur', label: 'Blur', kind: 'slider', min: 0, max: 30, step: 1, unit: 'px', default: 9 },
   ],
+  paper: [
+    { key: 'grain', label: 'Paper grain', kind: 'switch', default: true },
+    { key: 'ink', label: 'Ink shadows', kind: 'switch', default: true },
+  ],
+  terminal: [
+    { key: 'phosphor', label: 'Phosphor', kind: 'swatch', choices: [['green', 'Green', '#39ff7a'], ['amber', 'Amber', '#ffb000'], ['cyan', 'Cyan', '#4dd7ff'], ['white', 'White', '#e8e2d6']], default: 'green' },
+    { key: 'scan', label: 'Scan lines', kind: 'switch', default: true },
+  ],
+  dusk: [{ key: 'glow', label: 'Glow', kind: 'slider', min: 0, max: 100, step: 1, unit: '%', default: 40 }],
 };
 
-// The settings of the Liquid wallpaper as { speed, blobs, ... }, from what you changed (see valueOf below).
-export function liquidSettings(values) {
-  return Object.fromEntries(LIQUID_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
-}
-
-// The built-in Matrix wallpaper, described the same way (it draws its own black background, so no picture goes under it).
-export const MATRIX_INFO = {
-  id: 'matrix',
-  title: 'Matrix',
-  author: 'Built in',
-  desc: 'Falling green code with depth, glow and a mouse light.',
-  properties: [
-    { name: 'matrixColor', type: 'color', text: 'Colour', value: '#00ff46' },
-    { name: 'speed', type: 'slider', text: 'Speed', min: 0.3, max: 3, step: 0.1, value: 1 },
-    { name: 'density', type: 'slider', text: 'Density', min: 0.2, max: 1, step: 0.05, value: 0.8 },
-    { name: 'trail', type: 'slider', text: 'Trail length', min: 6, max: 40, step: 1, value: 20 },
-    { name: 'size', type: 'slider', text: 'Glyph size', min: 10, max: 32, step: 1, value: 16 },
-    { name: 'glyphs', type: 'dropdown', text: 'Glyphs', items: ['Katakana', 'Binary', 'Digits', 'Hex', 'Symbols'], value: 0 },
-    { name: 'depth', type: 'slider', text: 'Depth layers', min: 1, max: 3, step: 1, value: 3 },
-    { name: 'glow', type: 'checkbox', text: 'Glow', value: true },
-    { name: 'mouse', type: 'checkbox', text: 'Mouse lights the code', value: true },
-    { name: 'rainbow', type: 'checkbox', text: 'Rainbow', value: false },
-    { name: 'rainbowSpeed', type: 'slider', text: 'Rainbow speed', min: 0, max: 100, step: 5, value: 40 },
-  ],
+// The accent colours offered ('' = the theme's own), the base colours for dark and for light themes, the text sizes,
+// corner styles and densities (Settings > Style).
+export const ACCENT_COLORS = ['#ff6b57', '#f0b35a', '#7ee0a1', '#5eb8ff', '#c59bff', '#ff8fc7'];
+export const MAIN_COLORS = {
+  dark: ['#0c0b0a', '#0b0f1a', '#0d1410', '#150d16', '#17181b', '#1a1208'],
+  light: ['#f6f2ea', '#ffffff', '#e9f1ec', '#eaf0f8', '#f4eaf0', '#f1ece0'],
 };
-
-// The settings of the Matrix wallpaper as { matrixColor, speed, ... }.
-export function matrixSettings(values) {
-  return Object.fromEntries(MATRIX_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
-}
-
-// The built-in Gravity wallpaper (a port of "Gravity Points" by Akimitsu Hamamuro, see wallpapers/gravity.js).
-export const GRAVITY_INFO = {
-  id: 'gravity',
-  title: 'Gravity',
-  author: 'Akimitsu Hamamuro (port)',
-  contact: 'https://codepen.io/akm2/full/AGgarW',
-  desc: 'Particles streak through the dark and fall into gravity points that merge and collapse.',
-  properties: [
-    { name: 'particles', type: 'slider', text: 'Particles', min: 20, max: 500, step: 10, value: 150 },
-    { name: 'points', type: 'slider', text: 'Gravity points', min: 0, max: 6, step: 1, value: 3 },
-    { name: 'mouse', type: 'checkbox', text: 'Mouse pulls particles', value: true },
-    { name: 'background', type: 'color', text: 'Background', value: '#0b3338' },
-    { name: 'accent', type: 'color', text: 'Point colour', value: '#67b5bf' },
-  ],
+export const TEXT_SIZES = [['s', 'Small', 0.92], ['m', 'Normal', 1], ['l', 'Large', 1.12]];
+// Focus: how much of the extras the app shows. 'default' is everything; 'normal' drops the eye-catching extras (the
+// late-task jabs, streak badges) and half of the jokes; 'strict' also drops the jokes and the decoration.
+export const FOCUS = [['strict', 'Strict'], ['normal', 'Normal'], ['default', 'Default']];
+export const FOCUS_NOTES = {
+  strict: 'No jokes or decoration. Only what you need.',
+  normal: 'Calmer: no jabs or streak badges, fewer jokes. Colours stay.',
+  default: 'Everything.',
 };
+export const DENSITIES = [['roomy', 'Roomy'], ['normal', 'Normal'], ['compact', 'Compact']];
 
-// The settings of the Gravity wallpaper as { particles, points, ... }.
-export function gravitySettings(values) {
-  return Object.fromEntries(GRAVITY_INFO.properties.map((property) => [property.name, valueOf(property, values)]));
-}
+// The text colours offered (the box next to them takes any other). '' = the theme's own.
+export const TEXT_COLORS = ['#ffffff', '#f3ead9', '#ffd9a0', '#bfe3ff', '#b8ffc8', '#111111'];
 
-// A "pick a picture" setting of a wallpaper (Rain's background). It is not shown in the wallpaper's own
-// settings: the picture is chosen once, in the gallery, and handed to the wallpaper (see Wallpaper.jsx).
-export const takesPicture = (property) => property.type === 'folderDropdown' && /jpe?g|png/i.test(property.filter ?? '');
+const optionDefaults = Object.fromEntries(Object.entries(THEME_OPTIONS).flatMap(([theme, list]) => list.map((o) => [`${theme}_${o.key}`, o.default])));
 
-// Does this wallpaper (a catalog entry) show a picture? Either it asks for one (Rain) or you can see through it.
-const showsPicture = (wallpaper) => !!wallpaper && (!!wallpaper.seeThrough || wallpaper.properties.some(takesPicture));
-
-// The same, from a wallpaper id ('off', 'liquid', 'lively:rain', 'video:...').
-export function usesPicture(wallpaperId) {
-  if (wallpaperId === LIQUID) return true;
-  return showsPicture(findLively(wallpaperId ?? OFF));
-}
-
-// (glass has no fixed default: see useAppearance. autoFix is "Auto" in Settings > Readability.)
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, dim: 0.3, font: 'theme', autoFix: true, textColor: '' };
-export const MAX_DIM = 0.7;
+const DEFAULTS = {
+  theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0,
+  textColor: '', mainColor: '', accent: '', textSize: 'm', focus: 'default', density: 'normal', wallBright: 100, wallVibrance: 100,
+  ...optionDefaults,
+};
 export const MAX_GLASS = 0.9;
+
+// The film over the background (Dim) and the frosted panels behind the text (Glass) start here; Auto readability
+// (Wallpaper.jsx) adds just enough on top for the text to stay readable. The Liquid theme is different: no film, and its
+// glass is always exactly this (a 43% dark tint, blurred by 43% of 20px), whatever the picture.
+const DIM = 0.3;
+const GLASS = 0.4;
+export const LIQUID_GLASS = 0.43;
 const SETTING_ID = 'appearance'; // the one record in the settings table that holds theme, wallpaper and dim
 
-// The current choices, as { theme, wallpaper, dim, glass, font, autoFix, textColor, look }.
+// The current choices, as { theme, wallpaper, dim, glass, font, look, taskGroups, showRepeating, ... }.
 // Anything unknown (for example from a newer version of the app) falls back to the default.
 export function useAppearance() {
   const state = useStore();
@@ -141,29 +100,40 @@ export function useAppearance() {
   const choices = { ...DEFAULTS, ...(saved && !saved._deleted ? saved : {}) };
 
   const theme = THEMES.some(([id]) => id === choices.theme) ? choices.theme : DEFAULTS.theme;
-  const dim = Math.min(MAX_DIM, Math.max(0, Number(choices.dim) || 0)); // never so dark that a wallpaper disappears
-  // Glass is the backing behind the text. The Liquid theme starts with none (it adds nothing over the page); the others start at 40%.
-  const glass = Math.min(MAX_GLASS, Math.max(0, Number(choices.glass ?? (theme === 'liquid' ? 0 : 0.4))));
-  const autoFix = choices.autoFix !== false;
-
-  let wallpaper = OFF;
-  if (choices.wallpaper === LIQUID || choices.wallpaper === MATRIX || choices.wallpaper === GRAVITY || (typeof choices.wallpaper === 'string' && (findLively(choices.wallpaper) || choices.wallpaper.startsWith('video:')))) {
-    wallpaper = choices.wallpaper;
+  const dim = theme === 'liquid' ? 0 : DIM;
+  // This theme's own two settings, each checked against what it allows (anything odd falls back to the default).
+  const opts = {};
+  for (const o of THEME_OPTIONS[theme]) {
+    const value = choices[`${theme}_${o.key}`];
+    if (o.kind === 'switch') opts[o.key] = typeof value === 'boolean' ? value : o.default;
+    else if (o.kind === 'slider') opts[o.key] = Number.isFinite(Number(value)) ? Math.min(o.max, Math.max(o.min, Number(value))) : o.default;
+    else opts[o.key] = o.choices.some(([id]) => id === value) ? value : o.default;
   }
+  const glass = theme === 'liquid' ? opts.backing / 100 : GLASS;
+  const liquidBlur = theme === 'liquid' ? opts.blur : null;
+  const textColor = /^#[0-9a-f]{6}$/i.test(choices.textColor ?? '') ? choices.textColor : '';
+  const hex = (value) => (/^#[0-9a-f]{6}$/i.test(value ?? '') ? value : '');
+  const mainColor = hex(choices.mainColor);
+  const accent = hex(choices.accent);
+  const textSize = TEXT_SIZES.some(([id]) => id === choices.textSize) ? choices.textSize : 'm';
+  const focus = FOCUS.some(([id]) => id === choices.focus) ? choices.focus : 'default';
+  const density = DENSITIES.some(([id]) => id === choices.density) ? choices.density : 'normal';
+  // The background picture's brightness and vibrance, in percent (100 = as it is).
+  const clampTo = (value, min, max) => (Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Number(value))) : 100);
+  const wallBright = clampTo(choices.wallBright, 40, 160);
+  const wallVibrance = clampTo(choices.wallVibrance, 0, 200);
+  // (A wallpaper from an older version, like an animated one that no longer exists, falls back to none.)
+  const wallpaper = typeof choices.wallpaper === 'string' && choices.wallpaper.startsWith('video:') ? choices.wallpaper : OFF;
 
   const font = FONTS.some((preset) => preset.id === choices.font) ? choices.font : DEFAULTS.font;
 
-  // The text colour: '' = the theme's own, otherwise a #rrggbb colour you picked.
-  const textColor = /^#[0-9a-f]{6}$/i.test(choices.textColor ?? '') ? choices.textColor : '';
+  const pushDefaultTime = /^\d{2}:\d{2}$/.test(choices.pushDefaultTime ?? '') ? choices.pushDefaultTime : choices.pushDefaultTime === '' ? '' : DEFAULTS.pushDefaultTime; // '' = none
+  const noteEditor = ['rich', 'blocks', 'markdown'].includes(choices.noteEditor) ? choices.noteEditor : DEFAULTS.noteEditor; // which editor notes open in
+  const pushLead = [0, 5, 10, 15, 30, 60, 120, 1440].includes(Number(choices.pushLead)) ? Number(choices.pushLead) : 0; // minutes of warning before a timed task or reminder; 0 = none
+  const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
+  const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  // How the Liquid theme's glass looks: each setting is 0 to 1 (see GLASS_LOOK).
-  const look = {};
-  for (const key of Object.keys(GLASS_LOOK)) {
-    const saved = Number(choices[GLASS_PREFIX + key] ?? GLASS_LOOK[key]);
-    look[key] = Math.min(1, Math.max(0, Number.isNaN(saved) ? GLASS_LOOK[key] : saved));
-  }
-
-  return { theme, wallpaper, dim, glass, font, autoFix, textColor, look };
+  return { theme, wallpaper, dim, glass, liquidBlur, font, look: GLASS_LOOK, opts, textColor, mainColor, accent, textSize, focus, density, wallBright, wallVibrance, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).
@@ -171,47 +141,124 @@ export function setAppearance(patch) {
   saveSetting(SETTING_ID, patch);
 }
 
+// Put every choice back to how it started.
+export function resetAppearance() {
+  setAppearance({ ...DEFAULTS });
+}
+
+// Puts the text colour on the page. It replaces the theme's text shades (normal, soft, muted, faint) with the one colour at
+// different strengths, and tints the lines too, so the whole page follows it. '' removes it, so the theme's own colours show.
+const TEXT_COLOR_MIXES = { '--text-soft': 88, '--muted': 62, '--faint': 36, '--faint-text': 62, '--line': 14, '--line-mid': 22, '--line-hi': 34, '--track': 10 };
+export function useApplyTextColor(color) {
+  useLayoutEffect(() => {
+    const style = document.documentElement.style;
+    const names = ['--text', ...Object.keys(TEXT_COLOR_MIXES)];
+    if (!color) {
+      for (const name of names) style.removeProperty(name);
+      return;
+    }
+    style.setProperty('--text', color);
+    for (const [name, percent] of Object.entries(TEXT_COLOR_MIXES)) style.setProperty(name, `color-mix(in srgb, ${color} ${percent}%, transparent)`);
+  }, [color]);
+}
+
+// How easy `color` is to read on `background` (both #rrggbb): 1 is no difference, 21 is black on white. 4.5 is the usual minimum for text.
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+export function contrastBetween(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// Puts the theme's own settings on the page (on/off ones as attributes appearance.css reads, sliders as CSS variables).
+export function useApplyThemeOptions(theme, opts) {
+  const key = JSON.stringify(opts);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.style.removeProperty('--dusk-glow');
+    for (const name of ['data-lines', 'data-grain', 'data-ink', 'data-phosphor', 'data-scan']) root.removeAttribute(name);
+
+    if ((theme === 'ember' || theme === 'light') && !opts.lines) root.setAttribute('data-lines', 'off');
+    if (theme === 'paper') {
+      if (!opts.grain) root.setAttribute('data-grain', 'off');
+      if (!opts.ink) root.setAttribute('data-ink', 'off');
+    }
+    if (theme === 'terminal') {
+      if (opts.phosphor !== 'green') root.setAttribute('data-phosphor', opts.phosphor);
+      if (!opts.scan) root.setAttribute('data-scan', 'off');
+    }
+    if (theme === 'dusk') root.style.setProperty('--dusk-glow', String(opts.glow / 100));
+  }, [theme, key]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// The look that applies to every theme: a main (page) colour, an accent colour, the text size, how round the corners
+// are, and how tight the rows are. Each is "off" (the theme's own) until chosen.
+const mixHex = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+const lightness = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return (r * 299 + g * 587 + b * 114) / 255000;
+};
+export function useApplyLook(theme, { mainColor, accent, textSize, focus, density }) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const style = root.style;
+
+    // accent
+    if (accent) style.setProperty('--accent', accent);
+    else style.removeProperty('--accent');
+
+    // main colour: the page, and the panels and fields built from it
+    const main = ['--bg', '--surface', '--panel-a', '--panel-b', '--panel-c', '--track'];
+    if (mainColor) {
+      const dark = lightness(mainColor) < 0.5;
+      const toward = dark ? '#ffffff' : '#000000';
+      const mix = (amount) => mixHex(mainColor, toward, amount);
+      style.setProperty('--bg', mainColor);
+      style.setProperty('--surface', mix(dark ? 0.05 : 0.04));
+      style.setProperty('--panel-a', mix(dark ? 0.03 : 0.02));
+      style.setProperty('--panel-b', mix(dark ? 0.08 : 0.05));
+      style.setProperty('--panel-c', mix(dark ? 0.05 : 0.035));
+      style.setProperty('--track', mix(dark ? 0.07 : 0.06));
+      root.setAttribute('data-main', '');
+    } else {
+      main.forEach((name) => style.removeProperty(name));
+      root.removeAttribute('data-main');
+    }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim() || '#0c0b0a');
+
+    // text size: the whole page is scaled (heights that depend on the window are divided by the same number in the CSS)
+    const zoom = TEXT_SIZES.find(([id]) => id === textSize)?.[2] ?? 1;
+    style.setProperty('--zoom', String(zoom));
+    style.zoom = zoom === 1 ? '' : String(zoom);
+
+    // focus: appearance.css hides the extras and mutes the colours for this attribute
+    root.setAttribute('data-focus', focus);
+
+    // density: tighter or looser rows (appearance.css reads the attribute)
+    root.setAttribute('data-density', density);
+  }, [theme, mainColor, accent, textSize, focus, density]);
+}
+
 // Puts the theme on the page: <html data-theme="forest">. appearance.css reads that attribute.
 export function useApplyTheme(theme) {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
+    // The browser's own bar (and the iPhone status bar) takes the theme's background instead of staying black.
+    const colour = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (colour) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colour);
   }, [theme]);
 }
 
 
-// Puts your text colour on the page. It replaces the theme's four text shades (normal, soft, muted, faint) with
-// the one colour at different strengths. '' removes it, so the theme's own colours show.
-export function useApplyTextColor(color) {
-  useLayoutEffect(() => {
-    const style = document.documentElement.style;
-    if (!color) {
-      for (const name of ['--text', '--text-soft', '--muted', '--faint']) style.removeProperty(name);
-      return;
-    }
-    style.setProperty('--text', color);
-    style.setProperty('--text-soft', `color-mix(in srgb, ${color} 88%, transparent)`);
-    style.setProperty('--muted', `color-mix(in srgb, ${color} 62%, transparent)`);
-    style.setProperty('--faint', `color-mix(in srgb, ${color} 36%, transparent)`);
-  }, [color]);
-}
-
-
-// ---- The look of the Liquid theme's glass. Every setting is 0 to 1, and these are the starting values.
+// ---- The look of the Liquid theme's glass, fixed. Every setting is 0 to 1:
 //   frost      how blurry it is                  vibrancy   how much the colours behind it are boosted
 //   shine      how bright the light on the edges is    depth      how deep the shadow under the panels is
 //   round      how round the corners are
-export const GLASS_LOOK = { frost: 0.3, vibrancy: 0.5, shine: 0.6, depth: 0.5, round: 0.7 };
-const GLASS_PREFIX = 'glass_'; // saved as glass_frost, glass_shine...
-
-export function setGlassLook(patch) {
-  const saved = {};
-  for (const [key, value] of Object.entries(patch)) saved[GLASS_PREFIX + key] = value;
-  saveSetting(SETTING_ID, saved);
-}
-
-export function resetGlassLook() {
-  setGlassLook(Object.fromEntries(Object.keys(GLASS_LOOK).map((key) => [key, null]))); // null = the starting value
-}
+// (Clear glass, rich colour, bright edges, deep shadow, very round corners.)
+export const GLASS_LOOK = { frost: 0, vibrancy: 1, shine: 1, depth: 1, round: 1 };
 
 // Puts the glass look on the page (only while the Liquid theme is on). It is all plain CSS: these are variables
 // that the Liquid rules in appearance.css read.
@@ -305,8 +352,33 @@ export function backingNeeded(tones, text, muted, bg) {
   return high;
 }
 
+// The picture's own colour, for the Liquid theme's flames: the average of its pixels weighted by how vivid they are (so a grey
+// sky doesn't wash out a red sunset), pushed to a fire-bright { flame, core } pair of hex colours. null for a grey picture.
+function flameColours(pixels) {
+  let r = 0, g = 0, b = 0, total = 0;
+  for (const [pr, pg, pb] of pixels) {
+    const vivid = (Math.max(pr, pg, pb) - Math.min(pr, pg, pb)) ** 2;
+    r += pr * vivid; g += pg * vivid; b += pb * vivid; total += vivid;
+  }
+  if (total < 0.5) return null;
+  const [h, s] = rgbToHsl(r / total, g / total, b / total);
+  return { flame: hslToHex(h, Math.max(s, 0.65), 0.55), core: hslToHex(h, Math.max(s, 0.65), 0.88) };
+}
+function rgbToHsl(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, l = (max + min) / 2;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function hslToHex(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h / 60) % 6];
+  return '#' + [r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+}
+
 // The darkest and brightest parts of the picture or video behind the page, as { dark, light } (0 = black, 1 = white),
-// or null if there is none or it can't be measured. The picture is shrunk to a tiny 24 x 24 copy (which also blurs it,
+// plus its flame colours { flame, core } (see flameColours), or null if there is none or it can't be measured. The picture is shrunk to a tiny 24 x 24 copy (which also blurs it,
 // like the frosted panels do, so a tiny glint doesn't count), and its darkest and brightest pixels are what count:
 // text can land anywhere, so it has to be readable over both.
 export function useBackdropTones(imageUrl, videoUrl) {
@@ -328,8 +400,13 @@ export function useBackdropTones(imageUrl, videoUrl) {
         ctx.drawImage(source, 0, 0, 24, 24);
         const { data } = ctx.getImageData(0, 0, 24, 24);
         const pixels = [];
-        for (let i = 0; i < data.length; i += 4) pixels.push(toLooks(lightOf(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255)));
-        setTones({ dark: Math.min(...pixels), light: Math.max(...pixels) });
+        const colours = [];
+        for (let i = 0; i < data.length; i += 4) {
+          const rgb = [data[i] / 255, data[i + 1] / 255, data[i + 2] / 255];
+          colours.push(rgb);
+          pixels.push(toLooks(lightOf(...rgb)));
+        }
+        setTones({ dark: Math.min(...pixels), light: Math.max(...pixels), fire: flameColours(colours) });
       } catch {
         // the pixels can't be read: leave it unmeasured
       }
@@ -360,15 +437,6 @@ export function useBackdropTones(imageUrl, videoUrl) {
 // `google` lists the Google Fonts the choice needs (as in a Google Fonts address, after "family=");
 // they are only downloaded when needed. The fonts that are already loaded by index.html need none.
 export const FONTS = [
-  { id: 'theme', label: 'Theme default' },
-  {
-    id: 'editorial',
-    label: 'Editorial',
-    serif: '"Instrument Serif", Georgia, serif',
-    sans: '"Geist", system-ui, sans-serif',
-    mono: '"Geist Mono", ui-monospace, monospace',
-    google: [],
-  },
   {
     id: 'instrument',
     label: 'Instrument Serif',
@@ -378,28 +446,12 @@ export const FONTS = [
     google: [],
   },
   {
-    id: 'modern',
-    label: 'Modern',
-    serif: '"Inter", system-ui, sans-serif',
-    sans: '"Inter", system-ui, sans-serif',
+    id: 'geist',
+    label: 'Geist',
+    serif: '"Geist", system-ui, sans-serif',
+    sans: '"Geist", system-ui, sans-serif',
     mono: '"Geist Mono", ui-monospace, monospace',
-    google: ['Inter:wght@400;500;600'],
-  },
-  {
-    id: 'classic',
-    label: 'Classic',
-    serif: '"Fraunces", Georgia, serif',
-    sans: '"Lora", Georgia, serif',
-    mono: '"Courier Prime", "Courier New", monospace',
-    google: ['Fraunces:opsz,wght@9..144,400;600', 'Lora:wght@400;500;600', 'Courier+Prime'],
-  },
-  {
-    id: 'rounded',
-    label: 'Rounded',
-    serif: '"Nunito", system-ui, sans-serif',
-    sans: '"Nunito", system-ui, sans-serif',
-    mono: '"Nunito", system-ui, sans-serif',
-    google: ['Nunito:wght@400;600;700'],
+    google: [],
   },
   {
     id: 'mono',
@@ -424,6 +476,7 @@ const THEME_FONTS = {
   liquid: ['Inter:wght@400;500;600'],
   paper: ['Fraunces:opsz,wght@9..144,400;600', 'Lora:wght@400;500;600', 'Courier+Prime'],
   terminal: ['JetBrains+Mono:wght@400;500'],
+  dusk: ['DM+Serif+Display:ital@0;1', 'DM+Sans:opsz,wght@9..40,400;500;600', 'DM+Mono:wght@400;500'],
 };
 
 // Download a Google Font the first time it is needed, by adding a stylesheet link to the page.
@@ -464,66 +517,17 @@ export function useApplyFont(theme, font) {
 
 
 // ======================================================================
-// EACH WALLPAPER'S OWN SETTINGS (like the sliders in the Lively app)
-// ======================================================================
-// What you changed for one wallpaper is saved as { settingName: value }. A setting you haven't
-// touched (or reset) is missing, and the default from the wallpaper's LivelyProperties.json is used.
-const wallpaperSettingId = (id) => 'lively-' + id;
-
-export function useWallpaperValues(id) {
-  const state = useStore();
-  const saved = state.settings[wallpaperSettingId(id)];
-  return saved && !saved._deleted ? saved : {};
-}
-
-export function setWallpaperValue(id, name, value) {
-  saveSetting(wallpaperSettingId(id), { [name]: value });
-}
-
-// Go back to the defaults for this wallpaper.
-export function resetWallpaperValues(wallpaper) {
-  const cleared = {};
-  for (const property of wallpaper.properties) cleared[property.name] = null; // null = "use the default"
-  saveSetting(wallpaperSettingId(wallpaper.id), cleared);
-}
-
-// The value to use for a setting: what you chose, or the wallpaper's default.
-export function valueOf(property, values) {
-  const chosen = values[property.name];
-  if (chosen === null || chosen === undefined) return property.value;
-
-  // A "pick a file" choice that points at a file that is no longer there (for example one that
-  // came with an older version of the wallpaper) falls back to the default.
-  if (property.type === 'folderDropdown') {
-    const isKnownFile = property.files.includes(chosen);
-    const isOurs = typeof chosen === 'string' && /^(photo|upload|video):/.test(chosen);
-    if (!isKnownFile && !isOurs) return property.value;
-  }
-  return chosen;
-}
-
-
-// ======================================================================
 // CHOOSING THE BACKGROUND (one at a time)
 // ======================================================================
-// There is ONE picture, chosen in the gallery. A wallpaper that shows a picture (Rain, Triangles & Light, Liquid)
-// uses it, so the two tiles stay highlighted together. A wallpaper that doesn't (Fluids, a video) replaces it.
+// There is ONE background, chosen in the gallery: a picture, or a video you added (which replaces the picture).
 export function pickPicture(id) {
   setPictureId(id);
-  const keepWallpaper = id !== NO_PICTURE && usesPicture(getState().settings[SETTING_ID]?.wallpaper);
-  if (!keepWallpaper) setAppearance({ wallpaper: OFF });
+  setAppearance({ wallpaper: OFF });
 }
 
 export function pickWallpaper(id) {
   setAppearance({ wallpaper: id });
-  const lively = findLively(id);
-  if (!showsPicture(id === LIQUID ? LIQUID_INFO : lively)) {
-    setPictureId(NO_PICTURE);
-    return;
-  }
-  // A wallpaper that needs a picture (Rain) starts with its own default one, if none is chosen yet.
-  const needed = lively?.properties.find(takesPicture);
-  if (needed && getPictureId() === NO_PICTURE && /^photo:/.test(needed.value)) setPictureId(needed.value);
+  setPictureId(NO_PICTURE);
 }
 
 
@@ -534,16 +538,13 @@ export function pickWallpaper(id) {
 //   'none'            no picture
 //   'photo:misty-mountain'   one of the built-in photos (see wallpapers/pictures.js)
 //   'upload:<id>'     a picture you added
-const PICTURE_KEY = 'todolist:picture';
+const PICTURE_KEY = 'todolist:picture'; // where the choice was kept before it synced (still read, until a choice is saved)
 export const NO_PICTURE = 'none';
 
-const pictureListeners = new Set();
-function subscribeToPicture(listener) {
-  pictureListeners.add(listener);
-  return () => pictureListeners.delete(listener);
-}
-
+// The choice is part of the synced `appearance` setting, so every device shows the same picture.
 function getPictureId() {
+  const saved = getState().settings[SETTING_ID];
+  if (saved && !saved._deleted && typeof saved.picture === 'string') return saved.picture;
   try {
     return localStorage.getItem(PICTURE_KEY) || NO_PICTURE;
   } catch {
@@ -553,16 +554,11 @@ function getPictureId() {
 
 // The id of the chosen picture. Re-draws the component when it changes.
 export function usePictureId() {
-  return useSyncExternalStore(subscribeToPicture, getPictureId);
+  return useSyncExternalStore(subscribe, getPictureId);
 }
 
 export function setPictureId(id) {
-  try {
-    localStorage.setItem(PICTURE_KEY, id);
-  } catch {
-    // storage unavailable: the choice just won't be remembered
-  }
-  pictureListeners.forEach((listener) => listener());
+  setAppearance({ picture: id });
 }
 
 // Turn a picture or video id into an address the browser can show (a blob: URL). Cached, so each
@@ -570,7 +566,13 @@ export function setPictureId(id) {
 const urlCache = new Map();
 export function resolveMediaUrl(id) {
   if (!id || id === NO_PICTURE) return Promise.resolve(null);
-  if (!urlCache.has(id)) urlCache.set(id, makeUrl(id));
+  if (!urlCache.has(id)) {
+    // (a picture that isn't here yet may arrive from another device, so "not found" is not remembered)
+    urlCache.set(id, makeUrl(id).then((url) => {
+      if (!url) urlCache.delete(id);
+      return url;
+    }));
+  }
   return urlCache.get(id);
 }
 
@@ -589,6 +591,12 @@ async function makeUrl(id) {
 // Hook: the address for a picture or video id, or null while it's being prepared (or for 'none').
 export function useMediaUrl(id) {
   const [url, setUrl] = useState(null);
+  const [arrivals, setArrivals] = useState(0); // goes up when pictures are added, deleted or arrive from another device
+  useEffect(() => {
+    const bump = () => setArrivals((count) => count + 1);
+    uploadListeners.add(bump);
+    return () => uploadListeners.delete(bump);
+  }, []);
   useEffect(() => {
     let current = true;
     resolveMediaUrl(id).then((result) => {
@@ -597,7 +605,7 @@ export function useMediaUrl(id) {
     return () => {
       current = false;
     };
-  }, [id]);
+  }, [id, arrivals]);
   return url;
 }
 
@@ -658,6 +666,7 @@ export async function addPictures(files) {
     try {
       const id = crypto.randomUUID();
       await dbPut({ id, name: file.name, kind: 'image', blob: await shrink(file), added: Date.now() });
+      saveSetting(uploadSettingId(id), { name: file.name }); // the next sync uploads the picture itself
       lastId = id;
     } catch {
       problems.push(`Could not add ${file.name}.`);
@@ -669,7 +678,7 @@ export async function addPictures(files) {
   return problems;
 }
 
-// Add video files (.mp4 or .webm), for example from livelywallpaper.app. Videos are kept as they are.
+// Add video files (.mp4 or .webm). Videos are kept as they are.
 // Returns the list of problems (empty if everything worked).
 export async function addVideos(files) {
   const problems = [];
@@ -710,6 +719,7 @@ export async function addMedia(files) {
 // Delete a picture ('upload:<id>') or a video ('video:<id>'), and stop using it if it was chosen.
 export async function deleteMedia(fullId) {
   await dbDelete(fullId.slice(fullId.indexOf(':') + 1));
+  if (fullId.startsWith('upload:')) saveSetting(uploadSettingId(fullId.slice('upload:'.length)), { removed: true }); // other devices drop it too
   const url = await urlCache.get(fullId);
   if (url) URL.revokeObjectURL(url); // (frees the memory of the copy shown on screen)
   urlCache.delete(fullId);
@@ -741,3 +751,64 @@ export function useUploads() {
   }, []);
   return list;
 }
+
+
+// ======================================================================
+// SYNCING THE PICTURES YOU ADD
+// ======================================================================
+// The pictures are small (shrunk to 1920px JPEGs), so they sync through a private Supabase Storage bucket,
+// one file per picture at <your user id>/<picture id>.jpg. Videos are too big and stay on the device they were added on.
+// Which pictures exist (and their names) is kept in the synced settings table, one record per picture:
+// { name } while it exists, { removed: true } once deleted, so a device that still has a copy knows to drop it.
+const BUCKET = 'wallpapers';
+const UPLOAD_PREFIX = 'upload-';
+const uploadSettingId = (id) => UPLOAD_PREFIX + id;
+
+let syncingPictures = false;
+async function syncPictures(supabase, user) {
+  if (syncingPictures) return;
+  syncingPictures = true;
+  try {
+    const bucket = supabase.storage.from(BUCKET);
+    const { data: files, error } = await bucket.list(user.id, { limit: 1000 });
+    if (error) throw error;
+    const remote = new Set(files.map((file) => file.name.replace(/\.jpg$/, '')));
+
+    const known = Object.entries(getState().settings)
+      .filter(([key, record]) => key.startsWith(UPLOAD_PREFIX) && record && !record._deleted)
+      .map(([key, record]) => ({ id: key.slice(UPLOAD_PREFIX.length), ...record }));
+    const local = new Map((await dbAll()).filter((record) => record.kind !== 'video').map((record) => [record.id, record]));
+    let changed = false;
+
+    for (const entry of known) {
+      if (entry.removed) {
+        if (local.has(entry.id)) {
+          await deleteMedia('upload:' + entry.id); // also stops using it if it was the chosen one
+          changed = true;
+        }
+        if (remote.has(entry.id)) await bucket.remove([`${user.id}/${entry.id}.jpg`]);
+      } else if (!local.has(entry.id) && remote.has(entry.id)) {
+        const { data: blob, error: downloadError } = await bucket.download(`${user.id}/${entry.id}.jpg`);
+        if (downloadError) continue;
+        await dbPut({ id: entry.id, name: entry.name || 'Picture', kind: 'image', blob, added: Date.now() });
+        changed = true;
+      }
+    }
+
+    // Pictures that are only on this device: record them, and upload the ones the bucket doesn't have yet.
+    const knownIds = new Set(known.map((entry) => entry.id));
+    for (const record of local.values()) {
+      if (!knownIds.has(record.id)) saveSetting(uploadSettingId(record.id), { name: record.name });
+      else if (known.find((entry) => entry.id === record.id)?.removed) continue;
+      if (!remote.has(record.id)) {
+        await bucket.upload(`${user.id}/${record.id}.jpg`, record.blob, { contentType: 'image/jpeg', upsert: true });
+      }
+    }
+
+    if (changed) uploadListeners.forEach((listener) => listener());
+  } finally {
+    syncingPictures = false;
+  }
+}
+
+onSynced(syncPictures);

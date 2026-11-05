@@ -6,13 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:notes": "node scripts/test-notes.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.117.2",
+    "@tiptap/extension-list": "^3.32.0",
+    "@tiptap/markdown": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "chrono-node": "^2.10.2",
     "motion": "^14.0.0",
     "react": "^19.3.0",
@@ -22,6 +29,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "vite": "^8.3.3",
     "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^3.2.4",
     "workbox-build": "^7.4.1",
     "workbox-window": "^7.4.1"
   }

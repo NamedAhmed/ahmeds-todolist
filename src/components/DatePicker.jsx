@@ -5,6 +5,8 @@
 //   value    the current date ("2026-10-18") or null for "no date"
 //   today    today's date
 //   onPick   called with the chosen date, or null for "no date"
+//   time     the current time of day ("17:00") or null, and onTime(time | null) called when it is changed
+//            (leave both out for a date-only picker)
 //   onClose  called to close the window (it is also called right after a pick)
 
 import { useState } from 'react';
@@ -24,7 +26,7 @@ function monthCells(year, month) {
   return cells;
 }
 
-export default function DatePicker({ value, today, onPick, onClose }) {
+export default function DatePicker({ value, today, onPick, onClose, time = null, onTime }) {
   const start = toDate(value || today);
   const [year, setYear] = useState(start.getFullYear());
   const [month, setMonth] = useState(start.getMonth());
@@ -51,8 +53,12 @@ export default function DatePicker({ value, today, onPick, onClose }) {
 
   // It is drawn at the end of the page (a portal), not inside the row or form that opened it: otherwise its
   // buttons would count as that form's buttons, and clicks and keys would also reach the row's own handlers
-  // (rename, drag, shortcuts). The wrapper stops those events here.
-  const stop = (event) => event.stopPropagation();
+  // (rename, drag, shortcuts). The wrapper stops those events here. That also keeps Escape from the window's own
+  // handler (it listens on the page), so Escape is handled right here: it closes the picker.
+  const stop = (event) => {
+    event.stopPropagation();
+    if (event.type === 'keydown' && event.key === 'Escape') onClose();
+  };
 
   return createPortal(
     <div className="dp-root" onKeyDown={stop} onClick={stop} onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>
@@ -93,7 +99,7 @@ export default function DatePicker({ value, today, onPick, onClose }) {
               type="button"
               className={'dp-day' + (date === value ? ' on' : '') + (date === today ? ' today' : '')}
               onClick={() => pick(date)}
-              aria-label={date}
+              aria-label={toDate(date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               aria-pressed={date === value}
             >
               {toDate(date).getDate()}
@@ -103,6 +109,20 @@ export default function DatePicker({ value, today, onPick, onClose }) {
           )
         )}
       </div>
+
+      {onTime && (
+        <div className="dp-time">
+          <label>
+            <span className="mono">At</span>
+            <input type="time" value={time || ''} onChange={(event) => onTime(event.target.value || null)} aria-label="Time of day" />
+          </label>
+          {time && (
+            <button type="button" className="btn-ghost" onClick={() => onTime(null)}>
+              No time
+            </button>
+          )}
+        </div>
+      )}
     </Modal>
     </div>,
     document.body

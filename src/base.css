@@ -13,12 +13,22 @@
    ====================================================================== */
 
 :root {
+  /* What sits on top of what, for everything that floats over the page (small numbers inside one row or card are local
+     and don't need these). Bottom to top: */
+  --z-bar: 15;       /* the phone's tab bar */
+  --z-menu: 20;      /* a row's ⋯ menu, the slash menu */
+  --z-menu-open: 30; /* the row whose menu is open, drop-down lists */
+  --z-fx: 45;        /* theme effects over the whole page (Terminal's scanlines) */
+  --z-sheet: 55;     /* the Settings sheet */
+  --z-window: 60;    /* windows (modals) and their dark backdrop */
+  --z-toast: 80;     /* messages, and the notifications card */
   --bg: #0c0b0a;
   --line: #221f1b;
   --surface: #151311;
   --text: #efe9df;
   --muted: #8a847a;
   --faint: #4a453e;
+  --faint-text: #827e79; /* faint, but readable as text (4.5:1) */
   --accent: #ff6b57;
   --blue: #6cb8ff;
   --green: #7ee0a1;
@@ -85,7 +95,7 @@ button {
   outline-offset: 2px;
 }
 ::placeholder {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .mono {
   font-family: var(--mono);
@@ -100,6 +110,7 @@ button {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.4fr) minmax(320px, 1.2fr);
   height: 100vh;
+  height: calc(100dvh / var(--zoom, 1)); /* the visible height on a phone, whatever the browser bars are doing (divided by the text size, which zooms the page) */
   padding: var(--app-pad);
   column-gap: 0; /* the gaps between the columns are the resize handles (see Columns.jsx) */
 }
@@ -159,7 +170,7 @@ button {
   place-items: center;
   font-family: var(--serif);
   font-size: 72px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .soon {
   margin: 0;
@@ -167,7 +178,7 @@ button {
   font-family: var(--serif);
   font-style: italic;
   font-size: 20px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 
 /* tasks */
@@ -314,7 +325,7 @@ button {
   transition: transform 0.2s var(--ease);
 }
 .task.done .task-title {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .task.done .task-title::after {
   transform: scaleX(1);
@@ -334,7 +345,7 @@ button {
   color: var(--accent);
 }
 .task.done .due {
-  color: var(--faint);
+  color: var(--faint-text);
 }
 
 .del {
@@ -344,7 +355,7 @@ button {
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
-  color: var(--faint);
+  color: var(--faint-text);
   font-size: 18px;
   line-height: 1;
   opacity: 0;
@@ -364,7 +375,7 @@ button {
 
 .empty {
   margin: 0;
-  color: var(--faint);
+  color: var(--faint-text);
   font-family: var(--serif);
   font-style: italic;
   font-size: 20px;
@@ -439,7 +450,7 @@ button {
 .note-item .d {
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .note-item.active .t {
   color: var(--text);
@@ -561,4 +572,16 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text) 40%, transparent);
   background-clip: padding-box;
+}
+
+/* A landscape iPhone has the notch at the side: keep the page out of it. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* A font that has no bold must not be faked into one: the browser's fake bold smears the letters (this is what made the
+   headings look heavy in Instrument Serif, which only comes in one weight). Real weights of fonts that have them still work. */
+html {
+  font-synthesis-weight: none;
 }

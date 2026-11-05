@@ -16,8 +16,7 @@
      in Settings do exactly that, to preview their own colours and shapes.
    - Some themes need extra rules (glass, paper texture, scanlines). Those are at the END of this file,
      under THEME EXTRAS.
-   - Use 6-digit hex colours (#rrggbb) for --accent, --blue, --green, --warn and --text where you can:
-     the liquid wallpaper reads them.
+   - Each theme also sets --flame and --flame-core: the colours of the fire around a finished ring.
 
    TO ADD A THEME: copy a block below, change the name and values, then add it to THEMES in appearance.js.
    ====================================================================== */
@@ -25,12 +24,15 @@
 /* DEFAULT. It is also the :root block in base.css; repeated here so a theme CARD can show it
    while another theme is active. */
 [data-theme="ember"] {
+  --flame: #ff8a3d; /* the fire around a finished ring: orange, like a real fire */
+  --flame-core: #ffd27a;
   --bg: #0c0b0a;
   --line: #221f1b;
   --surface: #151311;
   --text: #efe9df;
   --muted: #8a847a;
   --faint: #4a453e;
+  --faint-text: #827e79; /* faint, but readable as text (4.5:1) */
   --accent: #ff6b57;
   --blue: #6cb8ff;
   --green: #7ee0a1;
@@ -66,12 +68,15 @@
 
 /* LIGHT. The same shapes as Default, in warm daylight colours. */
 [data-theme="light"] {
+  --flame: #f2542d; /* the fire around a finished ring: a deeper red-orange, so it shows on the pale page */
+  --flame-core: #ffb347;
   --bg: #f6f2ea;
   --line: #e2dccf;
   --surface: #ffffff;
   --text: #231f1a;
   --muted: #766e63;
   --faint: #b3aa9b;
+  --faint-text: #6e6b64; /* faint, but readable as text (4.5:1) */
   --accent: #e5533d;
   --blue: #2f7fd1;
   --green: #2e9e63;
@@ -109,12 +114,15 @@
 /* LIQUID. Glass: see-through, blurred panels that float over the background, with big soft corners.
    (The blur is under THEME EXTRAS.) */
 [data-theme="liquid"] {
+  --flame: #3d9bff; /* the fire around a finished ring: a blue gas flame, like the accent */
+  --flame-core: #d8efff;
   --bg: #0b0b0d;
   --line: rgba(255, 255, 255, 0.14);
   --surface: rgba(255, 255, 255, 0.1);
   --text: #ffffff;
   --muted: rgba(255, 255, 255, 0.64);
   --faint: rgba(255, 255, 255, 0.36);
+  --faint-text: rgba(255, 255, 255, 0.6); /* faint, but readable as text (4.5:1) */
   --accent: #5eb8ff;
   --blue: #7cc7ff;
   --green: #5ee0a0;
@@ -150,12 +158,15 @@
 
 /* PAPER. A warm notebook: cream pages, ink, serif type, square corners, thicker lines, hard shadows. */
 [data-theme="paper"] {
+  --flame: #c0392b; /* the fire around a finished ring: ink red and ochre */
+  --flame-core: #f0b45a;
   --bg: #efe6d2;
   --line: #cfc2a2;
   --surface: #f8f1e1;
   --text: #2b2418;
   --muted: #6f624a;
   --faint: #a99a79;
+  --faint-text: #696254; /* faint, but readable as text (4.5:1) */
   --accent: #b4412c;
   --blue: #2f5d8a;
   --green: #4f7a3a;
@@ -192,12 +203,15 @@
 
 /* TERMINAL. Green on black, monospace everywhere, sharp corners, a faint glow. */
 [data-theme="terminal"] {
+  --flame: #2bff6a; /* the fire around a finished ring: green phosphor */
+  --flame-core: #d2ffe0;
   --bg: #050a06;
   --line: #12351d;
   --surface: #08120a;
   --text: #b8ffc8;
   --muted: #4fae6a;
   --faint: #24582f;
+  --faint-text: #468e56; /* faint, but readable as text (4.5:1) */
   --accent: #39ff7a;
   --blue: #4dd7ff;
   --green: #39ff7a;
@@ -231,6 +245,52 @@
   --mono: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 }
 
+/* DUSK. The sky just after sunset: a deep violet night, lavender text, a warm peach accent, and floating, very
+   rounded panels lit faintly from above (see THEME EXTRAS). Italic serif headings. Its fire is a sunset: pink into
+   peach. */
+[data-theme="dusk"] {
+  --flame: #ff5f9e; /* the fire around a finished ring: a sunset, pink into peach */
+  --flame-core: #ffd2a8;
+  --bg: #15101f;
+  --line: #2b2339;
+  --surface: #1d1629;
+  --text: #f4ebf7;
+  --muted: #a796ba;
+  --faint: #5c4f72;
+  --faint-text: #8f80a3; /* faint, but readable as text (5 : 1) */
+  --accent: #ff9e7a;
+  --blue: #8fb4ff;
+  --green: #8fe3c0;
+  --warn: #ffc56b;
+  --track: #251d35;
+  --line-hi: #473b5e;
+  --line-mid: #342a46;
+  --panel-a: #1f182c;
+  --panel-b: #2a2139;
+  --panel-c: #241c33;
+  --text-soft: #ded2e8;
+  --scrim: rgba(10, 6, 18, 0.78);
+  --hover-fill: #ffffff;
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 26px;
+  --r-pill: 999px;
+  --bw: 1px;
+  --divider: 1px;
+  --app-pad: 14px;
+  --app-gap: 14px;
+  --col-radius: 28px;
+  --shadow-pop: 0 18px 50px rgba(8, 3, 18, 0.6);
+  --panel-bg: #1d1629;
+  --panel-blur: 0px;
+  --panel-shadow: 0 18px 50px rgba(8, 3, 18, 0.55), inset 0 1px 0 rgba(255, 214, 236, 0.08);
+  --field-bg: #140f1d;
+  --serif: "DM Serif Display", Georgia, serif;
+  --sans: "DM Sans", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, monospace;
+}
+
 /* Colours change smoothly when you pick another theme. */
 body {
   transition:
@@ -254,22 +314,20 @@ body {
   inset: 0;
   background-size: cover;
   background-position: center;
+  filter: var(--wall-filter, none);
 }
-/* A Lively wallpaper is a whole web page, shown in a frame that fills the screen. */
-.wallpaper-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: transparent;
-}
+
 .wallpaper-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: var(--wall-filter, none);
+}
+/* Brightness and Vibrance only mean something with a picture or video behind the page. */
+html:not([data-backdrop]) .wall-tune {
+  display: none;
 }
 /* A film in the theme's background colour over everything above. --dim is the Settings slider (0 to 0.9). */
 .wallpaper-dim {
@@ -500,15 +558,7 @@ html[data-backdrop] .col-foot {
   opacity: 1;
 }
 
-/* The wallpaper browser (Wallpapers.jsx) */
-.tile-author {
-  margin-top: -4px;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+
 .wp-toolbar {
   display: flex;
   align-items: center;
@@ -518,37 +568,7 @@ html[data-backdrop] .col-foot {
   flex: 1;
 }
 
-/* The chosen wallpaper's own settings: a quiet card with one hairline-separated row per setting. */
-.customize {
-  display: flex;
-  flex-direction: column;
-  padding: 20px 22px 12px;
-  border-radius: var(--r-lg);
-  border: var(--bw) solid var(--line);
-  background: var(--panel-a);
-}
-.customize-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: var(--bw) solid var(--line);
-}
-.customize-title h3 {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 26px;
-  font-weight: 400;
-  line-height: 1.1;
-  color: var(--text);
-}
-.customize-meta {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--muted);
-}
-.customize a,
+
 .credits a,
 .pictures a {
   color: var(--text-soft);
@@ -557,76 +577,12 @@ html[data-backdrop] .col-foot {
   text-underline-offset: 3px;
   transition: color 0.2s ease;
 }
-.customize a:hover,
+
 .credits a:hover,
 .pictures a:hover {
   color: var(--text);
 }
-.props {
-  display: flex;
-  flex-direction: column;
-}
-.prop {
-  display: grid;
-  grid-template-columns: 1fr minmax(180px, 52%);
-  align-items: center;
-  gap: 20px;
-  min-height: 48px;
-  font-size: 14px;
-  color: var(--text-soft);
-}
-.prop + .prop,
-.prop-label + .prop {
-  border-top: var(--bw) solid var(--line);
-}
-.prop-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.prop-control {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  min-width: 0;
-}
-.prop-control .slider {
-  flex: 1;
-}
-.prop-control .select {
-  width: 100%;
-}
-.prop-value {
-  min-width: 38px;
-  text-align: right;
-  color: var(--muted);
-  font-size: 12px;
-}
-.prop-label {
-  margin: 18px 0 4px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 400;
-}
-.more-settings {
-  align-self: center;
-  margin: 6px 0 4px;
-  padding: 8px 14px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  border-top: var(--bw) solid var(--line);
-  width: 100%;
-  transition: color 0.2s ease;
-}
-.more-settings:hover {
-  color: var(--text);
-}
+
 .credits {
   font-size: 12px;
 }
@@ -780,7 +736,7 @@ html[data-backdrop] .col-foot {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: var(--z-menu-open);
   max-height: 300px;
   overflow-y: auto;
   padding: 6px;
@@ -871,12 +827,7 @@ html[data-backdrop] .col-foot {
   min-width: 36px;
   text-align: right;
 }
-.lively-help {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
+
 .file-hidden {
   display: none;
 }
@@ -937,7 +888,7 @@ html[data-backdrop] .col-foot {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 55;
+  z-index: var(--z-sheet);
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
@@ -949,6 +900,7 @@ html[data-backdrop] .col-foot {
     0 -18px 60px rgba(0, 0, 0, 0.28),
     var(--panel-shadow);
   padding-bottom: env(safe-area-inset-bottom);
+  will-change: transform; /* its own layer, so the slide runs on the GPU instead of repainting the blur every frame */
 }
 /* The grab bar at the top: drag it to resize the sheet. */
 .sheet-handle {
@@ -999,8 +951,17 @@ html[data-backdrop] .col-foot {
   padding: 22px 28px 36px;
   scrollbar-width: thin;
 }
+.sheet-content {
+  animation: sheet-content-in 0.22s ease-out;
+}
+@keyframes sheet-content-in {
+  from {
+    opacity: 0;
+  }
+}
 /* Content is centred and not wider than reads well. */
-.sheet-body > * {
+.sheet-body > *,
+.sheet-content > * {
   max-width: 1000px;
   margin-left: auto;
   margin-right: auto;
@@ -1048,26 +1009,6 @@ html[data-backdrop] .col-foot {
 
 
 /* ======================================================================
-   THE LIQUID WALLPAPER (liquid.js draws a small canvas; the browser scales it up and blurs it into liquid)
-   ====================================================================== */
-.liquid-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  filter: blur(7px) saturate(1.3);
-  transform: scale(1.08); /* so the blurred edges stay off-screen */
-}
-.liquid-preview {
-  background: var(--bg);
-}
-.liquid-preview .liquid-canvas {
-  filter: blur(1.5px) saturate(1.3);
-  transform: none;
-}
-
-
-/* ======================================================================
    THEME EXTRAS: what a theme does beyond the variables above.
    (These come last so they win over the general rules earlier in the file.)
    ====================================================================== */
@@ -1103,10 +1044,9 @@ html[data-backdrop] .col-foot {
 }
 
 /* ---- LIQUID: Apple-style glass ---- */
-/* Plain glass: the panels are see-through and blur what is behind them. NOTHING is laid over the page: no
-   tint, no dim film, no shine. If text is hard to read over a bright background, raise "Backing" in Settings
-   (the Glass setting), or leave Auto on: it adds backing only when your picture or video is bright. The
-   backing itself comes from the general rule "html[data-backdrop] .col" in the READABILITY section. */
+/* Glass panels over the picture: no dim film is laid over the page. Over a background the panels always get the same
+   dark tint and blur (LIQUID_GLASS in appearance.js, through the general rule "html[data-backdrop] .col" in the
+   READABILITY section): Auto readability leaves Liquid alone, so it always looks the same. */
 /* The glass, in plain CSS (no filters beyond one backdrop blur per panel, so it stays fast). The way Apple's
    Liquid Glass reads is: a clear, frosted body whose colours are boosted (saturate); a thin bright rim where
    light hits the edge, strongest on the top-left and again, fainter, on the bottom-right; a soft glow just
@@ -1156,7 +1096,7 @@ html[data-theme="liquid"] .col-foot {
   backdrop-filter: none;
 }
 html[data-theme="liquid"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
-  font-weight: 600;
+  font-weight: 400; /* Instrument Serif has one weight: asking for bold only smears it */
   letter-spacing: -0.02em;
 }
 
@@ -1166,13 +1106,14 @@ html[data-theme="paper"] body {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.17  0 0 0 0 0.14  0 0 0 0 0.09  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 html[data-theme="paper"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
-  font-weight: 600;
+  font-weight: 400;
   font-style: normal;
   letter-spacing: -0.01em;
 }
-html[data-theme="paper"] :is(.task-form, .customize, .tile-preview, .font-choice) {
+html[data-theme="paper"] :is(.task-form, .tile-preview, .font-choice) {
   box-shadow: 3px 3px 0 rgba(43, 36, 24, 0.14);
 }
+
 
 /* ---- TERMINAL: a faint glow on the text, scan lines over everything, headings in capitals ---- */
 html[data-theme="terminal"] body {
@@ -1182,7 +1123,7 @@ html[data-theme="terminal"] body::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-fx); /* above the page, below the Settings sheet, windows and messages */
   pointer-events: none;
   background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.16) 3px);
 }
@@ -1257,7 +1198,7 @@ html[data-theme="terminal"] .task-form::before {
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--faint);
+  color: var(--faint-text);
 }
 .tile-group a {
   color: var(--text-soft);
@@ -1291,6 +1232,7 @@ html[data-theme="terminal"] .task-form::before {
 }
 html[data-sheet] .app {
   height: calc(100vh - var(--sheet-offset, 0px) - 24px);
+  height: calc(100dvh / var(--zoom, 1) - var(--sheet-offset, 0px) - 24px);
   margin: 12px 0;
   overflow: hidden;
   border-radius: 28px;
@@ -1319,6 +1261,7 @@ html[data-sheet-dragging] .app {
     margin: 0 0 var(--sheet-offset, 0px);
     overflow: visible;
     border-radius: 0;
+    transition: none; /* the change happens behind the sheet; animating it would re-flow the whole page every frame */
   }
 }
 
@@ -1332,47 +1275,6 @@ html[data-sheet-dragging] .app {
   color: var(--muted);
 }
 
-
-/* The text colour choices in Settings > Text & readability. */
-.text-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.text-colors {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.text-swatch {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1.5px solid var(--line-hi);
-  border-radius: 50%;
-  transition:
-    transform 0.15s ease,
-    border-color 0.15s ease;
-}
-.text-swatch:hover {
-  transform: scale(1.1);
-}
-.text-swatch.picked {
-  border-color: var(--text);
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text);
-}
-.text-swatch.theme-swatch {
-  width: auto;
-  padding: 0 11px;
-  border-radius: var(--r-pill);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.readability .text-row {
-  grid-column: 1 / -1;
-}
 
 /* A small text button inside a hint (for example "Reset glass"). */
 .link-button {
@@ -1388,14 +1290,424 @@ html[data-animated] {
 }
 
 
-/* The built-in Matrix wallpaper draws its own black background, one pixel per screen pixel. */
-.matrix-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: #000;
+/* ======================================================================
+   THE DEFAULT THEME OVER A BACKGROUND
+   On its own the default theme is flat and near-black: full-height columns split by thin lines, with opaque black
+   boxes inside. Over a picture those dark boxes look like holes and the faint text disappears. So while a
+   background is showing, the default theme becomes three floating panes of frosted glass: rounded, with a small gap
+   between them, and every box, ring track and divider inside is a see-through light shade instead of solid black.
+   (Wallpaper.jsx sets data-backdrop; the panes' blur and tint are under READABILITY above.)
+   ====================================================================== */
+html[data-theme="ember"][data-backdrop] {
+  --app-pad: 14px;
+  --app-gap: 14px;
+  --col-radius: 26px;
+  --divider: 0px;
+
+  --line: rgba(255, 255, 255, 0.1);
+  --line-mid: rgba(255, 255, 255, 0.18);
+  --line-hi: rgba(255, 255, 255, 0.3);
+  --track: rgba(255, 255, 255, 0.13);
+  --panel-a: rgba(255, 255, 255, 0.06);
+  --panel-b: rgba(255, 255, 255, 0.13);
+  --panel-c: rgba(255, 255, 255, 0.08);
+  --field-bg: rgba(255, 255, 255, 0.09);
+  --surface: rgba(26, 24, 22, 0.82);
+  --panel-bg: rgba(26, 24, 22, 0.78);
+  --panel-blur: 22px;
+
+  /* text that is meant to be quiet still has to be readable over a picture */
+  --muted: rgba(239, 233, 223, 0.72);
+  --faint: rgba(239, 233, 223, 0.46);
+  --faint-text: rgba(239, 233, 223, 0.62); /* faint, but readable as text (4.5:1) */
 }
-.matrix-preview {
-  background: #000;
+html[data-theme="ember"][data-backdrop] .col {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 22px 54px rgba(0, 0, 0, 0.32);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); /* a soft edge so letters hold their shape over bright and busy spots */
+}
+html[data-theme="ember"][data-backdrop] :is(.sheet, .modal, .menu, .dropdown-list) {
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  backdrop-filter: blur(22px) saturate(1.2);
+}
+
+
+/* ---- The Dim slider also softens the accents, at half strength (--dim-soft is set in Wallpaper.jsx) ---- */
+::selection {
+  background: color-mix(in srgb, var(--accent) calc(40% * (1 - var(--dim-soft, 0))), transparent);
+}
+.task-form,
+.daily-check,
+.big-ring > svg:not(.ring-fire) {
+  opacity: calc(1 - var(--dim-soft, 0));
+}
+
+
+/* Settings tabs: an icon and a word each, so it is clear what is behind them. */
+.sheet-head .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 480px) {
+  .sheet-head .tabs {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .sheet-head .tab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 6px;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Phone: the Settings sheet stops at the tab bar instead of covering it. */
+@media (max-width: 900px) {
+  .sheet {
+    bottom: calc(var(--bar-h, 56px) + env(safe-area-inset-bottom));
+    padding-bottom: 0;
+  }
+}
+
+/* Phones: blur is the costliest thing to draw (it is redone every frame over a moving wallpaper), so it is off, except
+   for the Liquid theme (which is made of glass) where it is capped to a light blur. */
+@media (max-width: 900px) {
+  html:not([data-theme="liquid"]) *,
+  html:not([data-theme="liquid"]) *::before,
+  html:not([data-theme="liquid"]) *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html {
+    --lg-blur-cap: 8px;
+  }
+}
+
+
+/* ---- DUSK: a night sky behind the panels, and panels lit faintly from above, with a soft violet rim ---- */
+html[data-theme="dusk"] body {
+  background:
+    radial-gradient(120% 70% at 50% -10%, #3b2150 0%, transparent 60%),
+    radial-gradient(90% 60% at 100% 110%, #2a1a3e 0%, transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+}
+html[data-theme="dusk"] .col {
+  border: 1px solid rgba(214, 180, 255, 0.1);
+  box-shadow: var(--panel-shadow);
+}
+/* (With a background picture the panels are frosted glass instead: see READABILITY.) */
+html[data-theme="dusk"]:not([data-backdrop]) .col {
+  background: linear-gradient(180deg, #221a31 0%, #1b1527 40%, #18121f 100%);
+}
+html[data-theme="dusk"] :is(.col-head h1, .col-head h2, .sheet-head h2, .modal h2) {
+  font-style: italic;
+  letter-spacing: 0;
+}
+
+/* Terminal > Phosphor: the same theme in another glow (Settings > Style). The green is the theme's own. */
+html[data-theme="terminal"][data-phosphor="amber"] {
+  --flame: #ffbf2b;
+  --flame-core: #fff2d2;
+  --bg: #0a0805;
+  --line: #352b12;
+  --surface: #120f08;
+  --text: #ffeab8;
+  --muted: #ae924f;
+  --faint: #584824;
+  --faint-text: #8e7846;
+  --accent: #ffc439;
+  --green: #ffc439;
+  --track: #1c170c;
+  --line-hi: #6a541f;
+  --line-mid: #4d3c16;
+  --panel-a: #100d07;
+  --panel-b: #1c170d;
+  --panel-c: #16120a;
+  --text-soft: #e6d09b;
+  --hover-fill: #ffc439;
+}
+html[data-theme="terminal"][data-phosphor="amber"] body {
+  text-shadow: 0 0 6px rgba(255, 196, 57, 0.2);
+}
+html[data-theme="terminal"][data-phosphor="cyan"] {
+  --flame: #2be6ff;
+  --flame-core: #d2faff;
+  --bg: #05090a;
+  --line: #123135;
+  --surface: #081112;
+  --text: #b8f7ff;
+  --muted: #4fa3ae;
+  --faint: #245258;
+  --faint-text: #46868e;
+  --accent: #39e8ff;
+  --green: #39e8ff;
+  --track: #0c1a1c;
+  --line-hi: #1f616a;
+  --line-mid: #16474d;
+  --panel-a: #070f10;
+  --panel-b: #0d1a1c;
+  --panel-c: #0a1516;
+  --text-soft: #9bdde6;
+  --hover-fill: #39e8ff;
+}
+html[data-theme="terminal"][data-phosphor="cyan"] body {
+  text-shadow: 0 0 6px rgba(57, 232, 255, 0.2);
+}
+html[data-theme="terminal"][data-phosphor="white"] {
+  --flame: #959595;
+  --flame-core: #e8e8e8;
+  --bg: #080808;
+  --line: #242424;
+  --surface: #0d0d0d;
+  --text: #dcdcdc;
+  --muted: #7e7e7e;
+  --faint: #3e3e3e;
+  --faint-text: #6a6a6a;
+  --accent: #9c9c9c;
+  --green: #9c9c9c;
+  --track: #141414;
+  --line-hi: #444444;
+  --line-mid: #313131;
+  --panel-a: #0c0c0c;
+  --panel-b: #141414;
+  --panel-c: #101010;
+  --text-soft: #c0c0c0;
+  --hover-fill: #9c9c9c;
+}
+html[data-theme="terminal"][data-phosphor="white"] body {
+  text-shadow: 0 0 6px rgba(156, 156, 156, 0.2);
+}
+
+/* Default > Divider lines off: no lines between and inside the panels. */
+html[data-lines="off"] {
+  --line: transparent;
+  --line-mid: transparent;
+}
+
+/* Paper > Paper grain and Ink shadows off. */
+html[data-theme="paper"][data-grain="off"] body {
+  background-image: none;
+}
+html[data-theme="paper"][data-ink="off"] {
+  --panel-shadow: none;
+}
+html[data-theme="paper"][data-ink="off"] :is(.task-form, .tile-preview, .font-choice) {
+  box-shadow: none;
+}
+
+/* Terminal > Scan lines off. */
+html[data-theme="terminal"][data-scan="off"] body::after {
+  display: none;
+}
+
+/* Dusk > Glow: a soft halo in the accent colour around each panel (0 = none). */
+html[data-theme="dusk"] .col {
+  box-shadow:
+    var(--panel-shadow),
+    0 0 calc(var(--dusk-glow, 0.4) * 56px) calc(var(--dusk-glow, 0.4) * 4px) color-mix(in srgb, var(--accent) calc(var(--dusk-glow, 0.4) * 38%), transparent);
+}
+
+/* ---------- Settings > Style: theme + main colour on the left, Type / Colour / Shape on the right ---------- */
+.look {
+  container-type: inline-size; /* the layout follows the width of Settings itself, not of the window */
+}
+/* One gap everywhere (between the columns and between the cards), and one padding inside every card. */
+.look-top {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: stretch;
+  gap: 16px;
+}
+.look-main,
+.look-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.look-side > section:last-child {
+  flex: 1; /* the last card of the right column reaches the bottom of the left one */
+}
+.look-main section,
+.look-side section {
+  height: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+.look-main h3,
+.look-side h3 {
+  margin: 0;
+}
+@container (max-width: 760px) {
+  .look-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Font: four tiles with just "Aa" (the name shows on hover). */
+.look-side .font-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.look-side .font-choice {
+  justify-content: center;
+  height: 46px;
+  padding: 0;
+}
+.look-side .font-sample {
+  font-size: 22px;
+}
+/* One setting: its name (and a slider's value) on a line, its control underneath. */
+.option-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.option-row.inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.option-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.option-row .mono {
+  font-size: 11px;
+  color: var(--muted);
+}
+.option-row .value {
+  color: var(--text-soft);
+}
+.theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: var(--bw) solid var(--line);
+}
+.theme-options-title {
+  font-size: 11px;
+  color: var(--faint-text);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.look .seg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.look .chip {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+/* Colour swatches: one tidy row, then wrapping neatly. The rainbow "+" takes any colour. */
+.text-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.text-swatch {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  border: var(--bw) solid var(--line-hi);
+}
+.text-swatch.picked {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text);
+}
+.theme-swatch {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.theme-swatch.picked {
+  box-shadow: none;
+  border-color: var(--text);
+}
+.text-swatch.custom {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  background: conic-gradient(#ff6b57, #f0b35a, #7ee0a1, #5eb8ff, #c59bff, #ff8fc7, #ff6b57);
+  color: #000;
+  font-size: 15px;
+  line-height: 1;
+}
+.text-swatch.custom input {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Main colour set: Dusk's panels follow the chosen colour instead of their own violet. */
+html[data-theme="dusk"][data-main]:not([data-backdrop]) .col {
+  background: var(--surface);
+}
+
+/* Density (Settings > Style > More): how tight the rows are. */
+html[data-density="compact"] .task-main {
+  padding-block: 9px;
+  min-height: 40px;
+}
+html[data-density="compact"] .daily {
+  padding-block: 3px;
+}
+html[data-density="compact"] .note-item {
+  padding-block: 6px;
+}
+html[data-density="roomy"] .task-main {
+  padding-block: 20px;
+  min-height: 64px;
+}
+html[data-density="roomy"] .daily {
+  padding-block: 11px;
+}
+html[data-density="roomy"] .note-item {
+  padding-block: 14px;
+}
+
+/* ---------- Focus (Settings > Style > Shape): fewer extras. Default shows everything. ---------- */
+/* Normal: the eye-catching extras go (late-task jabs, streak badges); the colours stay. */
+html[data-focus="normal"] :is(.jab, .streak),
+html[data-focus="strict"] :is(.jab, .ring-fire, .streak) {
+  display: none;
+}
+html[data-focus="strict"] .big-ring.ablaze {
+  margin-top: 0; /* no flames, so no room kept for them */
+}
+/* Strict: also the decoration (the joke line, the script weekday and clock, hints, note dates). The colours stay as they are. */
+html[data-focus="strict"] :is(.voice, .stamp-day, .stamp-time, .ring-hint, .note-item .d, .empty-row .hint) {
+  display: none;
+}
+
+/* Liquid > the flames are glass: see-through tongues in the picture's colours, a bright specular edge and a soft coloured glow. */
+html[data-theme="liquid"] .ring-fire {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--flame) 55%, transparent));
+  mix-blend-mode: screen;
+}
+html[data-theme="liquid"] .ring-fire path {
+  fill-opacity: 0.55;
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 0.7;
+  stroke-opacity: 0.8;
 }

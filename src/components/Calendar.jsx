@@ -3,16 +3,15 @@
 //
 // Pieces in this file, top to bottom:
 //   toggleDaily   tick / untick a daily
-//   flamePath     draws the fire around a finished ring (maths, you can ignore it)
 //   BigRing       the large ring at the top
 //   DayCell       one small day in the calendar grid
 //   useMarks      works out which days get a dot
 //   DailyRow      one row in the dailies list
 //   AddDaily      the "Add a daily…" box
-//   DailyStrip    the phone-only strip of dailies above the task list
 //   Calendar      the whole column (this is what App.jsx uses)
 
 import Icon from './Icons.jsx';
+import FireArt from './FireArt.jsx';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
@@ -29,7 +28,10 @@ const MILESTONES = [3, 7, 14, 21, 30, 50, 100, 200, 365];
 // TICKING A DAILY
 // ======================================================================
 // Tick or untick a daily for a date. Only the big moments get a comment.
+// Past days are locked: no rewriting history.
 export function toggleDaily(daily, date, today) {
+  if (date < today) return;
+
   // Each tick is saved as a "completion" with a key like "dailyId:2026-10-18".
   const key = doneKey(daily.id, date);
 
@@ -45,7 +47,7 @@ export function toggleDaily(daily, date, today) {
     { t: 'completions', id: key, set: { id: key, ref: daily.id, date, kind: 'daily' } },
   ]);
 
-  // Only comment when ticking TODAY (not when fixing up a past day).
+  // Only comment when ticking TODAY (future days get no fanfare).
   if (date !== today) return;
 
   const state = getState();
@@ -64,54 +66,6 @@ export function toggleDaily(daily, date, today) {
 
 
 // ======================================================================
-// THE FIRE AROUND A FINISHED RING (just drawing, safe to ignore)
-// ======================================================================
-// When every daily is done, flames appear around the top half of the ring.
-// This function builds the outline of those flames as an SVG "path" (a list of curve instructions).
-//   tongues = how many flame tips
-//   height  = how tall the tallest flame is
-//   curl    = which way the tips lean
-//   base    = the radius of the ring the flames sit on
-// It uses circle maths (sin/cos) to place points around the ring.
-function flamePath(tongues, height, curl, base = 96) {
-  // Turn an angle (in degrees) and a distance from the centre into the text "x y".
-  function point(degrees, radius) {
-    const x = 100 + radius * Math.cos((degrees * Math.PI) / 180);
-    const y = 100 + radius * Math.sin((degrees * Math.PI) / 180);
-    return `${x.toFixed(1)} ${y.toFixed(1)}`;
-  }
-
-  const sizes = [1, 0.5, 0.82, 0.58, 1, 0.52, 0.86, 0.6]; // so the flames aren't all the same height
-  const from = -172;                // start angle
-  const span = 164;                 // how many degrees of the ring the flames cover
-  const step = span / tongues;      // degrees per flame
-
-  let path = `M${point(from, base)}`; // "M" = move to the starting point
-
-  for (let i = 0; i < tongues; i++) {
-    const angle = from + i * step;
-
-    // Flames are tallest in the middle of the arc and shorter at the ends.
-    const middleBoost = 0.35 + 0.65 * Math.sin(Math.PI * ((i + 0.5) / tongues));
-    const h = height * middleBoost * sizes[i % sizes.length];
-
-    // "C" = draw a curve. First up the side of the flame to its tip...
-    path += ` C${point(angle - step * 0.05, base + h * 0.55)} ${point(angle + step * (0.3 + curl), base + h * 0.7)} ${point(angle + step * (0.5 + curl * 2), base + h)}`;
-    // ...then back down to the ring.
-    path += ` C${point(angle + step * 0.62, base + h * 0.5)} ${point(angle + step * 1.02, base + h * 0.4)} ${point(angle + step, base)}`;
-  }
-
-  // Close the shape by drawing back along the ring to the start ("A" = arc, "Z" = close).
-  const bigArc = span > 180 ? 1 : 0;
-  return `${path} A${base} ${base} 0 ${bigArc} 0 ${point(from, base)} Z`;
-}
-
-// Two layers of flame (back = tall, front = short) built once, when the app loads.
-const FIRE_BACK = flamePath(6, 42, 0.1);
-const FIRE_FRONT = flamePath(7, 22, -0.08);
-
-
-// ======================================================================
 // THE BIG RING
 // ======================================================================
 // One circle ring per daily, nested inside each other. More dailies = thinner rings.
@@ -121,6 +75,7 @@ function BigRing({ s, date, today }) {
   const count = dailies.length;
   const doneCount = dailies.filter((d) => isDone(s, d.id, date)).length;
   const everythingDone = count > 0 && doneCount === count; // "ablaze": show the flames
+
 
   // Ring sizes: they share the space, but never get thicker than 10.
   const band = 57 / Math.max(count, 3);
@@ -142,8 +97,7 @@ function BigRing({ s, date, today }) {
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <path className="fire-back" d={FIRE_BACK} />
-            <path className="fire-front" d={FIRE_FRONT} />
+            <FireArt />
           </motion.svg>
         )}
       </AnimatePresence>
@@ -164,7 +118,7 @@ function BigRing({ s, date, today }) {
             <g key={daily.id} transform="rotate(-90 100 100)">
               {/* The grey track. It is also the clickable area. */}
               <circle
-                className="track hit"
+                className={'track hit' + (date < today ? ' locked' : '')}
                 cx="100"
                 cy="100"
                 r={radius}
@@ -394,10 +348,10 @@ function DailyRow({ s, daily, date, today, onEdit }) {
   if (streak >= 30) flameSize = 18;
   else if (streak >= 7) flameSize = 16;
 
-  // The × button: hide this daily from now on (it keeps its history in the past).
-  function archive() {
-    commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]);
-    toast(quip('dailyArchived'), { undoable: true });
+  // Keep the daily and its completion history recoverable for 30 days.
+  function trash() {
+    commit('daily trashed', [{ t: 'dailies', id: daily.id, patch: { trashed: Date.now() } }]);
+    toast(`“${daily.name}” moved to Recently Deleted.`, { undoable: true });
   }
 
   return (
@@ -413,6 +367,7 @@ function DailyRow({ s, daily, date, today, onEdit }) {
         style={{ '--c': daily.color }}
         aria-pressed={isOn}
         aria-label={daily.name}
+        disabled={date < today}
         onClick={() => toggleDaily(daily, date, today)}
       />
       {/* Clicking the name opens the editor (rename and change colour). */}
@@ -430,7 +385,7 @@ function DailyRow({ s, daily, date, today, onEdit }) {
         </motion.b>
       </span>
 
-      <button className="del" aria-label={`Archive ${daily.name}`} onClick={archive}>
+      <button className="del" aria-label={`Move ${daily.name} to Recently Deleted`} title="Move to Recently Deleted" onClick={trash}>
         ×
       </button>
     </motion.li>
@@ -441,6 +396,20 @@ function DailyRow({ s, daily, date, today, onEdit }) {
 // ======================================================================
 // THE "ADD A DAILY" BOX
 // ======================================================================
+// Save a new daily with the next colour in the list. (The first-launch tour, Onboarding.jsx, uses this too.)
+export function createDaily(name, today) {
+  const existing = all(getState(), 'dailies');
+  const color = DAILY_COLORS[existing.length % DAILY_COLORS.length];
+
+  commit('daily added', [
+    {
+      t: 'dailies',
+      id: uid(),
+      patch: { name: name.trim(), color, position: existing.length, created: today },
+    },
+  ]);
+}
+
 function AddDaily({ s, today }) {
   const [name, setName] = useState(''); // what is typed in the box
 
@@ -449,16 +418,7 @@ function AddDaily({ s, today }) {
     event.preventDefault(); // stop the page from reloading
     if (!name.trim()) return; // ignore an empty box
 
-    const existing = all(s, 'dailies');
-    const color = DAILY_COLORS[existing.length % DAILY_COLORS.length]; // next colour in the list
-
-    commit('daily added', [
-      {
-        t: 'dailies',
-        id: uid(),
-        patch: { name: name.trim(), color, position: existing.length, created: today },
-      },
-    ]);
+    createDaily(name, today);
     setName('');
     sass('dailyAdded', [], { chance: 0.7 });
   }
@@ -477,34 +437,6 @@ function AddDaily({ s, today }) {
 
 
 // ======================================================================
-// PHONE-ONLY STRIP OF DAILIES
-// ======================================================================
-// On phones: a slim row of dailies above the task list, so the whole daily routine fits one screen.
-export function DailyStrip({ today }) {
-  const s = useStore();
-  const dailies = dailiesOn(s, today);
-  if (dailies.length === 0) return null; // nothing to show
-
-  return (
-    <div className="daily-strip">
-      {dailies.map((daily) => (
-        <button
-          key={daily.id}
-          className={'strip-pill' + (isDone(s, daily.id, today) ? ' on' : '')}
-          style={{ '--c': daily.color }}
-          onClick={() => toggleDaily(daily, today, today)}
-        >
-          <i />
-          {daily.name}
-          <Flame streak={streakOf(s, daily.id, today)} size={11} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-
-// ======================================================================
 // THE WHOLE CALENDAR COLUMN
 // ======================================================================
 // Props (the inputs App.jsx gives it):
@@ -517,7 +449,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
   const s = useStore();
   const sync = useSync(); // are we signed in / syncing?
 
-  const [month, setMonth] = useState(false); // false = two weeks, true = whole month
+  const [month, setMonth] = useState(false); // false = two weeks, true = five weeks around today
 
   const shown = day ?? today;                              // the day the big ring shows
   const weeks = useMemo(() => calendarWeeks(today, month), [today, month]);
@@ -595,7 +527,7 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
           ))}
         </motion.div>
 
-        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show the whole month'} title={month ? 'Show two weeks' : 'Show the whole month'}>
+        <button className="btn-ghost cal-toggle" onClick={() => setMonth(!month)} aria-label={month ? 'Show two weeks' : 'Show five weeks'} title={month ? 'Show two weeks' : 'Show five weeks'}>
           <Icon name={month ? 'chevronUp' : 'chevronDown'} size={16} />
         </button>
       </div>
@@ -624,13 +556,13 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
           <Icon name="repeat" size={16} />
           Reminders
         </button>
-        <button className="btn-ghost shortcuts" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onClick={() => open('keys')}>
-          <Icon name="help" size={16} />
-        </button>
-        <button className="btn-ghost account" onClick={() => open('settings')} aria-label="Settings" title="Settings">
+        <button className="btn-ghost foot-right" onClick={() => open('account')} aria-label="Account and backup" title="Account and backup">
           <i className={'sync-dot ' + sync.sync} />
+          <Icon name="user" size={16} />
+          <span className="foot-label">Account</span>
+        </button>
+        <button className="btn-ghost settings-button" onClick={() => open('settings')} aria-label="Settings" title="Settings">
           <Icon name="sliders" size={16} />
-          Settings
         </button>
       </footer>
     </section>

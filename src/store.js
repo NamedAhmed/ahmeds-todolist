@@ -110,9 +110,25 @@ export function uid() {
   return crypto.randomUUID();
 }
 
-// All the items in a table that haven't been deleted, as a list.
+// Active items in a table. Recoverable items stay in the store, but don't appear in the app's normal lists.
 export function all(currentState, table) {
+  return allIncludingTrashed(currentState, table).filter((item) => !item.trashed);
+}
+
+// All records that haven't been permanently deleted, including Recently Deleted items.
+export function allIncludingTrashed(currentState, table) {
   return Object.values(currentState[table]).filter((item) => !item._deleted);
+}
+
+export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+function trashedTimestamp(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 const MINUTE_MS = 60000;
@@ -167,19 +183,25 @@ export function ensureTaskCreatedDates() {
 // ======================================================================
 
 // Tell everyone the state changed, and save to the browser shortly after.
-// We wait 150ms so lots of quick changes only cause one save.
+// We wait 400ms so lots of quick changes only cause one save (writing everything is the slow part on an old phone), and
+// anything still waiting is written the moment the page is hidden or closed, so the wait never costs a change.
 let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Could not save locally', error);
+  }
+}
 function emit() {
   listeners.forEach((listener) => listener());
-
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch (error) {
-      console.warn('Could not save locally', error);
-    }
-  }, 150);
+  saveTimer = setTimeout(save, 400);
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => saveTimer && save());
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && saveTimer && save());
 }
 
 // Apply a list of changes to the state, and return the list of changes that would reverse them.
@@ -213,6 +235,10 @@ function apply(changes) {
     }
 
     item._dirty = true; // "this needs uploading"
+    // _base = the server's stamp on the version this edit started from (see sync.js). It always comes from what is stored
+    // now, never from the change: an undo puts back an old copy of the item, but the server has moved on since.
+    if (previous?._base) item._base = previous._base;
+    else delete item._base;
     next[change.t] = { ...next[change.t], [change.id]: item };
   }
 
@@ -228,6 +254,48 @@ export function commit(label, changes) {
   if (undoStack.length > 200) undoStack.shift(); // only remember the last 200 actions
   redoStack.length = 0;                          // a new change wipes the redo list
   emit();
+}
+
+// Permanently remove records without creating an Undo that could bring them back.
+export function deletePermanently(changes) {
+  const deletions = changes.filter((change) => change.set === null);
+  if (!deletions.length) return;
+
+  const keys = new Set(deletions.map(({ t, id }) => `${t}:${id}`));
+  for (const stack of [undoStack, redoStack]) {
+    for (const action of stack) {
+      action.changes = action.changes.filter(({ t, id }) => !keys.has(`${t}:${id}`));
+    }
+    const remaining = stack.filter((action) => action.changes.length > 0);
+    stack.length = 0;
+    stack.push(...remaining);
+  }
+
+  apply(deletions);
+  emit();
+}
+
+// Expire recoverable items after 30 days, and remove their completion history too.
+// Expiry is permanent and is synced like any other deletion.
+export function purgeExpiredTrash(now = Date.now()) {
+  const expired = [];
+  for (const table of ['tasks', 'dailies', 'reminders', 'notes']) {
+    for (const item of allIncludingTrashed(state, table)) {
+      const removedAt = trashedTimestamp(item.trashed);
+      if (removedAt !== null && removedAt <= now - TRASH_RETENTION_MS) expired.push({ t: table, id: item.id });
+    }
+  }
+  if (!expired.length) return 0;
+
+  const expiredDailiesAndReminders = new Set(
+    expired.filter(({ t }) => t === 'dailies' || t === 'reminders').map(({ id }) => id)
+  );
+  const changes = expired.map(({ t, id }) => ({ t, id, set: null }));
+  for (const completion of allIncludingTrashed(state, 'completions')) {
+    if (expiredDailiesAndReminders.has(completion.ref)) changes.push({ t: 'completions', id: completion.id, set: null });
+  }
+  deletePermanently(changes);
+  return expired.length;
 }
 
 // Save a preference (theme, wallpaper...) in the `settings` table. Unlike commit(), this is NOT
@@ -273,15 +341,22 @@ export function dirtyRecords() {
   return result;
 }
 
-// After a successful upload: remove the _dirty flag.
-// If an item was edited again while uploading, leave it dirty so it uploads next time.
-export function markClean(pushed) {
+// After a successful upload: remove the _dirty flag, and remember the server's new stamp on each item (_base).
+// `stamps` is { 'table:id': updated_at } from the server. If an item was edited again while uploading, it stays dirty so
+// it uploads next time, but still gets the new stamp: that next upload starts from this version.
+export function markClean(pushed, stamps = {}) {
   const next = { ...state };
 
   for (const { t, rec } of pushed) {
-    if (next[t][rec.id] !== rec) continue; // it changed during the upload, skip it
+    const current = next[t][rec.id];
+    const stamp = stamps[t + ':' + rec.id];
+    if (current !== rec) {
+      if (current && stamp) next[t] = { ...next[t], [rec.id]: { ...current, _base: stamp } };
+      continue;
+    }
 
     const { _dirty, ...clean } = rec; // copy without the _dirty field
+    if (stamp) clean._base = stamp;
     next[t] = { ...next[t], [rec.id]: clean };
   }
 
@@ -301,6 +376,7 @@ export function applyRemote(rows) {
     let item;
     if (row.deleted) item = { id: row.id, _deleted: true };
     else item = { ...row.data, id: row.id };
+    if (row.updated_at) item._base = row.updated_at; // the server's stamp: the next upload of this item checks it
 
     next[row.tbl] = { ...next[row.tbl], [row.id]: item };
     changed = true;
@@ -313,6 +389,38 @@ export function applyRemote(rows) {
     state = next;
     emit();
   }
+}
+
+// Uploads that clashed with a newer version on the server (another device changed or deleted the item while this one
+// was offline). `conflicts` is [{ t, id, row }], `row` being the server's version. The server's version is kept, and for
+// tasks and notes your local edit is kept too, as a new item marked "(conflicted copy)", so no work is ever lost.
+// (Dailies, ticks, reminders and the rest just take the server's version.) Returns how many copies were made.
+export const COPY_TABLES = { tasks: 'title', notes: 'title' };
+export function resolveConflicts(conflicts) {
+  const next = { ...state };
+  let copies = 0;
+
+  for (const { t, id, row } of conflicts) {
+    const local = next[t][id];
+    if (!local) continue;
+
+    const field = COPY_TABLES[t];
+    if (field && !local._deleted) {
+      const { _dirty, _base, ...edit } = local;
+      const copyId = uid();
+      const title = String(edit[field] || 'Untitled');
+      next[t] = { ...next[t], [copyId]: { ...edit, id: copyId, [field]: `${title} (conflicted copy)`, _dirty: true } };
+      copies++;
+    }
+
+    const server = row.deleted ? { id, _deleted: true } : { ...row.data, id };
+    server._base = row.updated_at;
+    next[t] = { ...next[t], [id]: server };
+  }
+
+  state = next;
+  emit();
+  return copies;
 }
 
 // Mark everything as needing upload (used the first time you sign in).
@@ -340,8 +448,8 @@ export function resetAll() {
 export function exportJson() {
   const out = {};
   for (const table of TABLES) {
-    out[table] = all(state, table).map((item) => {
-      const { _dirty, ...clean } = item; // leave out the internal _dirty flag
+    out[table] = allIncludingTrashed(state, table).map((item) => {
+      const { _dirty, _base, ...clean } = item; // leave out the internal fields
       return clean;
     });
   }
@@ -357,6 +465,49 @@ export function exportJson() {
   }
 
   return JSON.stringify(out, null, 2);
+}
+
+// Put a backup (the text from exportJson) back into the app. Everything in the file is added, and an item that
+// already exists (same id) is replaced by the file's copy; nothing else is touched, so importing never deletes
+// anything. It is ONE undo step, and the items are marked for upload like any other change.
+// Returns { added, replaced } counts, or throws an Error with a message that can be shown to the user.
+export function importJson(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('That file is not a backup: it is not valid JSON.');
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('That file is not a backup.');
+  if (!TABLES.some((table) => Array.isArray(data[table]))) throw new Error('That file has no tasks, notes or dailies in it.');
+
+  const changes = [];
+  let added = 0;
+  let replaced = 0;
+  for (const table of TABLES) {
+    if (!Array.isArray(data[table])) continue;
+    for (const item of data[table]) {
+      // Only real items: an object with a text id, not already deleted.
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id || item._deleted) continue;
+      const { _dirty, _base, ...clean } = item;
+      const existing = state[table][item.id];
+      if (existing && !existing._deleted) replaced++;
+      else added++;
+      changes.push({ t: table, id: item.id, set: clean });
+    }
+  }
+  if (changes.length === 0) throw new Error('That backup is empty.');
+  commit('backup imported', changes);
+
+  // The task view (filter and sort) is not data in the tables: it lives in the browser, and applies on the next load.
+  try {
+    const { taskFilter, taskSort } = data.preferences ?? {};
+    if (typeof taskFilter === 'string') localStorage.setItem('todolist:task-filter', taskFilter);
+    if (typeof taskSort === 'string') localStorage.setItem('todolist:task-sort', taskSort);
+  } catch {
+    // storage unavailable: the view just stays as it is
+  }
+  return { added, replaced };
 }
 
 
