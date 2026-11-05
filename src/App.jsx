@@ -10,7 +10,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig } from 'motion/react';
-import { all, ensureTaskCreatedDates, getState, redo } from './store.js';
+import { allIncludingTrashed, ensureTaskCreatedDates, getState, purgeExpiredTrash, redo } from './store.js';
 import { brokenStreaks, quip, useToday } from './lib.js';
 import Calendar from './components/Calendar.jsx';
 import Tasks, { TaskDnd } from './components/Tasks.jsx';
@@ -68,7 +68,7 @@ const TOUR_KEY = 'todolist:onboarded';
 function needsTour() {
   if (storage.get(TOUR_KEY)) return false;
   const s = getState();
-  const hasData = ['tasks', 'dailies', 'notes', 'reminders'].some((table) => all(s, table).length > 0);
+  const hasData = ['tasks', 'dailies', 'notes', 'reminders'].some((table) => allIncludingTrashed(s, table).length > 0);
   if (hasData) storage.set(TOUR_KEY, '1');
   return !hasData;
 }
@@ -118,6 +118,14 @@ export default function App() {
   }, [sort]);
   useEffect(() => {
     ensureTaskCreatedDates();
+    purgeExpiredTrash();
+    const expiryTimer = setInterval(purgeExpiredTrash, 60 * 1000);
+    const onVisible = () => document.visibilityState === 'visible' && purgeExpiredTrash();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(expiryTimer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
   const sync = useSync(); // the dot on the Settings button in the phone's bottom bar
   const [modal, setModal] = useState(() => (needsTour() ? 'tour' : null)); // which pop-up is open: 'tour' | 'reminders' | 'settings' | 'account' | 'keys' | 'search' | null

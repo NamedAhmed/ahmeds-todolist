@@ -1,6 +1,6 @@
 // Tests for the data store: undo, redo and restoring a backup. Run with: npm test
 import { beforeEach, describe, expect, it } from 'vitest';
-import { all, commit, exportJson, getState, importJson, redo, resetAll, undo } from './store.js';
+import { all, allIncludingTrashed, commit, exportJson, getState, importJson, purgeExpiredTrash, redo, resetAll, TRASH_RETENTION_MS, undo } from './store.js';
 
 const titles = () => all(getState(), 'tasks').map((t) => t.title).sort();
 
@@ -35,6 +35,44 @@ describe('undo and redo', () => {
 
   it('says so when there is nothing to undo', () => {
     expect(undo()).toBeNull();
+  });
+});
+
+describe('Recently Deleted', () => {
+  beforeEach(() => resetAll());
+
+  it('hides trashed items from active lists while keeping them recoverable and backed up', () => {
+    commit('add', [{ t: 'tasks', id: 'a', patch: { title: 'A' } }]);
+    commit('trash', [{ t: 'tasks', id: 'a', patch: { trashed: Date.now() } }]);
+
+    expect(all(getState(), 'tasks')).toEqual([]);
+    expect(allIncludingTrashed(getState(), 'tasks')).toMatchObject([{ id: 'a', title: 'A' }]);
+    expect(JSON.parse(exportJson()).tasks).toMatchObject([{ id: 'a', title: 'A' }]);
+  });
+
+  it('restores an item without losing its saved content', () => {
+    commit('add', [{ t: 'notes', id: 'n', patch: { title: 'Plan', body: 'Keep this' } }]);
+    commit('trash', [{ t: 'notes', id: 'n', patch: { trashed: Date.now() } }]);
+    commit('restore', [{ t: 'notes', id: 'n', patch: { trashed: null } }]);
+
+    expect(all(getState(), 'notes')).toMatchObject([{ id: 'n', title: 'Plan', body: 'Keep this' }]);
+  });
+
+  it('permanently expires items and related completion history after 30 days', () => {
+    const now = Date.now();
+    commit('add', [
+      { t: 'dailies', id: 'old', patch: { name: 'Old daily', trashed: now - TRASH_RETENTION_MS - 1 } },
+      { t: 'completions', id: 'old:2026-01-01', patch: { ref: 'old', date: '2026-01-01', kind: 'daily' } },
+      { t: 'tasks', id: 'recent', patch: { title: 'Recent task', trashed: now - TRASH_RETENTION_MS + 1 } },
+    ]);
+
+    expect(purgeExpiredTrash(now)).toBe(1);
+    expect(allIncludingTrashed(getState(), 'dailies')).toEqual([]);
+    expect(allIncludingTrashed(getState(), 'completions')).toEqual([]);
+    expect(allIncludingTrashed(getState(), 'tasks')).toMatchObject([{ id: 'recent' }]);
+    expect(undo()).toBe('add');
+    expect(allIncludingTrashed(getState(), 'dailies')).toEqual([]);
+    expect(allIncludingTrashed(getState(), 'tasks')).toEqual([]);
   });
 });
 

@@ -10,7 +10,7 @@
 // It slides up from the bottom without covering the page (Sheet.jsx), so changes show up live.
 
 import { useRef, useState } from 'react';
-import { exportJson, importJson } from '../store.js';
+import { allIncludingTrashed, commit, deletePermanently, exportJson, importJson, TRASH_RETENTION_MS, useStore } from '../store.js';
 import { PREVIOUS_BACKUP, sendCode, signOut, supabase, syncNow, useSync, verifyCode } from '../sync.js';
 import { quip } from '../lib.js';
 import Icon from './Icons.jsx';
@@ -331,11 +331,159 @@ export function AccountModal({ onClose }) {
 const TABS = [
   ['style', 'Style', 'palette'],
   ['general', 'General', 'sliders'],
+  ['deleted', 'Recently Deleted', 'trash'],
 ];
 
 // On a phone Settings is a page of its own (a tab in the bottom bar) instead of a sheet, with Account as one more tab.
-// Props: tab ('style' | 'general' | 'account') and setTab, kept by App.jsx so other buttons can open the Account tab.
+// Props: tab and setTab are kept by App.jsx so other buttons can open the Account tab.
 const PAGE_TABS = [...TABS, ['account', 'Account', 'user']];
+
+const DELETED_TABLES = [
+  ['tasks', 'Task', 'Tasks'],
+  ['dailies', 'Daily', 'Dailies'],
+  ['reminders', 'Reminder', 'Reminders'],
+  ['notes', 'Note', 'Notes'],
+];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function deletedAt(item) {
+  if (item.trashed == null || item.trashed === '') return null;
+  if (typeof item.trashed === 'number') return item.trashed;
+  const value = Number(item.trashed);
+  if (Number.isFinite(value)) return value;
+  const parsed = Date.parse(item.trashed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function deletedTitle(table, item) {
+  if (table === 'dailies') return item.name || 'Untitled daily';
+  if (table === 'reminders') return item.title || 'Untitled reminder';
+  if (table === 'notes') return item.title || 'Untitled note';
+  return item.title || (item.parent ? 'Untitled step' : 'Untitled task');
+}
+
+function recentlyDeletedItems(state, now = Date.now()) {
+  const cutoff = now - TRASH_RETENTION_MS;
+  const items = DELETED_TABLES.flatMap(([table, kind]) =>
+    allIncludingTrashed(state, table)
+      .filter((item) => {
+        const at = deletedAt(item);
+        return at !== null && at > cutoff;
+      })
+      .map((item) => ({
+        table,
+        kind: table === 'tasks' ? (item.parent ? 'Step' : item.kind === 'project' ? 'Project' : 'Task') : kind,
+        item,
+        at: deletedAt(item),
+      }))
+  );
+  const tasks = items.filter((entry) => entry.table === 'tasks');
+  const groupedChildren = new Set();
+  const projects = tasks.filter(({ item }) => !item.parent);
+  for (const project of projects) {
+    project.members = [project, ...tasks.filter(({ item }) => item.trash_group === project.item.id)];
+    for (const child of project.members.slice(1)) groupedChildren.add(child.item.id);
+  }
+  return items
+    .filter((entry) => entry.table !== 'tasks' || !entry.item.parent || !groupedChildren.has(entry.item.id))
+    .sort((a, b) => b.at - a.at);
+}
+
+function entryRecords(entries) {
+  return entries.flatMap((entry) => entry.members ?? [entry]);
+}
+
+function discardChanges(entries, state) {
+  const items = entryRecords(entries);
+  const changes = items.map(({ table, item }) => ({ t: table, id: item.id, set: null }));
+  const related = new Set(items.filter(({ table }) => table === 'dailies' || table === 'reminders').map(({ item }) => item.id));
+  for (const completion of allIncludingTrashed(state, 'completions')) {
+    if (related.has(completion.ref)) changes.push({ t: 'completions', id: completion.id, set: null });
+  }
+  deletePermanently(changes);
+}
+
+function RecentlyDeleted() {
+  const state = useStore();
+  const [filter, setFilter] = useState('all');
+  const items = recentlyDeletedItems(state);
+  const visible = filter === 'all' ? items : items.filter((entry) => entry.table === filter);
+  const counts = Object.fromEntries(DELETED_TABLES.map(([table]) => [table, items.filter((entry) => entry.table === table).length]));
+
+  function restore(entry) {
+    const changes = entryRecords([entry]).map(({ table, item }) => ({ t: table, id: item.id, patch: { trashed: null, trash_group: null } }));
+    commit('item restored', changes);
+    toast(`${entry.kind} restored.`, { undoable: true });
+  }
+
+  function deleteForever(entries) {
+    const titles = entries.length === 1 ? `“${deletedTitle(entries[0].table, entries[0].item)}”` : `${entries.length} items`;
+    if (!window.confirm(`Permanently delete ${titles}? This can't be undone.`)) return;
+    discardChanges(entries, state);
+  }
+
+  return (
+    <section className="recently-deleted" aria-label="Recently Deleted">
+      <header className="deleted-heading">
+        <div>
+          <h3>Recently Deleted</h3>
+          <p className="hint">Deleted items stay here for 30 days, then they’re permanently removed.</p>
+        </div>
+        {items.length > 0 && (
+          <button className="btn-ghost danger" type="button" onClick={() => deleteForever(items)}>
+            Empty Recently Deleted
+          </button>
+        )}
+      </header>
+
+      <div className="deleted-filters" role="group" aria-label="Filter deleted items">
+        <button type="button" className={'chip' + (filter === 'all' ? ' solid' : '')} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
+          All <span>{items.length}</span>
+        </button>
+        {DELETED_TABLES.map(([table, , plural]) => (
+          <button key={table} type="button" className={'chip' + (filter === table ? ' solid' : '')} aria-pressed={filter === table} onClick={() => setFilter(table)}>
+            {plural} <span>{counts[table]}</span>
+          </button>
+        ))}
+      </div>
+
+      {visible.length > 0 ? (
+        <ul className="deleted-list">
+          {visible.map((entry) => {
+            const daysLeft = Math.max(1, Math.ceil((entry.at + TRASH_RETENTION_MS - Date.now()) / DAY_MS));
+            const when = new Date(entry.at).toLocaleDateString([], { dateStyle: 'medium' });
+            return (
+              <li className="deleted-item" key={`${entry.table}:${entry.item.id}`}>
+                <div className="deleted-copy">
+                  <span className="deleted-kind mono">{entry.kind}</span>
+                  <strong>{deletedTitle(entry.table, entry.item)}</strong>
+                  <span className="deleted-meta">
+                    Deleted {when} · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+                    {entry.members?.length > 1 && ` · includes ${entry.members.length - 1} ${entry.members.length === 2 ? 'step' : 'steps'}`}
+                  </span>
+                </div>
+                <div className="deleted-actions">
+                  <button className="btn-ghost" type="button" onClick={() => restore(entry)} aria-label={`Restore ${deletedTitle(entry.table, entry.item)}`}>
+                    Restore
+                  </button>
+                  <button className="btn-ghost danger" type="button" onClick={() => deleteForever([entry])} aria-label={`Delete ${deletedTitle(entry.table, entry.item)} forever`}>
+                    Delete forever
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="deleted-empty">
+          <Icon name="trash" size={24} />
+          <p>{items.length ? `No deleted ${filter} yet.` : 'Nothing deleted recently.'}</p>
+          <span className="hint">Items you delete from Tasks, Dailies, Reminders, or Notes will show up here.</span>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export function SettingsPage({ tab, setTab }) {
   return (
@@ -358,7 +506,9 @@ export function SettingsPage({ tab, setTab }) {
           </button>
         ))}
       </div>
-      <div className="settings-page-body">{tab === 'style' ? <StyleTab /> : tab === 'general' ? <GeneralTab /> : <AccountPanel />}</div>
+      <div className="settings-page-body">
+        {tab === 'style' ? <StyleTab /> : tab === 'general' ? <GeneralTab /> : tab === 'deleted' ? <RecentlyDeleted /> : <AccountPanel />}
+      </div>
     </section>
   );
 }
@@ -386,7 +536,7 @@ export function SettingsSheet({ onClose }) {
 
   return (
     <Sheet title="Settings" tabs={tabs} onClose={onClose}>
-      {tab === 'style' ? <StyleTab /> : <GeneralTab />}
+      {tab === 'style' ? <StyleTab /> : tab === 'general' ? <GeneralTab /> : <RecentlyDeleted />}
     </Sheet>
   );
 }

@@ -2156,40 +2156,6 @@ html[data-theme="liquid"] .slash-menu {
   font-size: 12px;
 }
 
-/* The Trash under the notes list (Side.jsx) */
-.note-trash-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 4px 2px;
-  font-size: 11px;
-  color: var(--muted);
-}
-.note-trash-toggle.on,
-.note-trash-toggle:hover {
-  color: var(--text);
-}
-.note-trash {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.note-trash li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
-  font-size: 12px;
-}
-.note-trash .t {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-}
 
 /* The Rich and Markdown note editors (NoteEditors.jsx) */
 .rich-tools {
@@ -2337,10 +2303,6 @@ html[data-theme="liquid"] .slash-menu {
     max-width: 160px;
     flex-shrink: 0;
   }
-  .note-side .note-trash-toggle {
-    margin-top: 0;
-  }
-  .note-side .note-trash,
   .note-side .bulk-bar {
     flex-basis: 100%;
   }
@@ -2570,6 +2532,130 @@ html[data-theme="paper"] input[type="time"] {
 .col-settings {
   display: none;
 }
+.recently-deleted {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.deleted-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.deleted-heading h3 {
+  margin: 0 0 6px;
+  font-family: var(--serif);
+  font-size: 25px;
+  font-weight: 400;
+}
+.deleted-heading .hint {
+  max-width: 540px;
+}
+.deleted-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: thin;
+}
+.deleted-filters .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.deleted-filters .chip span {
+  color: var(--faint-text);
+}
+.deleted-filters .chip.solid span {
+  color: inherit;
+}
+.deleted-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.deleted-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: var(--bw) solid var(--line);
+}
+.deleted-copy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.deleted-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+}
+.deleted-kind {
+  grid-row: span 2;
+  align-self: center;
+  padding: 5px 8px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.deleted-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.deleted-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.deleted-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 38px 16px;
+  border: var(--bw) dashed var(--line-hi);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  text-align: center;
+}
+.deleted-empty p {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 22px;
+}
+.deleted-empty .hint {
+  max-width: 360px;
+}
+@media (max-width: 600px) {
+  .deleted-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .deleted-heading > .btn-ghost {
+    align-self: flex-start;
+  }
+  .deleted-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .deleted-actions {
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 900px) {
   .app[data-tab="settings"] .col-settings {
     display: flex;
@@ -2583,13 +2669,17 @@ html[data-theme="paper"] input[type="time"] {
     overflow-x: auto;
   }
   .col-settings .tab {
-    flex: 1;
+    flex: 0 0 auto;
     justify-content: center;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
   }
   .settings-page-body {
+    flex: 1;
     min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
   }
 }

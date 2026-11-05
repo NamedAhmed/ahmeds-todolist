@@ -165,7 +165,7 @@ export function RemindersModal({ today, onClose }) {
   }
 
   function deleteReminder(reminder) {
-    commit('reminder deleted', [{ t: 'reminders', id: reminder.id, set: null }]);
+    commit('reminder deleted', [{ t: 'reminders', id: reminder.id, patch: { trashed: Date.now() } }]);
     toast(quip('reminderDeleted'), { undoable: true });
   }
 
