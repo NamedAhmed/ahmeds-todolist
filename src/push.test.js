@@ -56,4 +56,16 @@ describe('buildSchedule', () => {
     expect(notes.length).toBeGreaterThan(0);
     expect(notes.every((n) => n.title === 'Gym' && new Date(n.fire_at).getDay() === weekday)).toBe(true);
   });
+
+  it('a biweekly reminder: schedules its selected day every other week', () => {
+    const today = todayStr();
+    const start = addDays(today, 2);
+    const weekday = new Date(start + 'T12:00').getDay();
+    commit('add', [{ t: 'reminders', id: 'r', patch: { title: 'Water plants', rule: { type: 'biweekly', days: [weekday], start }, time: '07:00', created: today } }]);
+    const notes = buildSchedule(getState(), '09:00', new Date(`${today}T00:00`));
+    expect(notes.map((note) => note.fire_at)).toEqual([
+      new Date(`${start}T07:00`).toISOString(),
+      new Date(`${addDays(start, 14)}T07:00`).toISOString(),
+    ]);
+  });
 });

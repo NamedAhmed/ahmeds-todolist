@@ -15,6 +15,17 @@ describe('occursOn', () => {
     expect(occursOn(rule, '2026-11-03')).toBe(false); // a Tuesday
   });
 
+  it('biweekly: on selected weekdays every other week from the start week', () => {
+    const rule = { type: 'biweekly', days: [3, 4], start: '2026-11-04' }; // Wednesday and Thursday
+    expect(occursOn(rule, '2026-11-04')).toBe(true);
+    expect(occursOn(rule, '2026-11-05')).toBe(true);
+    expect(occursOn(rule, '2026-11-11')).toBe(false); // the intervening week
+    expect(occursOn(rule, '2026-11-18')).toBe(true);
+    expect(occursOn(rule, '2026-11-19')).toBe(true);
+    expect(occursOn(rule, '2026-11-17')).toBe(false); // not a selected weekday
+    expect(occursOn(rule, '2026-11-03')).toBe(false); // before the start date
+  });
+
   it('monthly on the 31st: falls on the last day of shorter months', () => {
     const rule = { type: 'monthly', day: 31 };
     expect(occursOn(rule, '2026-10-31')).toBe(true);

@@ -222,6 +222,7 @@ export function streakOf(state, id, today) {
 // A single reminder happens once; the others repeat. Four kinds:
 //   { type: 'once',    date: 'YYYY-MM-DD' }           one day only (it is done once you tick it)
 //   { type: 'weekly',  days: [0-6] }                  e.g. every Mon and Thu (0 = Sunday)
+//   { type: 'biweekly', days: [0-6], start: 'YYYY-MM-DD' } every other week, anchored to start
 //   { type: 'monthly', day: 1-31 }                    e.g. the 5th of every month
 //   { type: 'yearly',  month: 0-11, day: 1-31 }       e.g. every March 3rd (0 = January)
 
@@ -232,6 +233,11 @@ export function occursOn(rule, date) {
 
   if (rule.type === 'weekly') {
     return rule.days.includes(d.getDay());
+  }
+
+  if (rule.type === 'biweekly') {
+    if (!rule.start || date < rule.start || !rule.days.includes(d.getDay())) return false;
+    return Math.floor(diffDays(date, rule.start) / 7) % 2 === 0;
   }
 
   // Monthly and yearly: "the 31st" falls on the LAST day of short months.
@@ -267,6 +273,9 @@ export function ruleText(rule) {
   if (rule.type === 'weekly') {
     if (rule.days.length === 7) return 'Every day';
     return rule.days.map((day) => DOW[day]).join(' ');
+  }
+  if (rule.type === 'biweekly') {
+    return `Every 2 weeks · ${rule.days.map((day) => DOW[day]).join(' ')}`;
   }
   if (rule.type === 'monthly') {
     return `Monthly on the ${rule.day}${ordinal(rule.day)}`;

@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { all, commit, uid, useStore } from '../store.js';
-import { DAILY_COLORS, DOW, MON, empties, quip, ruleText } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, addDays, empties, quip, ruleText } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 
 // A CSS selector that finds everything you can Tab to inside the window.
@@ -136,7 +136,7 @@ export function RemindersModal({ today, onClose }) {
 
   // What is currently typed/selected in the "add reminder" form.
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('once');                // 'once' | 'weekly' | 'monthly' | 'yearly'
+  const [type, setType] = useState('once');                // 'once' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
   const [date, setDate] = useState(today);                 // once: which day
   const [time, setTime] = useState('');                    // the time of day to be notified at ('' = no time)
   const [days, setDays] = useState([new Date().getDay()]); // weekly: which weekdays (0 = Sunday)
@@ -147,14 +147,18 @@ export function RemindersModal({ today, onClose }) {
   function addReminder(event) {
     event.preventDefault();
     if (!title.trim()) return;
-    if (type === 'weekly' && days.length === 0) return; // weekly needs at least one weekday
+    if ((type === 'weekly' || type === 'biweekly') && days.length === 0) return; // repeating weeks need a weekday
     if (type === 'once' && !date) return;
 
     // Build the "rule" that says when it happens (see occursOn in lib.js).
     let rule;
     if (type === 'once') rule = { type, date };
-    else if (type === 'weekly') rule = { type, days: [...days].sort() };
-    else if (type === 'monthly') rule = { type, day };
+    else if (type === 'weekly') rule = { type, days: [...days].sort((a, b) => a - b) };
+    else if (type === 'biweekly') {
+      const weekday = new Date(`${today}T00:00`).getDay();
+      const firstDayOffset = Math.min(...days.map((selected) => (selected - weekday + 7) % 7));
+      rule = { type, days: [...days].sort((a, b) => a - b), start: addDays(today, firstDayOffset) };
+    } else if (type === 'monthly') rule = { type, day };
     else rule = { type, month, day };
 
     commit('reminder added', [
@@ -230,9 +234,9 @@ export function RemindersModal({ today, onClose }) {
           aria-label="Reminder"
         />
 
-        {/* Choose once / weekly / monthly / yearly */}
+        {/* Choose once / weekly / every other week / monthly / yearly */}
         <div className="seg-row" role="group" aria-label="How often">
-          {[['once', 'Just once'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([kind, label]) => (
+          {[['once', 'Just once'], ['weekly', 'Weekly'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([kind, label]) => (
             <button
               type="button"
               key={kind}
@@ -253,8 +257,8 @@ export function RemindersModal({ today, onClose }) {
           </div>
         )}
 
-        {/* Weekly: pick weekdays */}
-        {type === 'weekly' && (
+        {/* Weekly and biweekly: pick weekdays */}
+        {(type === 'weekly' || type === 'biweekly') && (
           <div className="seg-row">
             {DOW.map((name, index) => (
               <button
