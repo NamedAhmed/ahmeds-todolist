@@ -921,7 +921,7 @@ function matchesTaskFilter(task, filter, day, today) {
   if (filter === 'week') return !!task.due && task.due >= today && task.due <= addDays(today, 7);
   if (filter === 'month') return !!task.due && task.due >= today && task.due <= oneMonthFrom(today);
   if (filter === 'undated') return !task.due;
-  if (filter === 'date') return !task.due || task.due === day;
+  if (filter === 'date') return !!task.due && task.due === day;
   return true;
 }
 
