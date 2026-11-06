@@ -1,6 +1,21 @@
 // Tests for the date maths in lib.js: when a repeating daily or reminder happens. Run with: npm test
 import { describe, expect, it } from 'vitest';
-import { occursOn, reminderOccursOn } from './lib.js';
+import { dailiesOn, occursOn, reminderOccursOn } from './lib.js';
+
+describe('dailiesOn', () => {
+  it('keeps a deleted daily visible only on days before it was deleted', () => {
+    const deletedAt = new Date(2026, 10, 3, 12).getTime();
+    const state = {
+      dailies: {
+        reading: { id: 'reading', name: 'Read', created: '2026-11-01', trashed: deletedAt, position: 0 },
+      },
+    };
+
+    expect(dailiesOn(state, '2026-11-02').map((daily) => daily.id)).toEqual(['reading']);
+    expect(dailiesOn(state, '2026-11-03')).toEqual([]);
+    expect(dailiesOn(state, '2026-11-04')).toEqual([]);
+  });
+});
 
 describe('occursOn', () => {
   it('once: only on its date', () => {

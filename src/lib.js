@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import * as chrono from 'chrono-node'; // a library that understands "tomorrow", "next friday", etc.
-import { all, getState } from './store.js';
+import { all, allIncludingTrashed, getState } from './store.js';
 
 
 // ======================================================================
@@ -180,16 +180,25 @@ export function doneKey(id, date) {
 }
 
 // The dailies that existed on a given day, in display order.
-// (A daily created later, or archived earlier, isn't shown on that day.)
+// Deleted dailies remain in history before the day they were deleted.
 export function dailiesOn(state, date) {
   const result = [];
-  for (const daily of all(state, 'dailies')) {
+  for (const daily of allIncludingTrashed(state, 'dailies')) {
     const alreadyCreated = daily.created <= date;
-    const notArchivedYet = !daily.archived || daily.archived > date;
-    if (alreadyCreated && notArchivedYet) result.push(daily);
+    const endedOn = daily.archived || dateFromTimestamp(daily.trashed);
+    const notEndedYet = !endedOn || endedOn > date;
+    if (alreadyCreated && notEndedYet) result.push(daily);
   }
   result.sort((a, b) => a.position - b.position);
   return result;
+}
+
+function dateFromTimestamp(value) {
+  if (value == null || value === '') return null;
+  const numeric = typeof value === 'number' ? value : Number(value);
+  const timestamp = Number.isFinite(numeric) ? numeric : Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return ymd(new Date(timestamp));
 }
 
 // Was this daily ticked on this date? true / false.

@@ -256,12 +256,11 @@ export function commit(label, changes) {
   emit();
 }
 
-// Permanently remove records without creating an Undo that could bring them back.
+// Apply changes without creating an Undo that could bring expired items back.
 export function deletePermanently(changes) {
-  const deletions = changes.filter((change) => change.set === null);
-  if (!deletions.length) return;
+  if (!changes.length) return;
 
-  const keys = new Set(deletions.map(({ t, id }) => `${t}:${id}`));
+  const keys = new Set(changes.map(({ t, id }) => `${t}:${id}`));
   for (const stack of [undoStack, redoStack]) {
     for (const action of stack) {
       action.changes = action.changes.filter(({ t, id }) => !keys.has(`${t}:${id}`));
@@ -271,31 +270,43 @@ export function deletePermanently(changes) {
     stack.push(...remaining);
   }
 
-  apply(deletions);
+  apply(changes);
   emit();
 }
 
-// Expire recoverable items after 30 days, and remove their completion history too.
-// Expiry is permanent and is synced like any other deletion.
+// Expire recoverable items after 30 days. Daily records and completions remain as history.
+// Expiry is permanent and is synced like any other change.
 export function purgeExpiredTrash(now = Date.now()) {
   const expired = [];
   for (const table of ['tasks', 'dailies', 'reminders', 'notes']) {
     for (const item of allIncludingTrashed(state, table)) {
       const removedAt = trashedTimestamp(item.trashed);
-      if (removedAt !== null && removedAt <= now - TRASH_RETENTION_MS) expired.push({ t: table, id: item.id });
+      if (removedAt !== null && removedAt <= now - TRASH_RETENTION_MS) expired.push({ t: table, id: item.id, removedAt });
     }
   }
   if (!expired.length) return 0;
 
-  const expiredDailiesAndReminders = new Set(
-    expired.filter(({ t }) => t === 'dailies' || t === 'reminders').map(({ id }) => id)
-  );
-  const changes = expired.map(({ t, id }) => ({ t, id, set: null }));
+  const expiredReminders = new Set(expired.filter(({ t }) => t === 'reminders').map(({ id }) => id));
+  const changes = expired.map(({ t, id, removedAt }) => {
+    if (t !== 'dailies') return { t, id, set: null };
+    const daily = state.dailies[id];
+    return {
+      t,
+      id,
+      patch: { trashed: null, archived: daily.archived || dateForTimestamp(removedAt) },
+    };
+  });
   for (const completion of allIncludingTrashed(state, 'completions')) {
-    if (expiredDailiesAndReminders.has(completion.ref)) changes.push({ t: 'completions', id: completion.id, set: null });
+    if (expiredReminders.has(completion.ref)) changes.push({ t: 'completions', id: completion.id, set: null });
   }
   deletePermanently(changes);
   return expired.length;
+}
+
+function dateForTimestamp(timestamp) {
+  const date = new Date(timestamp);
+  const pad = (part) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 // Save a preference (theme, wallpaper...) in the `settings` table. Unlike commit(), this is NOT
