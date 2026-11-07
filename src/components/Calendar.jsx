@@ -16,6 +16,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
+import { useSync } from '../sync.js';
 import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, quip, reminderOccursOn, streakOf, toDate, ymd } from '../lib.js';
 import { Flame, sass, toast } from './Fire.jsx';
 
@@ -446,6 +447,7 @@ function AddDaily({ s, today }) {
 //   editDaily  function that opens the editor for a daily (gets the daily's id)
 export default function Calendar({ today, day, setDay, open, editDaily }) {
   const s = useStore();
+  const sync = useSync(); // are we signed in / syncing?
 
   const [month, setMonth] = useState(false); // false = two weeks, true = five weeks around today
 
@@ -554,10 +556,11 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
           <Icon name="repeat" size={16} />
           Reminders
         </button>
-        <button className="btn-ghost settings-button" onClick={(event) => { event.stopPropagation(); open('settings'); }} aria-label="Settings" title="Settings">
+        <button className="btn-ghost settings-button foot-right" onClick={(event) => { event.stopPropagation(); open('settings'); }} aria-label="Settings" title="Settings">
           <Icon name="sliders" size={16} />
         </button>
-        <button className="btn-ghost foot-right" onClick={(event) => { event.stopPropagation(); open('account'); }} aria-label="Account and backup" title="Account and backup">
+        <button className="btn-ghost" onClick={(event) => { event.stopPropagation(); open('account'); }} aria-label="Account and backup" title="Account and backup">
+          <i className={'sync-dot ' + sync.sync} />
           <Icon name="user" size={16} />
           <span className="foot-label">Account</span>
         </button>
