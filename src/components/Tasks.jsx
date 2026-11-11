@@ -1134,7 +1134,7 @@ const SORT_LABELS = {
   added: 'Date Added',
 };
 
-export default function Tasks({ today, day: pickedDay, filter: pickedFilter, setFilter, sort, setSort, onReminders }) {
+export default function Tasks({ today, day: pickedDay, filter: pickedFilter, setFilter, sort, setSort }) {
   const s = useStore();
   // Picking a day or a filter answers at once (the calendar shows it straight away); the list, which can be long, is
   // rebuilt just after, in small steps that never freeze the page. Until then the previous list stays on screen.
@@ -1338,11 +1338,6 @@ export default function Tasks({ today, day: pickedDay, filter: pickedFilter, set
       <header className="col-head">
         <h1>Tasks</h1>
         <div className="task-controls">
-          {onReminders && (
-            <button className="day-toggle" onClick={onReminders} aria-label="Reminders" title="Reminders (repeating and one-off)">
-              <Icon name="repeat" size={14} />
-            </button>
-          )}
           <button
             className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
             aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}

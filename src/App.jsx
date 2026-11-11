@@ -289,7 +289,7 @@ export default function App() {
         <TaskDnd day={day} filter={filter} sort={sort}>
           <Calendar today={today} day={day} setDay={setDay} open={setModal} editDaily={setEditingDaily} />
           <Resizer index={0} grid={grid} {...columns} />
-          <Tasks today={today} day={day} filter={filter} setFilter={setFilter} sort={sort} setSort={setSort} onReminders={() => setModal('reminders')} />
+          <Tasks today={today} day={day} filter={filter} setFilter={setFilter} sort={sort} setSort={setSort} />
         </TaskDnd>
 
         <Resizer index={1} grid={grid} {...columns} />
