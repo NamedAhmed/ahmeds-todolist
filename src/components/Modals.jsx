@@ -129,7 +129,8 @@ export function RemindersModal({ today, onClose }) {
   const s = useStore();
 
   // Existing reminders in the order they come up: by next date, then time of day, then title.
-  const next = (r) => pendingOccurrence(s, r, today) || '9999-12-31';
+  const nextDate = new Map(all(s, 'reminders').map((r) => [r.id, pendingOccurrence(s, r, today) || '9999-12-31'])); // worked out once each
+  const next = (r) => nextDate.get(r.id);
   const reminders = all(s, 'reminders').sort((a, b) =>
     next(a).localeCompare(next(b)) ||
     (a.time || '99:99').localeCompare(b.time || '99:99') ||
