@@ -74,7 +74,7 @@ export default function Sheet({ title, tabs, onClose, children }) {
   // Escape closes the sheet. (A drop-down list that is open stops the key first, so it only closes the list.)
   useEffect(() => {
     function onKey(event) {
-      if (event.key === 'Escape' && !event.defaultPrevented) onClose();
+      if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('.scrim')) onClose(); // a window above the sheet takes the key first
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

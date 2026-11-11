@@ -20,7 +20,7 @@
 //   reminder a repeating task (set up in the Reminders window)
 //   commit() is how everything gets saved (see store.js)
 
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -211,12 +211,10 @@ function rowKeys(event, act) {
 
   const li = event.currentTarget;
 
-  // Movement keys: arrows and j/k go up and down, Home/End jump to the first/last row.
+  // Movement keys: arrows go up and down, Home/End jump to the first/last row.
   const movement = {
     ArrowDown: 1,
-    j: 1,
     ArrowUp: -1,
-    k: -1,
     Home: 'first',
     End: 'last',
   }[event.key];
@@ -234,7 +232,6 @@ function rowKeys(event, act) {
   } else {
     action = {
       ' ': act.toggle,
-      x: act.toggle,
       Enter: act.enter,
       e: act.rename,
       d: act.date,
@@ -243,7 +240,6 @@ function rowKeys(event, act) {
       '[': act.earlier,
       ']': act.later,
       Delete: act.remove,
-      Backspace: act.remove,
       s: act.skip,
     }[event.key];
   }
@@ -323,7 +319,7 @@ function finishTask(task) {
 
   // A rude comment. Better ones for projects and for tasks that were very late.
   if (task.kind === 'project') {
-    toast(quip('projectDone'));
+    toast(quip('projectDone', task.title));
   } else {
     let daysLate = 0;
     if (task.due && task.due < todayStr()) daysLate = diffDays(todayStr(), task.due);
@@ -346,7 +342,7 @@ function removeTask(task) {
   const trashed = Date.now();
   const changes = [task, ...steps].map((t) => ({ t: 'tasks', id: t.id, patch: { trashed, trash_group: task.id } }));
   smooth(() => commit('task deleted', changes));
-  toast(quip('taskDeleted'), { undoable: true });
+  toast(quip('taskDeleted', task.title), { undoable: true });
 }
 
 // The same for several tasks at once (the selection bar): one change, so one Undo brings them all back.
@@ -373,7 +369,7 @@ function removeTasks(tasks) {
     [task, ...subtasksOf(getState(), task.id)].map((t) => ({ t: 'tasks', id: t.id, patch: { trashed, trash_group: task.id } }))
   );
   smooth(() => commit('tasks deleted', changes));
-  toast(`${tasks.length} tasks gone.`, { undoable: true });
+  toast(`${tasks.length} tasks deleted.`, { undoable: true });
 }
 
 
@@ -632,6 +628,86 @@ const TaskRow = memo(
 
     const className = ['task', done && 'done', isProject && 'project', isDragging && 'dragging', selected && 'selected'].filter(Boolean).join(' ');
 
+    // Everything inside the row, kept between re-draws unless something it shows changes. (The drag library re-draws
+    // every row whenever the list's order changes, for example when a task is ticked; this keeps that cheap.)
+    const projectTasks = isProject ? s.tasks : null; // a project shows its steps, so it follows changes to them
+    const inside = useMemo(
+      () => (
+        <>
+          <div className="task-main">
+            {/* The round (or square, for projects) check button */}
+            <button
+              tabIndex={-1}
+              className={'check' + (isProject ? ' square' : '')}
+              aria-pressed={done}
+              aria-label={'Done: ' + task.title}
+              onClick={toggle}
+            >
+              <CheckIcon />
+            </button>
+
+            {/* The name. For a project, clicking it unfolds it. */}
+            {isProject && !editing ? (
+              <button tabIndex={-1} className="task-title as-button" onClick={() => onToggleOpen(task.id)} aria-expanded={open}>
+                {task.title}
+              </button>
+            ) : (
+              <Title
+                value={task.title}
+                editing={editing}
+                setEditing={edit}
+                onSave={(title) => {
+                  patch('task renamed', { title });
+                  sass('renamed', [], { chance: 0.3 });
+                }}
+              />
+            )}
+
+            {/* The rude comment on overdue tasks */}
+            {late > 0 && <span className="jab">{lateJab(late, task.created || 0)}</span>}
+
+            <span className="row-end">
+              {isProject && (
+                <span className="count">
+                  {steps.filter((step) => step.done).length}/{steps.length}
+                </span>
+              )}
+              <DueButton due={task.due} time={task.due_time} today={today} done={done} onClick={() => setPicking(true)} />
+              <AnimatePresence>
+                {picking && (
+                  <DatePicker
+                    value={task.due || null}
+                    today={today}
+                    onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', date ? { due: date } : { due: null, due_time: null })}
+                    time={task.due_time || null}
+                    onTime={(time) => patch('due time changed', { due_time: time })}
+                    onClose={() => setPicking(false)}
+                  />
+                )}
+              </AnimatePresence>
+              <RowMenu items={menu} open={menuOpen} onOpenChange={setMenuOpen} />
+            </span>
+          </div>
+
+          {/* The thin progress bar under an unfinished project */}
+          {isProject && !done && (
+            <div
+              className="progress"
+              style={{ '--p': percent + '%' }}
+              role="progressbar"
+              aria-valuenow={percent}
+              aria-valuemin="0"
+              aria-valuemax="100"
+            />
+          )}
+
+          {/* The unfolded project steps */}
+          <AnimatePresence initial={false}>{isProject && open && <ProjectBody s={s} task={task} />}</AnimatePresence>
+        </>
+      ),
+      [task, today, done, late, editing, menuOpen, picking, open, percent, projectTasks] // eslint-disable-line react-hooks/exhaustive-deps
+    );
+
     return (
       <li
         ref={(node) => {
@@ -646,85 +722,7 @@ const TaskRow = memo(
         onKeyDown={onKeyDown}
         className={className}
       >
-        <div className="task-main">
-          {/* The round (or square, for projects) check button */}
-          <button
-            tabIndex={-1}
-            className={'check' + (isProject ? ' square' : '')}
-            aria-pressed={done}
-            aria-label={'Done: ' + task.title}
-            onClick={toggle}
-          >
-            <CheckIcon />
-          </button>
-
-          {/* The name. For a project, clicking it unfolds it. */}
-          {isProject && !editing ? (
-            <button tabIndex={-1} className="task-title as-button" onClick={() => onToggleOpen(task.id)} aria-expanded={open}>
-              {task.title}
-            </button>
-          ) : (
-            <Title
-              value={task.title}
-              editing={editing}
-              setEditing={edit}
-              onSave={(title) => {
-                patch('task renamed', { title });
-                sass('renamed', [], { chance: 0.3 });
-              }}
-            />
-          )}
-
-          {/* The rude comment on overdue tasks */}
-          {late > 0 && <span className="jab">{lateJab(late, task.created || 0)}</span>}
-
-          <span className="row-end">
-            {isProject && (
-              <span className="count">
-                {steps.filter((step) => step.done).length}/{steps.length}
-              </span>
-            )}
-            <DueButton due={task.due} time={task.due_time} today={today} done={done} onClick={() => setPicking(true)} />
-            <AnimatePresence>
-              {picking && (
-                <DatePicker
-                  value={task.due || null}
-                  today={today}
-                  onPick={(date) => patch(date ? 'due date changed' : 'made ongoing', date ? { due: date } : { due: null, due_time: null })}
-                  time={task.due_time || null}
-                  onTime={(time) => patch('due time changed', { due_time: time })}
-                  onClose={() => setPicking(false)}
-                />
-              )}
-            </AnimatePresence>
-            <RowMenu items={menu} open={menuOpen} onOpenChange={setMenuOpen} />
-          </span>
-        </div>
-
-        {/* Quick buttons that appear while Shift is held (see App.jsx) */}
-        <span className="quick">
-          <button tabIndex={-1} aria-label="Rename" title="Rename" onClick={() => edit(true)}>
-            <Icon name="pencil" size={16} />
-          </button>
-          <button tabIndex={-1} className="danger" aria-label="Delete" title="Delete" onClick={remove}>
-            <Icon name="trash" size={16} />
-          </button>
-        </span>
-
-        {/* The thin progress bar under an unfinished project */}
-        {isProject && !done && (
-          <div
-            className="progress"
-            style={{ '--p': percent + '%' }}
-            role="progressbar"
-            aria-valuenow={percent}
-            aria-valuemin="0"
-            aria-valuemax="100"
-          />
-        )}
-
-        {/* The unfolded project steps */}
-        <AnimatePresence initial={false}>{isProject && open && <ProjectBody s={s} task={task} />}</AnimatePresence>
+        {inside}
       </li>
     );
   },
@@ -738,8 +736,16 @@ const TaskRow = memo(
     before.sortable === after.sortable &&
     before.selected === after.selected &&
     before.onMove === after.onMove &&
-    (before.task.kind !== 'project' || before.s.tasks === after.s.tasks)
+    (before.task.kind !== 'project' || !stepsChanged(before, after))
 );
+
+// Did a project's steps change between two versions of the data? (Any other task changing doesn't count.)
+function stepsChanged(before, after) {
+  if (before.s.tasks === after.s.tasks) return false;
+  const a = subtasksOf(before.s, before.task.id);
+  const b = subtasksOf(after.s, after.task.id);
+  return a.length !== b.length || a.some((step, i) => step !== b[i]);
+}
 
 
 // ======================================================================
@@ -1122,8 +1128,12 @@ const SORT_LABELS = {
   added: 'Date Added',
 };
 
-export default function Tasks({ today, day, filter, setFilter, sort, setSort, onReminders }) {
+export default function Tasks({ today, day: pickedDay, filter: pickedFilter, setFilter, sort, setSort }) {
   const s = useStore();
+  // Picking a day or a filter answers at once (the calendar shows it straight away); the list, which can be long, is
+  // rebuilt just after, in small steps that never freeze the page. Until then the previous list stays on screen.
+  const day = useDeferredValue(pickedDay);
+  const filter = useDeferredValue(pickedFilter);
   const [openIds, setOpenIds] = useState(() => new Set()); // which projects are unfolded
   const [showDone, setShowDone] = useState(false);          // are finished tasks shown?
   const { taskGroups, showRepeating } = useAppearance();
@@ -1342,11 +1352,6 @@ export default function Tasks({ today, day, filter, setFilter, sort, setSort, on
       <header className="col-head">
         <h1>Tasks</h1>
         <div className="task-controls">
-          {onReminders && (
-            <button className="day-toggle" onClick={onReminders} aria-label="Reminders" title="Reminders (repeating and one-off)">
-              <Icon name="repeat" size={14} />
-            </button>
-          )}
           <button
             className={'day-toggle' + (sort !== 'due' ? ' on' : '')}
             aria-label={`Task sort: ${SORT_LABELS[sort]}. Click to change.`}

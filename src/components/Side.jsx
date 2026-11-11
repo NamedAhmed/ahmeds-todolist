@@ -75,7 +75,7 @@ function Editor({ note }) {
   function trashNote() {
     flushNoteSaves();
     commit('note trashed', [{ t: 'notes', id: note.id, patch: { trashed: Date.now() } }]);
-    toast(quip('noteDeleted'), { undoable: true });
+    toast(quip('noteDeleted', note.title), { undoable: true });
   }
 
   // Bring back an earlier copy. The text as it is now is kept in the history first.

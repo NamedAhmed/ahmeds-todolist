@@ -12,7 +12,7 @@
 
 import { all, getState, subscribe } from './store.js';
 import { useEffect, useState } from 'react';
-import { supabase, useSync } from './sync.js';
+import { connect, syncConfigured, useSync } from './sync.js';
 import { addDays, formatTime, isDone, reminderOccursOn, todayStr } from './lib.js';
 import { storage } from './storage.js';
 
@@ -35,6 +35,8 @@ function keyBytes(text) {
 }
 
 async function signedIn() {
+  const supabase = await connect();
+  if (!supabase) return false;
   const { data } = await supabase.auth.getSession();
   return !!data.session;
 }
@@ -43,13 +45,14 @@ async function signedIn() {
 
 // Ask permission, subscribe this device and save the subscription. Returns '' on success, else a message to show.
 export async function enablePush() {
-  if (!supabase) return 'Sync is off in this copy, so push can not work.';
+  if (!syncConfigured) return 'Sync is off in this copy, so push can not work.';
   if (!pushSupported()) return 'This browser can not do push notifications. On an iPhone, add the app to the Home Screen first.';
   if (!(await signedIn())) return 'Sign in first (the Account button): the server has to know it is you.';
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return 'Notifications are blocked. Allow them for this site in the browser settings.';
 
+  const supabase = await connect();
   const { data: publicKey, error: keyError } = await supabase.rpc('push_public_key');
   if (keyError || !publicKey) return 'The server is not set up for push yet.';
 
@@ -69,6 +72,7 @@ export async function enablePush() {
 
 export async function disablePush() {
   storage.set(FLAG, '0');
+  const supabase = await connect();
   const registration = await navigator.serviceWorker?.ready;
   const subscription = await registration?.pushManager.getSubscription();
   if (subscription) {
@@ -128,9 +132,10 @@ export function buildSchedule(state, defaultTime, now = new Date(), lead = 0) {
 // finished, moved or deleted stops notifying), rows already sent are left alone so nothing is sent twice.
 let syncing = false;
 export async function syncQueue() {
-  if (!supabase || !pushEnabled() || syncing || !(await signedIn())) return;
+  if (!syncConfigured || !pushEnabled() || syncing || !(await signedIn())) return;
   syncing = true;
   try {
+    const supabase = await connect();
     const defaultTime = getState().settings.appearance?.pushDefaultTime ?? '09:00';
     const lead = Number(getState().settings.appearance?.pushLead) || 0;
     const batch = crypto.randomUUID();
@@ -150,6 +155,7 @@ export async function syncQueue() {
 // A notification right now, to see that it all works.
 export async function sendTestPush() {
   if (!pushEnabled()) return 'Turn notifications on first.';
+  const supabase = await connect();
   const { error } = await supabase.from('push_queue').upsert({ key: `test:${Date.now()}`, fire_at: new Date().toISOString(), title: 'Todolist', body: 'It works. Now go do something.' });
   return error ? error.message : '';
 }
@@ -166,7 +172,7 @@ export function usePushPrompt() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (!user || !supabase || !pushSupported()) return;
+    if (!user || !syncConfigured || !pushSupported()) return;
     let off = false;
     try {
       off = storage.get(FLAG) === '0';
