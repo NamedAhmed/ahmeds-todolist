@@ -138,48 +138,6 @@ export default function App() {
   }, [today]);
 
 
-  // ---- Effect 2: while the Shift key is held, show the Rename and Delete buttons ----
-  // We put an attribute called data-shift on the page. The CSS (app.css) reads it.
-  useEffect(() => {
-    const root = document.documentElement;
-
-    let shiftIsDown = false;
-
-    function isTyping() {
-      return !!document.activeElement?.closest('input, textarea, select, [contenteditable]');
-    }
-
-    function updateShiftVisibility() {
-      root.toggleAttribute('data-shift', shiftIsDown && !isTyping());
-    }
-
-    function onShiftKey(event) {
-      if (event.key !== 'Shift') return;
-      shiftIsDown = event.type === 'keydown';
-      updateShiftVisibility();
-    }
-
-    function clearShift() {
-      shiftIsDown = false;
-      updateShiftVisibility();
-    }
-
-    window.addEventListener('keydown', onShiftKey);
-    window.addEventListener('keyup', onShiftKey);
-    window.addEventListener('focusin', updateShiftVisibility);
-    window.addEventListener('blur', clearShift); // clicking away from the window counts as letting go
-
-    // Cleanup when the app closes.
-    return () => {
-      window.removeEventListener('keydown', onShiftKey);
-      window.removeEventListener('keyup', onShiftKey);
-      window.removeEventListener('focusin', updateShiftVisibility);
-      window.removeEventListener('blur', clearShift);
-      clearShift();
-    };
-  }, []);
-
-
   // ---- Ctrl+K (Cmd+K on a Mac) opens the search, even while typing in a box ----
   useEffect(() => {
     function onSearchKey(event) {
@@ -217,9 +175,14 @@ export default function App() {
     // On a phone the three columns are tabs, so we show the right tab first.
     function goTo(column, selector) {
       setTab(column);
-      requestAnimationFrame(() => {
+      // The column may only just have been shown (phone tabs), so look again a moment later if the first try finds nothing.
+      const focusIt = () => {
         const element = document.querySelector(selector) ?? document.querySelector(`.col-${column}`);
         element?.focus();
+        return element && document.activeElement === element;
+      };
+      requestAnimationFrame(() => {
+        if (!focusIt()) setTimeout(focusIt, 120);
       });
     }
 
@@ -246,7 +209,7 @@ export default function App() {
       const key = event.key;
       let action = null;
 
-      if (key === 'n' || key === 'a' || key === '/') action = () => goTo('tasks', '#task-title');       // new task
+      if (key === 'n') action = () => goTo('tasks', '#task-title');       // new task
       else if (key === 'l') action = () => goTo('tasks', '.task-list > li.task[tabindex]');            // task list
       else if (key === 'c') action = () => goTo('calendar', '.day[tabindex="0"]');                     // calendar
       else if (key === 'o') action = () => goTo('notes', '.note-item');                                // notes

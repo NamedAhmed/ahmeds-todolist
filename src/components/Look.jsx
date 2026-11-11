@@ -174,7 +174,7 @@ function Notifications({ defaultTime, lead }) {
 }
 
 export function GeneralTab() {
-  const { taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead } = useAppearance();
+  const { taskGroups, showRepeating, sassy, pushDefaultTime, noteEditor, pushLead } = useAppearance();
   const openWindow = (name) => window.dispatchEvent(new CustomEvent('todolist:open-modal', { detail: name }));
 
   return (
@@ -191,6 +191,11 @@ export function GeneralTab() {
             <span className="mono">Repeating</span>
             <Switch checked={showRepeating} onChange={(on) => setAppearance({ showRepeating: on })} />
             <span className="auto-note">show repeating reminders in the task list</span>
+          </label>
+          <label className="range-row auto-row">
+            <span className="mono">Sassy</span>
+            <Switch checked={sassy} onChange={(on) => setAppearance({ sassy: on })} />
+            <span className="auto-note">jokes in messages and empty lists</span>
           </label>
         </div>
       </section>

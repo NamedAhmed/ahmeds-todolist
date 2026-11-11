@@ -26,7 +26,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, u
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, saveSetting, uid, useStore } from '../store.js';
-import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, formatTime, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, formatTime, headline, isDone, isSassy, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
@@ -211,12 +211,10 @@ function rowKeys(event, act) {
 
   const li = event.currentTarget;
 
-  // Movement keys: arrows and j/k go up and down, Home/End jump to the first/last row.
+  // Movement keys: arrows go up and down, Home/End jump to the first/last row.
   const movement = {
     ArrowDown: 1,
-    j: 1,
     ArrowUp: -1,
-    k: -1,
     Home: 'first',
     End: 'last',
   }[event.key];
@@ -234,7 +232,6 @@ function rowKeys(event, act) {
   } else {
     action = {
       ' ': act.toggle,
-      x: act.toggle,
       Enter: act.enter,
       e: act.rename,
       d: act.date,
@@ -243,7 +240,6 @@ function rowKeys(event, act) {
       '[': act.earlier,
       ']': act.later,
       Delete: act.remove,
-      Backspace: act.remove,
       s: act.skip,
     }[event.key];
   }
@@ -319,7 +315,7 @@ function finishTask(task) {
 
   // A rude comment. Better ones for projects and for tasks that were very late.
   if (task.kind === 'project') {
-    toast(quip('projectDone'));
+    toast(quip('projectDone', task.title));
   } else {
     let daysLate = 0;
     if (task.due && task.due < todayStr()) daysLate = diffDays(todayStr(), task.due);
@@ -341,7 +337,7 @@ function removeTask(task) {
   const steps = subtasksOf(getState(), task.id);
   const changes = [task, ...steps].map((t) => ({ t: 'tasks', id: t.id, set: null })); // set: null = delete
   smooth(() => commit('task deleted', changes));
-  toast(quip('taskDeleted'), { undoable: true });
+  toast(quip('taskDeleted', task.title), { undoable: true });
 }
 
 // The same for several tasks at once (the selection bar): one change, so one Undo brings them all back.
@@ -359,13 +355,13 @@ function finishTasks(tasks) {
   if (!changes.length) return;
   smooth(() => commit('tasks finished', changes));
   bumpTasksCompleted(tasks.filter((t) => !t.done).length);
-  toast(`${tasks.length} tasks finished. Look at you go.`, { undoable: true });
+  toast(`${tasks.length} tasks finished.${isSassy() ? ' Look at you go.' : ''}`, { undoable: true });
 }
 
 function removeTasks(tasks) {
   const changes = tasks.flatMap((task) => [task, ...subtasksOf(getState(), task.id)]).map((t) => ({ t: 'tasks', id: t.id, set: null }));
   smooth(() => commit('tasks deleted', changes));
-  toast(`${tasks.length} tasks gone.`, { undoable: true });
+  toast(`${tasks.length} tasks deleted.`, { undoable: true });
 }
 
 
@@ -516,6 +512,7 @@ function ProjectBody({ s, task }) {
 //   sortable       can this row be dragged? (finished tasks can't)
 const TaskRow = memo(
   function TaskRow({ s, task, today, open, onToggleOpen, onMove, sortable, selected }) {
+    const { sassy } = useAppearance(); // so the late jab changes wording when the setting does
     // Drag-and-drop helpers from the dnd-kit library.
     const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
       id: task.id,
@@ -685,16 +682,6 @@ const TaskRow = memo(
             </span>
           </div>
 
-          {/* Quick buttons that appear while Shift is held (see App.jsx) */}
-          <span className="quick">
-            <button tabIndex={-1} aria-label="Rename" title="Rename" onClick={() => edit(true)}>
-              <Icon name="pencil" size={16} />
-            </button>
-            <button tabIndex={-1} className="danger" aria-label="Delete" title="Delete" onClick={remove}>
-              <Icon name="trash" size={16} />
-            </button>
-          </span>
-
           {/* The thin progress bar under an unfinished project */}
           {isProject && !done && (
             <div
@@ -711,7 +698,7 @@ const TaskRow = memo(
           <AnimatePresence initial={false}>{isProject && open && <ProjectBody s={s} task={task} />}</AnimatePresence>
         </>
       ),
-      [task, today, done, late, editing, menuOpen, picking, open, percent, projectTasks] // eslint-disable-line react-hooks/exhaustive-deps
+      [task, today, done, late, editing, menuOpen, picking, open, percent, projectTasks, sassy] // eslint-disable-line react-hooks/exhaustive-deps
     );
 
     return (

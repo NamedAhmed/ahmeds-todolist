@@ -45,3 +45,20 @@ describe('reminderOccursOn', () => {
     expect(reminderOccursOn({ rule: { type: 'once', date: '2026-11-01' }, created: '2026-11-05' }, '2026-11-01')).toBe(true);
   });
 });
+
+describe('sassy comments', () => {
+  it('says plainly what happened when off, with the name', async () => {
+    const { quip, setSassy, empties, lateJab } = await import('./lib.js');
+    setSassy(false);
+    expect(quip('taskDeleted', 'Buy milk')).toBe('Deleted “Buy milk”');
+    expect(quip('reordered')).toBe(''); // a pure joke: nothing
+    expect(empties.tasks).toBe('No tasks yet.');
+    expect(lateJab(3, 1)).toBe('3 days late');
+  });
+  it('keeps the voice, after the fact, when on', async () => {
+    const { quip, setSassy } = await import('./lib.js');
+    setSassy(true);
+    expect(quip('taskDeleted', 'Buy milk')).toMatch(/^Deleted “Buy milk”\. .+/);
+    setSassy(false);
+  });
+});
