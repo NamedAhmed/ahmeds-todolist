@@ -552,17 +552,17 @@ export default function Calendar({ today, day, setDay, open, editDaily }) {
 
       {/* The buttons at the bottom of the column */}
       <footer className="col-foot">
-        <button className="btn-ghost" onClick={() => open('reminders')} aria-label="Reminders" title="Reminders">
+        <button className="btn-ghost" onClick={(event) => { event.stopPropagation(); open('reminders'); }} aria-label="Reminders" title="Reminders">
           <Icon name="repeat" size={16} />
           Reminders
         </button>
-        <button className="btn-ghost foot-right" onClick={() => open('account')} aria-label="Account and backup" title="Account and backup">
+        <button className="btn-ghost settings-button foot-right" onClick={(event) => { event.stopPropagation(); open('settings'); }} aria-label="Settings" title="Settings">
+          <Icon name="sliders" size={16} />
+        </button>
+        <button className="btn-ghost" onClick={(event) => { event.stopPropagation(); open('account'); }} aria-label="Account and backup" title="Account and backup">
           <i className={'sync-dot ' + sync.sync} />
           <Icon name="user" size={16} />
           <span className="foot-label">Account</span>
-        </button>
-        <button className="btn-ghost settings-button" onClick={() => open('settings')} aria-label="Settings" title="Settings">
-          <Icon name="sliders" size={16} />
         </button>
       </footer>
     </section>
