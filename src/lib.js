@@ -472,7 +472,7 @@ export function brokenStreaks(s, today) {
 
 // Each entry is a list of lines; a line is a string or a function of the arguments quip() was given.
 export const quips = {
-  taskAdded: ["Wow, look at you being productive! Everything has a start.", "Added. Writing it down was the easy part.", "A new task. Bold of you to assume you'll do it.", "Another one! Thinking highly of yourself?", "Added. I'd say good luck, but we both know.", "BOO! — Ahmed"],
+  taskAdded: ["Wow, look at you being productive! Everything has a start.", "Added. Writing it down was the easy part.", "A new task. Bold of you to assume you'll do it.", "Another one! Thinking highly of yourself?", "Added. I'd say good luck, but we both know."],
   projectAdded: ["A project! How ambitious, gl.", "New project. Odds it dies? very high.", "Look at you, planning big. Finishing is the hard part.", "A whole project. Remember when you said you'd stop starting things?", "glhfss"],
   stepAdded: ["Another step! Splitting it up is easier than starting it.", "Step added. Planning: the most comfortable way to avoid working."],
   noteAdded: ["A blank note. Truly the hardest page to start.", "New note…", "Writing things down. Look at you, a person with thoughts.", "Not a single thought in that brain"],

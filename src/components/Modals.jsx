@@ -9,9 +9,10 @@
 // App.jsx decides which one is open.
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { all, commit, uid, useStore } from '../store.js';
-import { DAILY_COLORS, DOW, MON, empties, quip, ruleText } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, empties, pendingOccurrence, quip, ruleText } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 
 // A CSS selector that finds everything you can Tab to inside the window.
@@ -86,7 +87,8 @@ export function Modal({ title, onClose, wide, children }) {
     if (event.target === event.currentTarget) onClose();
   }
 
-  return (
+  // Rendered into <body>: the page behind is made `inert`, and a window left inside it would be frozen too.
+  return createPortal(
     <motion.div
       className="scrim"
       onMouseDown={clickBackdrop}
@@ -114,7 +116,8 @@ export function Modal({ title, onClose, wide, children }) {
         </header>
         {children}
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
@@ -125,14 +128,12 @@ export function Modal({ title, onClose, wide, children }) {
 export function RemindersModal({ today, onClose }) {
   const s = useStore();
 
-  // Existing reminders: single ones by their date first, then the repeating ones, oldest first.
-  const reminders = all(s, 'reminders');
-  reminders.sort((a, b) => {
-    const once = (r) => (r.rule.type === 'once' ? 0 : 1);
-    if (once(a) !== once(b)) return once(a) - once(b);
-    if (once(a) === 0) return a.rule.date < b.rule.date ? -1 : 1;
-    return a.created < b.created ? -1 : 1;
-  });
+  // Existing reminders in the order they come up: by next date, then time of day, then title.
+  const next = (r) => pendingOccurrence(s, r, today) || '9999-12-31';
+  const reminders = all(s, 'reminders').sort((a, b) =>
+    next(a).localeCompare(next(b)) ||
+    (a.time || '99:99').localeCompare(b.time || '99:99') ||
+    a.title.localeCompare(b.title));
 
   // What is currently typed/selected in the "add reminder" form.
   const [title, setTitle] = useState('');
