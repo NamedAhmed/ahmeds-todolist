@@ -351,7 +351,7 @@ function DailyRow({ s, daily, date, today, onEdit }) {
   // The × button: hide this daily from now on (it keeps its history in the past).
   function archive() {
     commit('daily archived', [{ t: 'dailies', id: daily.id, patch: { archived: today } }]);
-    toast(quip('dailyArchived'), { undoable: true });
+    toast(quip('dailyArchived', daily.name), { undoable: true });
   }
 
   return (

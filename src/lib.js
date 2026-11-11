@@ -389,9 +389,16 @@ export function between(a, b) {
 // ---------- the voice ----------
 // Savage on purpose, in one voice: fake praise, flat insults, short. e.g. "Took you long enough." / "Just give up." Headlines and jabs use a stable seed so a
 // line doesn't change on every keystroke; spoken reactions (quips) are random but never the same one twice in a row.
+// "Sassy comments" is a setting (off by default). appearance.js tells us which way it is set. When off, every line
+// below becomes a plain statement of what happened, or nothing at all.
+let sassy = false;
+export const setSassy = (on) => { sassy = !!on; };
+export const isSassy = () => sassy;
+
 const pick = (list, seed) => list[Math.abs(Math.round(seed)) % list.length];
 
 export function headline({ open, overdue, doneToday, total, seed }) {
+  if (!sassy) return !total ? 'Nothing on the list.' : `${open} open${overdue ? `, ${overdue} overdue` : ''}.`;
   if (!total) return pick([
     "Empty list! Just like you on the inside.",
     "Nothing here. Wow, such ambition.",
@@ -450,6 +457,7 @@ export function headline({ open, overdue, doneToday, total, seed }) {
 
 /** A small insult for a task that is late. The later it is, the worse it gets. */
 export function lateJab(daysLate, seed) {
+  if (!sassy) return `${daysLate} day${daysLate === 1 ? '' : 's'} late`;
   if (daysLate >= 30) return pick(["a month. a milestone, in the worst way", "older than some of your friendships", "archaeologists are interested", "the task has grandchildren now"], seed);
   if (daysLate >= 14) return pick(["just give up already", "a fossil", "it has given up on you too", "older than your last good habit"], seed);
   if (daysLate >= 5) return pick(["still here. unlike your motivation", "wow, such dedication to not doing it", "you keep scrolling past this", "embarrassing"], seed);
@@ -506,9 +514,35 @@ export const quips = {
   broken: [(name, n) => `"${name}": ${n} days. Not like it was going to last anyway.`, (name, n) => `You killed a ${n}-day "${name}" streak. Over what, a nap?`, (name, n) => `${n} days of "${name}", thrown away.`, (name, n) => `"${name}" streak: ${n} days. Died of neglect.`, "Told you so -Ahmed", "Won so much on red! Thanks!"],
 };
 
+// What happened, in plain words, for the toast (the name of the thing is the first argument where there is one).
+// In sassy mode the joke follows it when it doesn't already say so (the names in JOKE_AFTER_FACT).
+const facts = {
+  taskDeleted: (title) => `Deleted “${title}”`,
+  noteDeleted: (title) => `Moved note “${title || 'Untitled'}” to the Trash`,
+  reminderDeleted: (title) => `Deleted reminder “${title}”`,
+  dailyArchived: (name) => `Archived daily “${name}”`,
+  projectDone: (title) => `Finished “${title}”`,
+  redo: () => 'Redone',
+  synced: () => 'Signed in',
+  allDailies: () => 'All dailies done',
+  nothingToUndo: () => 'Nothing to undo',
+  movedToDay: (day) => `Moved to ${day}`,
+  taskMilestone: (n) => `${n} tasks finished`,
+  streak: (n) => `${n}-day streak`,
+  broken: (name, n) => `“${name}” streak ended after ${n} days`,
+};
+const JOKE_AFTER_FACT = new Set(['taskDeleted', 'noteDeleted', 'reminderDeleted', 'dailyArchived', 'projectDone', 'redo', 'synced', 'allDailies']);
+
 const lastLine = {};
 /** A random line for `name`, never the one just used. Extra arguments fill in a line's blanks. */
 export function quip(name, ...args) {
+  const fact = facts[name]?.(...args) ?? '';
+  if (!sassy) return fact; // '' = say nothing
+  const joke = sassyQuip(name, args);
+  return fact && JOKE_AFTER_FACT.has(name) ? `${fact}. ${joke}` : joke;
+}
+
+function sassyQuip(name, args) {
   const list = quips[name];
   let i = Math.floor(Math.random() * list.length);
   if (list.length > 1 && i === lastLine[name]) i = (i + 1) % list.length;
@@ -517,7 +551,7 @@ export function quip(name, ...args) {
   return typeof line === 'function' ? line(...args) : line;
 }
 
-export const empties = {
+const sassyEmpties = {
   tasks: "Empty list! Just like you on the inside.",
   today: "Nothing due today. You're free! Unlike Eren jaeger, AoT ref you swine",
   week: "Nothing due in the next 7 days. Enjoy this suspicious, even your not that incompetent",
@@ -529,3 +563,17 @@ export const empties = {
   done: "Nothing finished. Shocking absolutely no one.",
   reminders: "No reminders. You'll \"just remember\". Sure you will."
 };
+
+const plainEmpties = {
+  tasks: 'No tasks yet.',
+  today: 'Nothing due today.',
+  week: 'Nothing due in the next 7 days.',
+  month: 'Nothing due next month.',
+  undated: 'No tasks without a due date.',
+  all: 'No tasks.',
+  dailies: 'No dailies yet.',
+  day: 'Nothing due this day.',
+  done: 'Nothing finished yet.',
+  reminders: 'No reminders yet.',
+};
+export const empties = new Proxy({}, { get: (_, key) => (sassy ? sassyEmpties : plainEmpties)[key] });

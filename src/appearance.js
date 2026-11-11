@@ -10,6 +10,7 @@
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { getState, saveSetting, subscribe, useStore } from './store.js';
 import { onSynced } from './sync.js';
+import { setSassy } from './lib.js';
 
 // Each theme: [id used in appearance.css, name shown in Settings].
 // ("ember" is the original look; it is shown as "Default".) A theme is more than colours: it also sets
@@ -32,7 +33,7 @@ export const THEMES = [
 //   'video:<id>'       a video you added
 export const OFF = 'off';
 
-const DEFAULTS = { theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0 };
+const DEFAULTS = { theme: 'ember', wallpaper: OFF, font: 'instrument', taskGroups: false, showRepeating: true, sassy: false, pushDefaultTime: '09:00', noteEditor: 'blocks', pushLead: 0 };
 export const MAX_GLASS = 0.9;
 
 // The film over the background (Dim) and the frosted panels behind the text (Glass) start here; Auto readability
@@ -62,9 +63,11 @@ export function useAppearance() {
   const noteEditor = ['rich', 'blocks', 'markdown'].includes(choices.noteEditor) ? choices.noteEditor : DEFAULTS.noteEditor; // which editor notes open in
   const pushLead = [0, 5, 10, 15, 30, 60, 120, 1440].includes(Number(choices.pushLead)) ? Number(choices.pushLead) : 0; // minutes of warning before a timed task or reminder; 0 = none
   const taskGroups = choices.taskGroups === true; // Tasks: sections by date instead of the time-period switcher
+  const sassy = choices.sassy === true; // Sassy comments: jokes in toasts and empty states (off = plain wording)
+  setSassy(sassy); // lib.js reads it (done while drawing, so the words below always match the setting)
   const showRepeating = choices.showRepeating !== false; // Tasks: show repeating reminders in the list
 
-  return { theme, wallpaper, dim, glass, font, look: GLASS_LOOK, taskGroups, showRepeating, pushDefaultTime, noteEditor, pushLead };
+  return { theme, wallpaper, dim, glass, font, look: GLASS_LOOK, taskGroups, showRepeating, sassy, pushDefaultTime, noteEditor, pushLead };
 }
 
 // Change one or more choices, e.g. setAppearance({ theme: 'forest' }).

@@ -6,7 +6,7 @@ import { useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Icon from './Icons.jsx';
 import { undo } from '../store.js';
-import { quip } from '../lib.js';
+import { isSassy, quip } from '../lib.js';
 
 
 // ======================================================================
@@ -72,6 +72,7 @@ function startCountdown(id, ms) {
 
 // Show a message. Pass { undoable: true } to add an Undo button.
 export function toast(text, { undoable = false } = {}) {
+  if (!text) return; // nothing to say (plain mode drops the pure jokes)
   const id = Math.random();
 
   // Keep at most 2 messages: the newest one plus the one before it.
@@ -97,7 +98,7 @@ export function sass(name, args = [], { chance = 1, undoable = false } = {}) {
 // Undo the last change and show a message about it.
 export function doUndo() {
   const label = undo(); // name of what was undone, or null if there was nothing
-  if (label) toast(`${quip('undo')} (${label})`);
+  if (label) toast(isSassy() ? `${quip('undo')} (${label})` : `Undid: ${label}`);
   else toast(quip('nothingToUndo'));
 }
 

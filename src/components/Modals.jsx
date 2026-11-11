@@ -167,7 +167,7 @@ export function RemindersModal({ today, onClose }) {
 
   function deleteReminder(reminder) {
     commit('reminder deleted', [{ t: 'reminders', id: reminder.id, set: null }]);
-    toast(quip('reminderDeleted'), { undoable: true });
+    toast(quip('reminderDeleted', reminder.title), { undoable: true });
   }
 
   function setReminderTime(reminder, value) {
@@ -405,8 +405,8 @@ const KEYS = [
   [
     'On a task',
     [
-      ['↑ ↓ or j k', 'Move between tasks'],
-      ['Space or x', 'Done, or not done'],
+      ['↑ ↓', 'Move between tasks'],
+      ['Space', 'Done, or not done'],
       ['Enter', 'Open a project, or rename a task'],
       ['e', 'Rename'],
       ['d', 'Pick a date'],
