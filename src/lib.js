@@ -47,6 +47,11 @@ export function addDays(text, howMany) {
   return ymd(date);
 }
 
+// Dailies can be completed late, but only within the past two days.
+export function canCompleteDailyOn(date, today) {
+  return date >= addDays(today, -2);
+}
+
 // How many days is a after b? (negative if a is before b)
 export function diffDays(a, b) {
   const millisecondsPerDay = 86400000;
