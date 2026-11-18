@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useDroppable } from '@dnd-kit/core'; // lets a task be dropped onto a calendar day
 import { all, commit, getState, uid, useStore } from '../store.js';
 import { useSync } from '../sync.js';
-import { DAILY_COLORS, DOW, MON, calendarWeeks, dailiesOn, doneKey, empties, isDone, quip, reminderOccursOn, streakOf, toDate, ymd } from '../lib.js';
+import { DAILY_COLORS, DOW, MON, calendarWeeks, canCompleteDailyOn, dailiesOn, doneKey, empties, isDone, quip, reminderOccursOn, streakOf, toDate, ymd } from '../lib.js';
 import { Flame, sass, toast } from './Fire.jsx';
 
 // Streak lengths that get a congratulation message.
@@ -28,9 +28,9 @@ const MILESTONES = [3, 7, 14, 21, 30, 50, 100, 200, 365];
 // TICKING A DAILY
 // ======================================================================
 // Tick or untick a daily for a date. Only the big moments get a comment.
-// Past days are locked: no rewriting history.
+// Allow ticking or unticking through two days ago.
 export function toggleDaily(daily, date, today) {
-  if (date < today) return;
+  if (!canCompleteDailyOn(date, today)) return;
 
   // Each tick is saved as a "completion" with a key like "dailyId:2026-10-18".
   const key = doneKey(daily.id, date);
@@ -118,7 +118,7 @@ function BigRing({ s, date, today }) {
             <g key={daily.id} transform="rotate(-90 100 100)">
               {/* The grey track. It is also the clickable area. */}
               <circle
-                className={'track hit' + (date < today ? ' locked' : '')}
+                className={'track hit' + (!canCompleteDailyOn(date, today) ? ' locked' : '')}
                 cx="100"
                 cy="100"
                 r={radius}
@@ -367,7 +367,7 @@ function DailyRow({ s, daily, date, today, onEdit }) {
         style={{ '--c': daily.color }}
         aria-pressed={isOn}
         aria-label={daily.name}
-        disabled={date < today}
+        disabled={!canCompleteDailyOn(date, today)}
         onClick={() => toggleDaily(daily, date, today)}
       />
       {/* Clicking the name opens the editor (rename and change colour). */}

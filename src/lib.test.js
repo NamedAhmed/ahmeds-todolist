@@ -1,6 +1,15 @@
 // Tests for the date maths in lib.js: when a repeating daily or reminder happens. Run with: npm test
 import { describe, expect, it } from 'vitest';
-import { dailiesOn, occursOn, reminderOccursOn } from './lib.js';
+import { canCompleteDailyOn, dailiesOn, occursOn, reminderOccursOn } from './lib.js';
+
+describe('canCompleteDailyOn', () => {
+  it('allows today and the previous two days, but not earlier dates', () => {
+    expect(canCompleteDailyOn('2026-11-03', '2026-11-03')).toBe(true);
+    expect(canCompleteDailyOn('2026-11-02', '2026-11-03')).toBe(true);
+    expect(canCompleteDailyOn('2026-11-01', '2026-11-03')).toBe(true);
+    expect(canCompleteDailyOn('2026-10-31', '2026-11-03')).toBe(false);
+  });
+});
 
 describe('dailiesOn', () => {
   it('keeps a deleted daily visible only on days before it was deleted', () => {
