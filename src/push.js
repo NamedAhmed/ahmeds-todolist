@@ -99,7 +99,7 @@ const leadText = (minutes) => (minutes >= 1440 ? `${minutes / 1440} day` : minut
 // `lead` is minutes: for things with a time of their own, an extra notification that long before.
 export function buildSchedule(state, defaultTime, now = new Date(), lead = 0) {
   const today = todayStr();
-  const last = addDays(today, DAYS_AHEAD);
+  const last = addDays(today, DAYS_AHEAD - 1); // today counts as the first day in the 30-day window
   const notes = [];
   const add = (kind, id, when, title, body, timed = false) => {
     if (when > now) notes.push({ key: `${kind}:${id}:${when.toISOString()}`, fire_at: when.toISOString(), title, body });
