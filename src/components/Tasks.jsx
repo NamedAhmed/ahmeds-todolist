@@ -26,7 +26,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, u
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { all, commit, getState, saveSetting, uid, useStore } from '../store.js';
-import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, formatTime, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, ruleText, shortDate, subtasksOf, ymd } from '../lib.js';
+import { addDays, between, todayStr, diffDays, doneKey, dueInfo, empties, formatTime, headline, isDone, lateJab, parseTyped, pendingOccurrence, progressOf, quip, reminderBlockedUntil, reminderOccursOn, shortDate, subtasksOf, ymd } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
 import DragLayer from './DragLayer.jsx';
 import Icon from './Icons.jsx';
@@ -757,7 +757,6 @@ function ReminderRow({ reminder, date, today }) {
   const [closing, setClosing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const info = dueInfo(date, today, reminder.time);
-
   // Tick it (skipped = false) or skip it (skipped = true). Either way it's saved as a "completion".
   function finish(skipped) {
     setClosing(true);
@@ -801,8 +800,8 @@ function ReminderRow({ reminder, date, today }) {
         </button>
         <span className="task-title">{reminder.title}</span>
         <span className="row-end">
-          <span className="tag" title={ruleText(reminder.rule)}>
-            <Icon name={reminder.rule.type === 'once' ? 'calendar' : 'repeat'} size={12} /> {ruleText(reminder.rule)}
+          <span role="img" className="reminder-mark" aria-label={reminder.rule.type === 'once' ? 'One-time reminder' : 'Repeating reminder'}>
+            <Icon name={reminder.rule.type === 'once' ? 'calendar' : 'repeat'} size={12} />
           </span>
           <span className={'due ' + info.cls}>{info.text}</span>
           <RowMenu items={[{ label: 'Skip this one', icon: 'x', run: () => finish(true) }]} open={menuOpen} onOpenChange={setMenuOpen} />

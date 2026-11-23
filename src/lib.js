@@ -289,7 +289,7 @@ export function ruleText(rule) {
     return rule.days.map((day) => DOW[day]).join(' ');
   }
   if (rule.type === 'biweekly') {
-    return `Every 2 weeks · ${rule.days.map((day) => DOW[day]).join(' ')}`;
+    return `Biweekly · ${rule.days.map((day) => DOW[day]).join(' ')}`;
   }
   if (rule.type === 'monthly') {
     return `Monthly on the ${rule.day}${ordinal(rule.day)}`;

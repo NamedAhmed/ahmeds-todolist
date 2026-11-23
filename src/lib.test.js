@@ -48,6 +48,11 @@ describe('occursOn', () => {
     expect(occursOn(rule, '2026-11-19')).toBe(true);
     expect(occursOn(rule, '2026-11-17')).toBe(false); // not a selected weekday
     expect(occursOn(rule, '2026-11-03')).toBe(false); // before the start date
+
+    const alternate = { ...rule, start: '2026-11-11' };
+    expect(occursOn(alternate, '2026-11-11')).toBe(true);
+    expect(occursOn(alternate, '2026-11-18')).toBe(false);
+    expect(occursOn(alternate, '2026-11-25')).toBe(true);
   });
 
   it('monthly on the 31st: falls on the last day of shorter months', () => {
