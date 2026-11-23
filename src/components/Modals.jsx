@@ -14,6 +14,7 @@ import { motion } from 'motion/react';
 import { all, commit, uid, useStore } from '../store.js';
 import { DAILY_COLORS, DOW, MON, addDays, empties, pendingOccurrence, quip, ruleText } from '../lib.js';
 import { sass, toast } from './Fire.jsx';
+import Icon from './Icons.jsx';
 
 // A CSS selector that finds everything you can Tab to inside the window.
 const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -144,6 +145,28 @@ export function RemindersModal({ today, onClose }) {
   const [days, setDays] = useState([new Date().getDay()]); // weekly: which weekdays (0 = Sunday)
   const [day, setDay] = useState(1);                       // monthly / yearly: day of the month
   const [month, setMonth] = useState(new Date().getMonth()); // yearly: which month (0 = January)
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameTitle, setRenameTitle] = useState('');
+
+  function beginRename(reminder) {
+    setRenamingId(reminder.id);
+    setRenameTitle(reminder.title);
+  }
+
+  function cancelRename() {
+    setRenamingId(null);
+    setRenameTitle('');
+  }
+
+  function saveReminderName(event, reminder) {
+    event.preventDefault();
+    const title = renameTitle.trim();
+    if (!title) return;
+    if (title !== reminder.title) {
+      commit('reminder renamed', [{ t: 'reminders', id: reminder.id, patch: { title } }]);
+    }
+    cancelRename();
+  }
 
   // Runs when you press "Add reminder".
   function addReminder(event) {
@@ -204,7 +227,42 @@ export function RemindersModal({ today, onClose }) {
             <span className="repeat" title={reminder.rule.type === 'once' ? 'Happens once' : 'Repeats'}>
               {reminder.rule.type === 'once' ? '•' : '↻'}
             </span>
-            <span className="grow">{reminder.title}</span>
+            {renamingId === reminder.id ? (
+              <form className="reminder-rename-form" onSubmit={(event) => saveReminderName(event, reminder)}>
+                <input
+                  autoFocus
+                  className="field reminder-rename-input"
+                  value={renameTitle}
+                  onChange={(event) => setRenameTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                  aria-label={`Name for ${reminder.title}`}
+                />
+                <button className="btn-ghost reminder-rename-action" type="submit" disabled={!renameTitle.trim()}>
+                  Save
+                </button>
+                <button className="btn-ghost reminder-rename-action" type="button" onClick={cancelRename}>
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <>
+                <span className="grow">{reminder.title}</span>
+                <button
+                  type="button"
+                  className="reminder-rename"
+                  aria-label={`Rename ${reminder.title}`}
+                  title={`Rename ${reminder.title}`}
+                  onClick={() => beginRename(reminder)}
+                >
+                  <Icon name="pencil" size={14} />
+                </button>
+              </>
+            )}
             <span className="mono">{ruleText(reminder.rule)}</span>
             <input
               className="reminder-time"

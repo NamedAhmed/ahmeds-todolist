@@ -1083,6 +1083,38 @@ select.field {
   flex: 1;
   min-width: 0;
 }
+.reminder-rename {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--faint-text);
+}
+.reminder-rename:hover {
+  background: var(--track);
+  color: var(--text);
+}
+.reminder-rename-form {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+.reminder-rename-input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
+}
+.reminder-rename-action {
+  flex-shrink: 0;
+  padding: 0 8px;
+}
 .del.show {
   opacity: 1;
 }
@@ -2430,6 +2462,7 @@ a {
   .rich-tool,
   .dp-day,
   .del,
+  .reminder-rename,
   .more,
   .field,
   .note-item {
