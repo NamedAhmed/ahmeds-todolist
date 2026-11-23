@@ -747,6 +747,11 @@ button.due:hover {
 .count {
   color: var(--muted);
 }
+.reminder-mark {
+  display: inline-flex;
+  align-items: center;
+  color: var(--blue);
+}
 
 .task:has(.menu-wrap.open) {
   z-index: var(--z-menu-open);
