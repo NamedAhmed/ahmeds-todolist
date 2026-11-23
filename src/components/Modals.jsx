@@ -143,6 +143,7 @@ export function RemindersModal({ today, onClose }) {
   const [date, setDate] = useState(today);                 // once: which day
   const [time, setTime] = useState('');                    // the time of day to be notified at ('' = no time)
   const [days, setDays] = useState([new Date().getDay()]); // weekly: which weekdays (0 = Sunday)
+  const [biweeklyWeek, setBiweeklyWeek] = useState(0); // biweekly: 0 = soonest selected day, 1 = one week later
   const [day, setDay] = useState(1);                       // monthly / yearly: day of the month
   const [month, setMonth] = useState(new Date().getMonth()); // yearly: which month (0 = January)
   const [renamingId, setRenamingId] = useState(null);
@@ -182,7 +183,7 @@ export function RemindersModal({ today, onClose }) {
     else if (type === 'biweekly') {
       const weekday = new Date(`${today}T00:00`).getDay();
       const firstDayOffset = Math.min(...days.map((selected) => (selected - weekday + 7) % 7));
-      rule = { type, days: [...days].sort((a, b) => a - b), start: addDays(today, firstDayOffset) };
+      rule = { type, days: [...days].sort((a, b) => a - b), start: addDays(today, firstDayOffset + biweeklyWeek * 7) };
     } else if (type === 'monthly') rule = { type, day };
     else rule = { type, month, day };
 
@@ -328,6 +329,23 @@ export function RemindersModal({ today, onClose }) {
                 onClick={() => toggleWeekday(index)}
               >
                 {name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {type === 'biweekly' && (
+          <div className="seg-row" role="group" aria-label="First biweekly week">
+            <span className="target">First run</span>
+            {[['Soonest', 0], ['One week later', 1]].map(([label, week]) => (
+              <button
+                type="button"
+                key={label}
+                className={'chip' + (biweeklyWeek === week ? ' solid' : '')}
+                aria-pressed={biweeklyWeek === week}
+                onClick={() => setBiweeklyWeek(week)}
+              >
+                {label}
               </button>
             ))}
           </div>
