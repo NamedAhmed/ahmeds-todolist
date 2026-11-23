@@ -238,7 +238,7 @@ export function RemindersModal({ today, onClose }) {
 
         {/* Choose once / weekly / every other week / monthly / yearly */}
         <div className="seg-row" role="group" aria-label="How often">
-          {[['once', 'Just once'], ['weekly', 'Weekly'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([kind, label]) => (
+          {[['once', 'Just once'], ['weekly', 'Weekly'], ['biweekly', 'Biweekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([kind, label]) => (
             <button
               type="button"
               key={kind}
