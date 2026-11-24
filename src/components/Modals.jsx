@@ -147,26 +147,17 @@ export function RemindersModal({ today, onClose }) {
   const [day, setDay] = useState(1);                       // monthly / yearly: day of the month
   const [month, setMonth] = useState(new Date().getMonth()); // yearly: which month (0 = January)
   const [renamingId, setRenamingId] = useState(null);
-  const [renameTitle, setRenameTitle] = useState('');
 
   function beginRename(reminder) {
     setRenamingId(reminder.id);
-    setRenameTitle(reminder.title);
   }
 
-  function cancelRename() {
-    setRenamingId(null);
-    setRenameTitle('');
-  }
-
-  function saveReminderName(event, reminder) {
-    event.preventDefault();
-    const title = renameTitle.trim();
-    if (!title) return;
-    if (title !== reminder.title) {
+  function finishRename(event, reminder) {
+    const title = event.target.value.trim();
+    if (title && title !== reminder.title) {
       commit('reminder renamed', [{ t: 'reminders', id: reminder.id, patch: { title } }]);
     }
-    cancelRename();
+    setRenamingId(null);
   }
 
   // Runs when you press "Add reminder".
@@ -229,27 +220,20 @@ export function RemindersModal({ today, onClose }) {
               {reminder.rule.type === 'once' ? '•' : '↻'}
             </span>
             {renamingId === reminder.id ? (
-              <form className="reminder-rename-form" onSubmit={(event) => saveReminderName(event, reminder)}>
-                <input
-                  autoFocus
-                  className="field reminder-rename-input"
-                  value={renameTitle}
-                  onChange={(event) => setRenameTitle(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                      event.preventDefault();
-                      cancelRename();
-                    }
-                  }}
-                  aria-label={`Name for ${reminder.title}`}
-                />
-                <button className="btn-ghost reminder-rename-action" type="submit" disabled={!renameTitle.trim()}>
-                  Save
-                </button>
-                <button className="btn-ghost reminder-rename-action" type="button" onClick={cancelRename}>
-                  Cancel
-                </button>
-              </form>
+              <input
+                autoFocus
+                className="field reminder-rename-input"
+                defaultValue={reminder.title}
+                onBlur={(event) => finishRename(event, reminder)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.target.blur();
+                  if (event.key === 'Escape') {
+                    event.target.value = reminder.title;
+                    event.target.blur();
+                  }
+                }}
+                aria-label={`Name for ${reminder.title}`}
+              />
             ) : (
               <>
                 <span className="grow">{reminder.title}</span>
